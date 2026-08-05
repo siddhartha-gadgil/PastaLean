@@ -92,7 +92,7 @@ def assignSyntax : (kind : SyntaxNodeKind) → Json →
               else
                 let valueStx ← getCode value `term
                 if jsonUsesMonadicEffect value then
-                  `((← $valueStx))
+                  `((← $valueStx:term))
                 else
                   pure valueStx
             bindOrAssignLocal nameIdent rhs

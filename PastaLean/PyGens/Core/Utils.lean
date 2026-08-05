@@ -361,7 +361,7 @@ def heapContainerRef? (json : Json) : PygenM (Option (TSyntax `term)) := do
                  else heapVarClassOf? recvId.toName
       let some cls := cls? | return none
       unless ← isContainerField cls attr do return none
-      return some (← `((← $(mkIdent recvId.toName) ~> $(mkIdent attr.toName))))
+      return some (← `((← ($(mkIdent recvId.toName) ~> $(mkIdent attr.toName)))))
   | some "Call" =>
       -- A call whose callee returns a mutable container hands back the object-ref (`Ref (List …)`);
       -- treat it as a container-ref so inline consumption (`len(f())`, `f()[0]`, `for _ in f()`)

@@ -565,7 +565,7 @@ def unaryOpSyntax : (kind : SyntaxNodeKind) → Json →
 one (heap derefs, IO) cannot lower to a pure `if`-term — its branches would host `←`, which is only
 legal inside a `do`. -/
 partial def syntaxHasLift : Syntax → Bool
-  | .node _ ``Lean.Parser.Term.liftMethod _ => true
+  | .node _ ``Lean.Parser.Term.nestedAction _ => true
   | .node _ _ args => args.any syntaxHasLift
   | _ => false
 
@@ -787,7 +787,7 @@ def addArrow : (stx : TSyntax `term) → PygenM (TSyntax `term)
       let e ← elabTerm codeStx none
       let eType ← inferType e
       if eType.isAppOf ``Id then
-        `(← $codeStx)
+        `(← $codeStx:term)
       else
         return codeStx
     catch e =>

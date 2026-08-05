@@ -543,7 +543,7 @@ def assignSyntax : (kind : SyntaxNodeKind) → Json →
               else
                 let valueStx ← getCode value `term
                 if jsonUsesMonadicEffect value then
-                  `((← $valueStx))
+                  `((← $valueStx:term))
                 else
                   pure valueStx
             -- Ascribe to the value's inferred type when the inference pass stamped one (a `c[i] = v`

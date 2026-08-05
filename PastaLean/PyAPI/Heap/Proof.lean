@@ -1,0 +1,550 @@
+import Lean
+import PastaLean.PyAPI.Heap.Ops
+import PastaLean.PyAPI.Heap.Monad
+import Std.Internal
+import Std.Tactic.Do
+
+/-!
+# Heap runtime — separation-logic frame automation (Phase 2)
+
+The **provability** half of `--heap`: a weakest-precondition / separation-logic layer over the
+*unchanged* Phase-1 heap runtime (`Core`/`Ops`/`Storable`), mirroring HeapSL
+(`/Users/pmarkopoulos/Desktop/mvcgentest/heapsl-nightly`, the stock file). It gives Hoare triples
+`⦃P⦄ prog ⦃Q⦄` over `↦`/`∗` discharged by `vcgen … with finish`, with automatic framing via a
+registered `@[frameproc]`.
+
+Requires the toolchain's internal `Std.Internal.Do` WP framework + `@[frameproc]` machinery. Built
+against `nightly-2026-08-03`, which carries the footprint-based auto-framing API from Lean PR #14529
+(the frame procedure now returns a full `FrameSplit`: frame + a discharged split VC + residual
+subgoal). Only adaptation vs upstream HeapSL: the error dimension is `PyException` (not `String`).
+-/
+
+-- Coexistence with Mathlib (both define `Order`/`CompleteLattice`): we open the WP framework
+-- (`Std.Internal.Do`) and the toolchain lattice **`Lean.Order`** (its `⊓`/`⊑`/`⊤`/`⊥`/`⌜⌝` are
+-- *scoped* notations) but NOT Mathlib's `_root_.Order`. The overloaded `⊓`/`⊤`/`⊥` resolve to
+-- `Lean.Order` by type (`HProp` is a `def` carrying only the `Lean.Order.CompleteLattice` instance,
+-- so Mathlib's interpretations don't typecheck); `Lean.Order`'s distinct `meet`/`join`/`rel`/`ofProp`
+-- vocabulary doesn't clash with Mathlib's `inf`/`sup`/`le`. Only the bare class name `CompleteLattice`
+-- is ambiguous, so it is written qualified as `Lean.Order.CompleteLattice`.
+open Lean Std Std.Internal.Do Lean.Order
+
+set_option mvcgen.warning false
+set_option grind.warning false
+
+namespace PastaLean
+
+variable {V : Type} {α : Type}
+
+/-! ## Separation algebra on stores (`Store`/`Store.single`/`Store.update` are in `Core`) -/
+
+/-- Two stores are disjoint when no address is present in both. -/
+def Store.disjoint (s₁ s₂ : Store V) : Prop := ∀ n, s₁ n = none ∨ s₂ n = none
+
+/-- Union of stores, preferring the left value on overlap. -/
+def Store.union (s₁ s₂ : Store V) : Store V := fun n => (s₁ n).or (s₂ n)
+
+@[simp] theorem Store.union_none_iff (s₁ s₂ : Store V) (n : Nat) :
+    s₁.union s₂ n = none ↔ s₁ n = none ∧ s₂ n = none := by
+  simp only [Store.union]; cases s₁ n <;> simp
+
+theorem Store.disjoint_comm {s₁ s₂ : Store V} (h : s₁.disjoint s₂) : s₂.disjoint s₁ :=
+  fun n => (h n).symm
+
+theorem Store.union_comm {s₁ s₂ : Store V} (h : s₁.disjoint s₂) : s₁.union s₂ = s₂.union s₁ := by
+  funext n; simp only [Store.union]; rcases h n with hn | hn <;> simp [hn]
+
+theorem Store.union_assoc (s₁ s₂ s₃ : Store V) :
+    (s₁.union s₂).union s₃ = s₁.union (s₂.union s₃) := by
+  funext n; simp only [Store.union]; cases s₁ n <;> rfl
+
+theorem Store.disjoint_union_left {s₁ s₂ s₃ : Store V} :
+    (s₁.union s₂).disjoint s₃ ↔ s₁.disjoint s₃ ∧ s₂.disjoint s₃ := by
+  simp only [Store.disjoint, Store.union_none_iff]
+  constructor
+  · intro h; exact ⟨fun n => (h n).imp_left (·.1), fun n => (h n).imp_left (·.2)⟩
+  · rintro ⟨ha, hb⟩ n; have := ha n; have := hb n; grind
+
+theorem Store.disjoint_union_right {s₁ s₂ s₃ : Store V} :
+    s₁.disjoint (s₂.union s₃) ↔ s₁.disjoint s₂ ∧ s₁.disjoint s₃ := by
+  simp only [Store.disjoint, Store.union_none_iff]
+  constructor
+  · intro h; exact ⟨fun n => (h n).imp_right (·.1), fun n => (h n).imp_right (·.2)⟩
+  · rintro ⟨ha, hb⟩ n; have := ha n; have := hb n; grind
+
+/-! ## Heap assertions (over stores only — blind to the `next` counter, so `alloc` frames) -/
+
+def HProp (V : Type) : Type := Store V → Prop
+
+instance : Lean.Order.CompleteLattice (HProp V) :=
+  inferInstanceAs (Lean.Order.CompleteLattice (Store V → Prop))
+
+/-- The empty-store assertion. -/
+def emp : HProp V := fun s => ∀ n, s n = none
+
+/-- The raw singleton assertion: the store is exactly `l ↦ v`. -/
+def pointsToRaw (l : Nat) (v : V) : HProp V := fun s => s = Store.single l v
+
+/-- Typed points-to: the reference's cell holds exactly `inject v`. -/
+def pointsTo [Storable V α] (r : Ref α) (v : α) : HProp V :=
+  pointsToRaw r.addr (Storable.inject v)
+
+/-- Separating conjunction: the store splits into two disjoint parts. -/
+def sepConj (P Q : HProp V) : HProp V := fun s =>
+  ∃ s₁ s₂, s₁.disjoint s₂ ∧ s = s₁.union s₂ ∧ P s₁ ∧ Q s₂
+
+@[inherit_doc pointsTo] notation:70 l:max " ↦ " v:max => pointsTo l v
+@[inherit_doc sepConj] infixr:65 " ∗ " => sepConj
+
+/-! ## Separation algebra laws -/
+
+theorem emp_sepConj (a : HProp V) : (emp ∗ a) = a := by
+  funext s; apply propext
+  constructor
+  · rintro ⟨s₁, s₂, _, rfl, he, ha⟩
+    simp only [emp] at he
+    have hs : s₁.union s₂ = s₂ := by funext n; simp only [Store.union, he n, Option.none_or]
+    rw [hs]; exact ha
+  · intro ha
+    refine ⟨fun _ => none, s, fun _ => Or.inl rfl, ?_, fun _ => rfl, ha⟩
+    funext n; simp only [Store.union, Option.none_or]
+
+theorem sepConj_assoc (a b c : HProp V) : ((a ∗ b) ∗ c) = (a ∗ (b ∗ c)) := by
+  funext s; apply propext
+  constructor
+  · rintro ⟨_, s₃, hd, rfl, ⟨s₁, s₂, hd12, rfl, ha, hb⟩, hc⟩
+    obtain ⟨hd13, hd23⟩ := Store.disjoint_union_left.mp hd
+    exact ⟨s₁, s₂.union s₃, Store.disjoint_union_right.mpr ⟨hd12, hd13⟩,
+      Store.union_assoc s₁ s₂ s₃, ha, s₂, s₃, hd23, rfl, hb, hc⟩
+  · rintro ⟨s₁, _, hd, rfl, ha, ⟨s₂, s₃, hd23, rfl, hb, hc⟩⟩
+    obtain ⟨hd12, hd13⟩ := Store.disjoint_union_right.mp hd
+    exact ⟨s₁.union s₂, s₃, Store.disjoint_union_left.mpr ⟨hd13, hd23⟩,
+      (Store.union_assoc s₁ s₂ s₃).symm, ⟨s₁, s₂, hd12, rfl, ha, hb⟩, hc⟩
+
+theorem sepConj_comm (a b : HProp V) : (a ∗ b) = (b ∗ a) := by
+  funext s; apply propext
+  constructor <;>
+    · rintro ⟨s₁, s₂, hd, rfl, hp, hq⟩
+      exact ⟨s₂, s₁, Store.disjoint_comm hd, Store.union_comm hd, hq, hp⟩
+
+/-- Right identity for `∗` (needed by the AC path and the `LawfulIdentity` instance). -/
+theorem sepConj_emp (a : HProp V) : (a ∗ emp) = a := by
+  rw [sepConj_comm, emp_sepConj]
+
+-- AC instances so `Meta.AC.rewriteUnnormalizedRefl` (in `proveSepConjLe`) can rearrange `∗`; without
+-- them the frame split VC `pre ⊑ frame ∗ footprint` is deferred and reaches `finish` with an
+-- unevaluated `wp`, which grind cannot discharge.
+instance : Std.Associative (α := HProp V) sepConj := ⟨sepConj_assoc⟩
+instance : Std.Commutative (α := HProp V) sepConj := ⟨sepConj_comm⟩
+instance : Std.LawfulIdentity (α := HProp V) sepConj emp where
+  left_id := emp_sepConj
+  right_id := sepConj_emp
+
+/-! ## `∗` preserves sups (needed by `of_frameClosure`) -/
+
+theorem hprop_sup_apply (c : HProp V → Prop) (s : Store V) :
+    Lean.Order.CompleteLattice.sup c s = ∃ f, c f ∧ f s := by
+  apply propext
+  constructor
+  · exact fun hh => sup_le c (x := fun s => ∃ f, c f ∧ f s)
+      (fun f hf s' hfs' => ⟨f, hf, hfs'⟩) s hh
+  · rintro ⟨f, hf, hfs⟩; exact le_sup (c := c) hf s hfs
+
+instance (F : HProp V) : PreservesSup (sepConj F) where
+  map_sup c := by
+    funext s
+    apply propext
+    simp only [sepConj, hprop_sup_apply]
+    constructor
+    · rintro ⟨s₁, s₂, hd, rfl, hF, g, hg, hgs₂⟩
+      exact ⟨sepConj F g, ⟨g, hg, rfl⟩, s₁, s₂, hd, rfl, hF, hgs₂⟩
+    · rintro ⟨f, ⟨g, hg, rfl⟩, s₁, s₂, hd, rfl, hF, hgs₂⟩
+      exact ⟨s₁, s₂, hd, rfl, hF, g, hg, hgs₂⟩
+
+/-! ## Structural lemmas for the frame split -/
+
+theorem sepConj_mono_r {a b b' : HProp V} (h : b ⊑ b') : (a ∗ b) ⊑ (a ∗ b') := by
+  rintro s ⟨s₁, s₂, hd, rfl, ha, hb⟩
+  exact ⟨s₁, s₂, hd, rfl, ha, h _ hb⟩
+
+/-- Frame introduction: to land in `F ∗ R`, cancel `F` off the right of the precondition. -/
+theorem sepConj_frame_r {pre₀ F R : HProp V} (h : pre₀ ⊑ R) : (pre₀ ∗ F) ⊑ (F ∗ R) :=
+  PartialOrder.rel_trans (PartialOrder.rel_of_eq (sepConj_comm pre₀ F)) (sepConj_mono_r h)
+
+/-- The mirror frame rule: cancel `F` off the **left** (used by hand when auto framing lands a frame
+on the left — `apply sepConj_frame_l` before re-running `vcgen`). -/
+theorem sepConj_frame_l {pre₀ F R : HProp V} (h : pre₀ ⊑ R) : (F ∗ pre₀) ⊑ (F ∗ R) :=
+  sepConj_mono_r h
+
+/-! ## Affine "garbage" assertion -/
+
+/-- Holds on any store; `Q ∗ ◇` = "`Q` holds on part of the heap, ignore the rest". -/
+def htop : HProp V := fun _ => True
+
+@[inherit_doc htop] notation:max "◇" => htop
+
+@[grind .] theorem le_htop (b : HProp V) : b ⊑ (◇ : HProp V) := fun _ _ => trivial
+
+@[grind .] theorem sepConj_absorb {a b : HProp V} : (a ∗ b) ⊑ (a ∗ ◇) :=
+  sepConj_mono_r (le_htop b)
+
+/-! ## The frame-internalizing weakest precondition (over our `HeapM`, error = `PyException`) -/
+
+/-- The exception-predicate dimension. -/
+abbrev HeapEPred (V : Type) := PyException → HProp V
+
+/-- Base (non-framed) wp over store-predicates: run from *every* well-formed frontier `nx` (so the wp
+is blind to the counter and `alloc`'s fresh cell frames). -/
+@[instance_reducible] def storeWP (α : Type) : WP (HeapM V α) α (HProp V) (HeapEPred V) where
+  wpTrans x := ⟨fun post epost s => ∀ nx (hwf : ∀ a, a ≥ nx → s a = none),
+    match (HeapM.run x) ⟨s, nx, hwf⟩ with
+    | .ok a h'    => post a h'.store
+    | .error e h' => epost e h'.store⟩
+  wp_trans_monotone x := by
+    intro post post' epost epost' hepost hpost s hcur nx hwf
+    have hc := hcur nx hwf
+    cases hxs : (HeapM.run x) ⟨s, nx, hwf⟩ with
+    | ok a h'    => rw [hxs] at hc; exact hpost a h'.store hc
+    | error e h' => rw [hxs] at hc; exact hepost e h'.store hc
+
+/-- The base `WPMonad` over store-predicates. -/
+@[instance_reducible] noncomputable def storeBase : WPMonad (HeapM V) (HProp V) (HeapEPred V) where
+  toLawfulMonad := inferInstance
+  toWP := storeWP
+  pure_le_wp_pure x post epost := by intro s hp nx hwf; exact hp
+  bind_le_wp_bind x f post epost := by
+    intro s hb nx hwf
+    have hc := hb nx hwf
+    show match EStateM.bind (HeapM.run x) (fun a => HeapM.run (f a)) ⟨s, nx, hwf⟩ with
+      | .ok a h' => post a h'.store | .error e h' => epost e h'.store
+    simp only [EStateM.bind]
+    cases hxs : (HeapM.run x) ⟨s, nx, hwf⟩ with
+    | ok a h'    => rw [hxs] at hc; exact hc h'.next h'.wf
+    | error e h' => rw [hxs] at hc; exact hc
+
+/-- The frame-internalizing wp: the `frameClosure` of `storeBase` over `∗`. -/
+noncomputable instance HeapM.instWPMonad : WPMonad (HeapM V) (HProp V) (HeapEPred V) :=
+  WPMonad.of_frameClosure sepConj sepConj_assoc emp_sepConj storeBase
+
+/-- Every `HeapM` program frames every store assertion `F`. -/
+@[grind .]
+theorem frames_sepConj {α : Type} (x : HeapM V α) (F : HProp V) : WP.Frames sepConj x F :=
+  WP.Frames.of_frameClosure sepConj sepConj sepConj_assoc
+    ⟨fun y E Q' => (storeWP _).wpTrans y |>.apply Q' E, fun _ _ _ => rfl⟩
+
+/-! ## The registered frame procedure for `∗` (Lean PR #14529 footprint-based `FrameSplit` API)
+
+The frame procedure returns a `FrameSplit`: the framed resource, a *discharged* split VC
+`pre ⊑ frame ∗ residualPre`, and the residual subgoal `footprint ⊑ residualPre`. The split VC is
+proved by AC-rearranging `pre` into `frame ∗ footprint` (`proveSepConjLe`) and then composing with
+right-monotonicity (`sepConj_mono_r`) through `rel_trans`. -/
+
+section FrameProc
+open Lean.Meta Lean.Meta.Sym Lean.Meta.Sym.Internal
+  Lean.Elab.Tactic.Do.Internal Lean.Elab.Tactic.Do.Internal.VCGen
+
+/-- Flatten a `∗`-tree into its atoms (metavariables instantiated at the root by `sepAtoms`). -/
+partial def sepAtoms.go (e : Expr) : Array Expr :=
+  let e := e.consumeMData
+  if e.isAppOf ``sepConj then sepAtoms.go e.appFn!.appArg! ++ sepAtoms.go e.appArg!
+  else #[e]
+
+/-- Flatten a `∗`-tree, instantiating metavariables once at the root. -/
+def sepAtoms (e : Expr) : MetaM (Array Expr) :=
+  return sepAtoms.go (← instantiateMVars e)
+
+/-- Peel leading `⌜p⌝ ⊓ ·` (either side) off an atom, returning the pure facts and the spatial
+remainder — so a read's value fact riding along its points-to atom doesn't block a footprint match. -/
+partial def stripOfProp (e : Expr) : Array Expr × Expr :=
+  if e.isAppOf ``Lean.Order.meet then
+    let a := e.appFn!.appArg!
+    let b := e.appArg!
+    if a.isAppOf ``Lean.Order.CompleteLattice.ofProp then
+      let (ps, sp) := stripOfProp b; (#[a] ++ ps, sp)
+    else if b.isAppOf ``Lean.Order.CompleteLattice.ofProp then
+      let (ps, sp) := stripOfProp a; (#[b] ++ ps, sp)
+    else (#[], e)
+  else (#[], e)
+
+/-- Rebuild a right-nested `∗` from atoms (`emp` when empty) at value universe `V`; hash-consed for
+the split-VC builder. -/
+def sepConjOfAtoms (V : Expr) (atoms : Array Expr) : SymM Expr :=
+  if atoms.isEmpty then
+    shareCommon (mkApp (mkConst ``emp) V)
+  else
+    shareCommon (atoms.pop.foldr (fun a acc => mkApp3 (mkConst ``sepConj) V a acc) atoms.back!)
+
+/-- Cancel the `cancel` atoms from `pre`'s atoms by `isDefEq` against each candidate's spatial
+remainder (so a pure-fact-carrying `pre` atom still matches). Returns `(leftover, matched)`, or
+`none` if some `cancel` atom has no match. -/
+def matchSepAtoms (pre cancel : Expr) : MetaM (Option (Array Expr × Array Expr)) := do
+  let mut rest ← sepAtoms pre
+  let mut matched : Array Expr := #[]
+  for atom in (← sepAtoms cancel) do
+    let some idx ← rest.findIdxM? (fun cand =>
+        withoutModifyingMCtx (isDefEq atom (stripOfProp cand).2))
+      | return none
+    matched := matched.push rest[idx]!
+    rest := rest.eraseIdxIfInBounds idx
+  return some (rest, matched)
+
+/-- Prove `pre ⊑ rhs` when the two are defeq or AC-equal separating conjunctions: close `pre = rhs`
+by `∗`-AC-rearrangement, then lift through `PartialOrder.rel_of_eq`. `none` if AC can't normalize. -/
+def proveSepConjLe (pre rhs : Expr) : MetaM (Option Expr) := do
+  if ← isDefEq pre rhs then
+    return some (← mkAppM ``Lean.Order.PartialOrder.rel_of_eq #[← mkEqRefl pre])
+  let eqMVar ← mkFreshExprSyntheticOpaqueMVar (← mkEq pre rhs)
+  try
+    Lean.Meta.AC.rewriteUnnormalizedRefl eqMVar.mvarId!
+    return some (← mkAppM ``Lean.Order.PartialOrder.rel_of_eq #[← instantiateMVars eqMVar])
+  catch _ =>
+    return none
+
+/-- The `FrameSplit` cancelling `frame` off the precondition: the split VC `pre ⊑ frame ∗ footprint`
+(proved by AC-rearrangement of `∗`) composed by right-monotonicity with the emitted residual subgoal
+`footprint ⊑ residualPre`. Falls back to a deferred split VC when the AC proof fails. -/
+def mkSepFrameSplit (i : FrameInferenceInfo) (V frame footprint : Expr) : SymM FrameSplit := do
+  -- `.appArg!` reads the `frame ∗ ·` right-hand side off the split VC `mkSplitVCS` builds.
+  let sepFF := (← i.mkSplitVCS frame footprint).appArg!
+  match ← proveSepConjLe (← i.pre) sepFF with
+  | none => FrameSplit.withDeferredSplitVC i frame
+  | some hcl =>
+    let le ← i.le
+    let residualPre ← i.mkResidualPre
+    let residualPreE := mkMVar residualPre
+    let sepFR := (← i.mkSplitVCS frame residualPreE).appArg!
+    let sub ← mkFreshExprSyntheticOpaqueMVar (← mkAppNS le #[footprint, residualPreE])
+    let mono ← mkAppNS (← mkConstS ``sepConj_mono_r) #[V, frame, footprint, residualPreE, sub]
+    let args := le.getAppArgs
+    let proof ← mkAppNS (← mkConstS ``Lean.Order.PartialOrder.rel_trans le.getAppFn.constLevels!)
+      #[args[0]!, args[1]!, ← i.pre, sepFF, sepFR, hcl, mono]
+    return FrameSplit.withDischargedSplitVC frame residualPre proof [sub.mvarId!]
+
+/-- Automatic frame inference by domain difference: cancel the spec footprint (or an explicit
+`frames` resource) from the actual precondition; the leftover atoms are the frame, the matched atoms
+the footprint. -/
+def sepConjFrameProc : FrameInferenceProc := fun i => do
+  let V := i.Pred.appArg!
+  match i.providedFrame? with
+  | some frame =>
+    match ← matchSepAtoms (← i.pre) frame with
+    | none => return some (← FrameSplit.withDeferredSplitVC i frame)
+    | some (rest, _) => return some (← mkSepFrameSplit i V frame (← sepConjOfAtoms V rest))
+  | none =>
+    let some specPre ← i.specPre? | return none
+    let some (rest, matched) ← matchSepAtoms (← i.pre) specPre | return none
+    if rest.isEmpty then return none
+    return some (← mkSepFrameSplit i V (← sepConjOfAtoms V rest) (← sepConjOfAtoms V matched))
+
+/-- Register `∗`-framing for `HeapM`. -/
+@[frameproc] def heapFP : FrameProc where
+  prog := ``HeapM
+  opHead := ``sepConj
+  mkOpAppM := fun info => Lean.Meta.mkAppOptM ``sepConj #[info.Pred.appArg!]
+  mkResourceTy := fun info => pure info.Pred
+  proc := sepConjFrameProc
+
+end FrameProc
+
+/-! ## Store singleton lemmas + grind registration -/
+
+@[grind] theorem Store.disjoint_single_iff (s : Store V) (a : Nat) (v : V) :
+    s.disjoint (Store.single a v) ↔ s a = none := by
+  constructor
+  · intro h; rcases h a with h1 | h2
+    · exact h1
+    · simp [Store.single] at h2
+  · intro h n; by_cases hn : n = a
+    · subst hn; exact Or.inl h
+    · right; simp [Store.single, hn]
+
+theorem Store.single_disjoint_single {a b : Nat} (v w : V) (h : a ≠ b) :
+    (Store.single a v).disjoint (Store.single b w) := by
+  intro n; by_cases hn : n = a
+  · right; simp [Store.single, hn, h]
+  · left; simp [Store.single, hn]
+
+attribute [grind] emp_sepConj sepConj_comm sepConj_assoc sepConj_frame_r
+  Store.single_disjoint_single
+
+/-! ## Floating pure facts out of `∗` (so `vcgen`'s `simplifying_assumptions` lifts read values) -/
+
+theorem hprop_ofProp_apply (p : Prop) (s : Store V) : (⌜p⌝ : HProp V) s = p := by
+  show (⌜p⌝ : Store V → Prop) s = p
+  rw [Lean.Order.CompleteLattice.ofProp_apply]; exact ofProp_prop_eq p
+
+theorem hprop_meet_apply (P Q : HProp V) (s : Store V) : (P ⊓ Q) s = (P s ∧ Q s) :=
+  (meet_apply (β := fun _ : Store V => Prop) P Q s).trans (meet_prop_eq_and (P s) (Q s))
+
+@[simp, grind] theorem sepConj_ofProp_meet_left (p : Prop) (Q R : HProp V) :
+    (⌜p⌝ ⊓ Q) ∗ R = ⌜p⌝ ⊓ (Q ∗ R) := by
+  funext s
+  simp only [sepConj, hprop_meet_apply, hprop_ofProp_apply]
+  apply propext
+  constructor
+  · rintro ⟨s₁, s₂, hd, he, ⟨hp, hq⟩, hr⟩; exact ⟨hp, s₁, s₂, hd, he, hq, hr⟩
+  · rintro ⟨hp, s₁, s₂, hd, he, hq, hr⟩; exact ⟨s₁, s₂, hd, he, ⟨hp, hq⟩, hr⟩
+
+@[simp, grind] theorem sepConj_ofProp_meet_right (p : Prop) (Q R : HProp V) :
+    Q ∗ (⌜p⌝ ⊓ R) = ⌜p⌝ ⊓ (Q ∗ R) := by
+  funext s
+  simp only [sepConj, hprop_meet_apply, hprop_ofProp_apply]
+  apply propext
+  constructor
+  · rintro ⟨s₁, s₂, hd, he, hq, ⟨hp, hr⟩⟩; exact ⟨hp, s₁, s₂, hd, he, hq, hr⟩
+  · rintro ⟨hp, s₁, s₂, hd, he, hq, hr⟩; exact ⟨s₁, s₂, hd, he, hq, ⟨hp, hr⟩⟩
+
+attribute [local sym_simp]
+  sepConj_ofProp_meet_left sepConj_ofProp_meet_right
+  Lean.Order.CompleteLattice.ofProp_intro_l Lean.Order.CompleteLattice.ofProp_intro_r
+
+/-! ## Leaf specifications (proved by hand), then automatic framing for composed programs -/
+
+@[spec] theorem writeRef_spec [Storable V α] (r : Ref α) (v w : α) :
+    ⦃ (r ↦ v : HProp V) ⦄ writeRef r w ⦃ fun _ => r ↦ w ⦄ := by
+  constructor
+  show (r ↦ v) ⊑ PreservesSup.frameClosure sepConj
+    (fun Q' => (storeWP _).wpTrans (writeRef r w) |>.apply Q' ⊥) (fun _ => r ↦ w)
+  refine (PreservesSup.le_frameClosure_iff sepConj _).mpr fun F => ?_
+  intro s hpre nx hwf
+  obtain ⟨sF, s₂, hd, rfl, hF, hpts⟩ := hpre
+  simp only [pointsTo, pointsToRaw] at hpts
+  subst hpts
+  simp only [writeRef, HeapM.run, modify, modifyGet, MonadStateOf.modifyGet,
+    EStateM.modifyGet, MonadState.modifyGet]
+  refine ⟨sF, Store.single r.addr (Storable.inject w), ?_, ?_, hF, rfl⟩
+  · intro n; rcases hd n with h1 | h2
+    · exact Or.inl h1
+    · right; simp only [Store.single] at h2 ⊢; grind
+  · funext n
+    simp only [Store.update, Store.union, Store.single]
+    by_cases hn : n = r.addr
+    · subst hn; have := hd r.addr; simp only [Store.single] at this; grind
+    · simp [hn]
+
+@[spec] theorem readRef_spec [Storable V α] (r : Ref α) (v : α) :
+    ⦃ (r ↦ v : HProp V) ⦄ readRef r ⦃ fun x => ⌜x = v⌝ ⊓ (r ↦ v) ⦄ := by
+  constructor
+  show (r ↦ v) ⊑ PreservesSup.frameClosure sepConj
+    (fun Q' => (storeWP _).wpTrans (readRef r) |>.apply Q' ⊥) (fun x => ⌜x = v⌝ ⊓ (r ↦ v))
+  refine (PreservesSup.le_frameClosure_iff sepConj _).mpr fun F => ?_
+  intro s hpre nx hwf
+  obtain ⟨sF, s₂, hd, rfl, hF, hpts⟩ := hpre
+  simp only [pointsTo, pointsToRaw] at hpts
+  subst hpts
+  have hFnone : sF r.addr = none := by
+    rcases hd r.addr with h1 | h2
+    · exact h1
+    · simp only [Store.single] at h2; grind
+  have hlook : (sF.union (Store.single r.addr (Storable.inject v))) r.addr
+      = some (Storable.inject v) := by
+    simp only [Store.union, Store.single, hFnone]; rfl
+  have htop : (⌜True⌝ : HProp V) ⊓ (r ↦ v) = (r ↦ v) := by
+    rw [show (⌜True⌝ : HProp V) = (⊤ : HProp V) by simp [Lean.Order.CompleteLattice.ofProp]]
+    exact Std.Internal.Do.CompleteLattice.top_meet
+  simp only [readRef, HeapM.run, bind, MonadStateOf.get, getThe, MonadState.get, get,
+    EStateM.get, EStateM.bind, EStateM.pure, pure, hlook, Storable.project_inject]
+  rw [htop]
+  exact ⟨sF, Store.single r.addr (Storable.inject v), hd, rfl, hF, rfl⟩
+
+theorem alloc_spec [Storable V α] (v : α) :
+    ⦃ (emp : HProp V) ⦄ alloc v ⦃ fun r => r ↦ v ⦄ := by
+  constructor
+  show emp ⊑ PreservesSup.frameClosure sepConj
+    (fun Q' => (storeWP _).wpTrans (alloc v) |>.apply Q' ⊥) (fun r => r ↦ v)
+  refine (PreservesSup.le_frameClosure_iff sepConj _).mpr fun F => ?_
+  intro s hpre nx hwf
+  obtain ⟨sF, sE, hd, rfl, hF, hemp⟩ := hpre
+  simp only [emp] at hemp
+  simp only [alloc, HeapM.run, modifyGet, MonadStateOf.modifyGet, EStateM.modifyGet,
+    MonadState.modifyGet]
+  have hfresh : sF nx = none := by
+    have := hwf nx (Nat.le_refl nx); simp only [Store.union_none_iff] at this; exact this.1
+  refine ⟨sF, Store.single nx (Storable.inject v),
+    (Store.disjoint_single_iff _ _ _).mpr hfresh, ?_, hF, rfl⟩
+  funext n; simp only [Store.update, Store.union, Store.single]
+  by_cases hn : n = nx
+  · subst hn; simp [hfresh]
+  · simp [hn, hemp n]
+
+/-- Frame-carrying `alloc` spec (the registered `@[spec]`): allocating a fresh cell preserves any
+ambient `P` (the new address is provably fresh for the whole heap via `wf`). -/
+@[spec] theorem alloc_frame_spec [Storable V α] (P : HProp V) (v : α) :
+    ⦃ P ⦄ alloc v ⦃ fun r => P ∗ r ↦ v ⦄ := by
+  constructor
+  show P ⊑ PreservesSup.frameClosure sepConj
+    (fun Q' => (storeWP _).wpTrans (alloc v) |>.apply Q' ⊥) (fun r => P ∗ r ↦ v)
+  refine (PreservesSup.le_frameClosure_iff sepConj _).mpr fun F => ?_
+  intro s hpre nx hwf
+  obtain ⟨sF, sP, hd, rfl, hF, hP⟩ := hpre
+  simp only [alloc, HeapM.run, modifyGet, MonadStateOf.modifyGet, EStateM.modifyGet,
+    MonadState.modifyGet]
+  obtain ⟨hFn, hPn⟩ := (Store.union_none_iff sF sP nx).mp (hwf nx (Nat.le_refl nx))
+  refine ⟨sF, sP.union (Store.single nx (Storable.inject v)),
+    Store.disjoint_union_right.mpr ⟨hd, (Store.disjoint_single_iff _ _ _).mpr hFn⟩, ?_, hF,
+    sP, Store.single nx (Storable.inject v),
+    (Store.disjoint_single_iff _ _ _).mpr hPn, rfl, hP, rfl⟩
+  funext n; simp only [Store.update, Store.union, Store.single]
+  by_cases hn : n = nx
+  · subst hn; simp [hFn, hPn]
+  · simp [hn]
+
+@[spec] theorem modifyRef_spec [Storable V α] (r : Ref α) (f : α → α) (a : α) :
+    ⦃ (r ↦ a : HProp V) ⦄ modifyRef r f ⦃ fun _ => r ↦ (f a) ⦄ := by
+  vcgen [modifyRef, readRef_spec, writeRef_spec] simplifying_assumptions with finish
+
+/-! ## Monad-polymorphic `…M` delegators (the codegen gap)
+
+Generated `--heap` code emits `readRefM`/`writeRefM`/`allocM`/`modifyRefM` (the rewired `~>`/`<~`
+notation), which are *defeq* to the raw ops but not *syntactically* the same head, so `vcgen`'s spec
+matching won't fire the raw `@[spec]`s. In a `HeapM V` body the lift is the identity, so each `…M`
+op reduces to its raw op; these delegator `@[spec]`s expose the same triples under the emitted head. -/
+
+@[spec] theorem readRefM_spec [Storable V α] (r : Ref α) (v : α) :
+    ⦃ (r ↦ v : HProp V) ⦄ (readRefM (m := HeapM V) r) ⦃ fun x => ⌜x = v⌝ ⊓ (r ↦ v) ⦄ := by
+  unfold readRefM; exact readRef_spec r v
+
+@[spec] theorem writeRefM_spec [Storable V α] (r : Ref α) (v w : α) :
+    ⦃ (r ↦ v : HProp V) ⦄ (writeRefM (m := HeapM V) r w) ⦃ fun _ => r ↦ w ⦄ := by
+  unfold writeRefM; exact writeRef_spec r v w
+
+@[spec] theorem allocM_frame_spec [Storable V α] (P : HProp V) (v : α) :
+    ⦃ P ⦄ (allocM (m := HeapM V) v) ⦃ fun r => P ∗ r ↦ v ⦄ := by
+  unfold allocM; exact alloc_frame_spec P v
+
+@[spec] theorem modifyRefM_spec [Storable V α] (r : Ref α) (f : α → α) (a : α) :
+    ⦃ (r ↦ a : HProp V) ⦄ (modifyRefM (m := HeapM V) r f) ⦃ fun _ => r ↦ (f a) ⦄ := by
+  unfold modifyRefM; exact modifyRef_spec r f a
+
+/-! ## Validation: composed programs closed by automatic framing (`vcgen … with finish`) -/
+
+/-- A write frames a disjoint cell (`r2 ↦ b`) with no manual separation reasoning. -/
+example [Storable V α] (r1 r2 : Ref α) (a b x : α) :
+    ⦃ (r1 ↦ a ∗ r2 ↦ b : HProp V) ⦄ writeRef r1 x ⦃ fun _ => r1 ↦ x ∗ r2 ↦ b ⦄ := by
+  vcgen [writeRef_spec] with finish
+
+/-- `append` reads two refs and overwrites the first with the concatenation. -/
+def append [Storable V (List α)] (listRef otherRef : Ref (List α)) : HeapM V Unit := do
+  let l1 ← readRef listRef
+  let l2 ← readRef otherRef
+  writeRef listRef (l1 ++ l2)
+
+/-- Composed spec: the read values thread through as pure facts and the second cell (`otherRef ↦ l2`)
+frames automatically across the read of `listRef` and the write — no by-hand separation reasoning. -/
+theorem append_spec [Storable V (List α)] (listRef otherRef : Ref (List α)) (l1 l2 : List α) :
+    ⦃ (listRef ↦ l1 ∗ otherRef ↦ l2 : HProp V) ⦄ append listRef otherRef
+    ⦃ fun _ => listRef ↦ (l1 ++ l2) ∗ otherRef ↦ l2 ⦄ := by
+  vcgen [append, readRef_spec, writeRef_spec] simplifying_assumptions with finish
+
+/-- The emitted `…M` heads (generated `~>`/`<~` code) compose and frame automatically, exactly as the
+raw ops do — this guards the codegen-gap delegators (`readRefM_spec`/`writeRefM_spec`) against a
+future break in `vcgen`'s head-matching. `incM` mirrors the read-modify-write a `self.x = f(self.x)`
+translates to; `r2 ↦ b` frames across it with no by-hand separation reasoning. -/
+def incM [Storable V α] (r : Ref α) (f : α → α) : HeapM V Unit := do
+  writeRefM r (f (← readRefM r))
+
+example [Storable V α] (r1 r2 : Ref α) (a b : α) (f : α → α) :
+    ⦃ (r1 ↦ a ∗ r2 ↦ b : HProp V) ⦄ incM r1 f
+    ⦃ fun _ => r1 ↦ (f a) ∗ r2 ↦ b ⦄ := by
+  vcgen [incM, readRefM_spec, writeRefM_spec] simplifying_assumptions with finish
+
+end PastaLean

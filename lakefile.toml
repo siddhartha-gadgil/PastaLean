@@ -9,13 +9,8 @@ pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 
 [[require]]
 name = "mathlib"
-scope = "leanprover-community"
-rev = "v4.31.0"
-
-[[require]]
-name = "verso-slides"
-scope = "leanprover"
-rev = "v4.31.0"
+git  = "https://github.com/leanprover-community/mathlib4-nightly-testing.git"
+rev  = "nightly-testing-2026-08-03"
 
 [[lean_lib]]
 name = "PastaLean"
@@ -33,16 +28,6 @@ name = "PALC"
 # Build it explicitly with `lake build PastaBench`.
 [[lean_lib]]
 name = "PastaBench"
-
-[[lean_lib]]
-name = "Slides"
-srcDir = "docs/ppt"
-
-[[lean_exe]]
-name = "slides"
-srcDir = "docs/ppt"
-root = "SlidesMain"
-supportInterpreter = true
 
 [[lean_exe]]
 name="py2lean"

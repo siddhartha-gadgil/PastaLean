@@ -135,10 +135,10 @@ partial def inlineIOTerm (json : Json) : PygenM (TSyntax `term) := do
             else
               pure (mkIdent ``pyInputIO)
           match argsArray.size with
-          | 0 => `((← $inputIdent ""))
+          | 0 => `((← ($inputIdent "")))
           | 1 =>
               let arg0 ← inlineIOTerm argsArray[0]!
-              `((← $inputIdent $arg0))
+              `((← ($inputIdent $arg0)))
           | _ => throwError "input() expects zero or one positional argument."
       | .ok "Name", .ok "int" => do
           unless keyWordsMap.isEmpty do
@@ -229,7 +229,7 @@ partial def inlineIOTerm (json : Json) : PygenM (TSyntax `term) := do
                 getCode kwValueJson `term
             let kwId := mkIdent kwName.toName
             t ← `($t ($kwId:ident := $kwValueCode))
-          if heapAwait then return ← `((← $t)) else return t
+          if heapAwait then return ← `((← $t:term)) else return t
   | "FormattedValue" => do
       let .ok valueJson := json.getObjValAs? Json "value" | throwError
         s!"FormattedValue node does not have a 'value' field or it is not a JSON value: {json}"
@@ -288,7 +288,7 @@ partial def inlineIOTerm (json : Json) : PygenM (TSyntax `term) := do
       let compTerm ← getCode json `term
       match json.getObjValAs? Json "elt" with
       | .ok eltJson =>
-          if basicJsonUsesIOEffect eltJson then `((← $compTerm)) else pure compTerm
+          if basicJsonUsesIOEffect eltJson then `((← $compTerm:term)) else pure compTerm
       | _ => pure compTerm
   | "Subscript" => do
       -- `foo()[i]` where `foo()` is `IO _`: inline the awaited container into the index

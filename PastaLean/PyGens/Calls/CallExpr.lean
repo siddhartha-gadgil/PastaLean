@@ -433,7 +433,7 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
             for (kwName, kwValueJson) in keyWordsMap.toList do
               let kwValueCode ← inlineIOTerm kwValueJson
               t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-            return ← `((← $t))
+            return ← `((← $t:term))
           if allJsons.toList.any basicJsonUsesIOEffect then
             return ← buildIOPureApplicationFromArgs allJsons allCodes build
           else
@@ -568,8 +568,8 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
             | 0 => `("")
             | 1 => do
                 let pyStrIdent := mkIdent ``pyStr
-                let argsCodes ← derefBuiltinArgCodes argsArray argsCodes
-                buildIOPureApplicationFromArgs argsArray argsCodes fun resolvedArgs => do
+                let argsCodes' ← derefBuiltinArgCodes argsArray argsCodes
+                buildIOPureApplicationFromArgs argsArray argsCodes' fun resolvedArgs => do
                   let arg0 := resolvedArgs[0]!
                   `($pyStrIdent $arg0)
             | _ =>
@@ -679,7 +679,7 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
                 for (kwName, kwValueJson) in keyWordsMap.toList do
                   let kwValueCode ← inlineIOTerm kwValueJson
                   t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-                return ← `((← $t))
+                return ← `((← $t:term))
               funcIdent := ctorId
             | none =>
             -- Variadic builtins that fold a binary runtime function over their args (e.g. `zip`)
@@ -748,7 +748,7 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
         buildIOPureApplicationFromArgs allArgJsons allArgs buildApplied
       else buildApplied allArgs
     -- A call to a heap-effectful user function returns a `HeapM` action; await it inline.
-    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied))
+    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied:term))
     return applied
   | `doElem, json => do
     let .ok funcJson := json.getObjValAs? Json "func" | throwError
@@ -1150,7 +1150,7 @@ def attributeSyntax : (kind : SyntaxNodeKind) → Json →
             let cls? ← heapVarClassOf? vid.toName
             let isHeapRecv := if vid == "self" then selfRef else cls?.isSome
             if isHeapRecv then
-              return ← `((← $(mkIdent vid.toName) ~> $attrId))
+              return ← `((← ($(mkIdent vid.toName) ~> $attrId)))
         let valueCode ← getCode valueJson `term
         -- `_unwrap_opt` (TypeInfer): the receiver is `Option _`, so unwrap before projecting the field
         if json.getObjValAs? Bool "_unwrap_opt" == .ok true then

@@ -341,7 +341,7 @@ theorem pyLower_is_lower (s : String) : pyIsLower s = true → pyStringLower s =
     · intro n
       by_cases h' : n < s.toList.length
       · simp_all only [List.length_map, String.length_toList, getElem!_pos, List.getElem_map]
-        have g : s.toList[n] ∈ s.toList := by simp
+        have g : s.toList[n] ∈ s.toList := List.getElem_mem (by get_elem_tactic)
         have g' : s.toList[n].isAlpha = false ∨ s.toList[n].isLower = true := by grind only [=
             List.all_eq]
         by_cases sc : s.toList[n].isLower
@@ -363,7 +363,7 @@ theorem pyUpper_is_upper (s : String) : pyIsUpper s = true → pyStringUpper s =
     · intro n
       by_cases h' : n < s.toList.length
       · simp_all only [List.length_map, String.length_toList, getElem!_pos, List.getElem_map]
-        have g : s.toList[n] ∈ s.toList := by simp
+        have g : s.toList[n] ∈ s.toList := List.getElem_mem (by get_elem_tactic)
         have g' : s.toList[n].isAlpha = false ∨ s.toList[n].isUpper = true := by grind only [= List.all_eq]
         by_cases sc : s.toList[n].isUpper
         · grind only [Char.toUpper_eq_of_not_isLower, Char.not_isLower_of_isUpper]
