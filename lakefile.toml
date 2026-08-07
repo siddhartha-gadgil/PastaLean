@@ -29,6 +29,14 @@ name = "PALC"
 [[lean_lib]]
 name = "PastaBench"
 
+# Separation-logic specs for `--heap`-translated Python (see PastaLean.PyAPI.Heap.Proof).
+# Not a default target; build explicitly with `lake build HeapProofs`. Each example module is
+# built as its own compilation unit (`globs` submodule pattern, no aggregator root) so their
+# root-namespace `Val` inductives — reproduced verbatim from translator output — never collide.
+[[lean_lib]]
+name = "HeapProofs"
+globs = ["HeapProofs.+"]
+
 [[lean_exe]]
 name="py2lean"
 supportInterpreter = true

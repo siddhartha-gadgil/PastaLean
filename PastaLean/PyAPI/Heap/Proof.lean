@@ -1,6 +1,7 @@
 import Lean
 import PastaLean.PyAPI.Heap.Ops
 import PastaLean.PyAPI.Heap.Monad
+import PastaLean.PyAPI.Operators
 import Std.Internal
 import Std.Tactic.Do
 
@@ -393,9 +394,18 @@ theorem hprop_meet_apply (P Q : HProp V) (s : Store V) : (P ⊓ Q) s = (P s ∧ 
   · rintro ⟨s₁, s₂, hd, he, hq, ⟨hp, hr⟩⟩; exact ⟨hp, s₁, s₂, hd, he, hq, hr⟩
   · rintro ⟨hp, s₁, s₂, hd, he, hq, hr⟩; exact ⟨s₁, s₂, hd, he, hq, ⟨hp, hr⟩⟩
 
-attribute [local sym_simp]
+-- `scoped` (not `local`): active in any file that `open PastaLean`, so heap-proof files float the
+-- `⌜·⌝` read-value facts out of `∗` (value-returning reads) with no per-file boilerplate.
+attribute [scoped sym_simp]
   sepConj_ofProp_meet_left sepConj_ofProp_meet_right
   Lean.Order.CompleteLattice.ofProp_intro_l Lean.Order.CompleteLattice.ofProp_intro_r
+
+-- `finish` is grind, which ignores the `@[simp]` `+ₚ`→`+` reductions and the `⌜·⌝` order lemma;
+-- expose them (scoped to `PastaLean`) so value/loop VCs close without naming them per proof.
+attribute [scoped grind] Lean.Order.le_ofProp
+attribute [scoped grind =]
+  pyAdd_int pySub_int pyMul_int pyAdd_rat pySub_rat pyMul_rat pyDiv_rat
+  List.length_range List.append_eq_nil_iff
 
 /-! ## Leaf specifications (proved by hand), then automatic framing for composed programs -/
 
