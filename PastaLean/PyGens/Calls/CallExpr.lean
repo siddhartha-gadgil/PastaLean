@@ -1150,7 +1150,11 @@ def attributeSyntax : (kind : SyntaxNodeKind) → Json →
             let cls? ← heapVarClassOf? vid.toName
             let isHeapRecv := if vid == "self" then selfRef else cls?.isSome
             if isHeapRecv then
-              return ← `((← ($(mkIdent vid.toName) ~> $attrId)))
+              -- An `Option (Ref C)` receiver (a ref-typed local, `nxt.val`) unwraps before the deref.
+              let recvTerm ← if json.getObjValAs? Bool "_unwrap_opt" == .ok true then
+                  `(($(mkIdent vid.toName)).getD default)
+                else `($(mkIdent vid.toName))
+              return ← `((← ($recvTerm ~> $attrId)))
         let valueCode ← getCode valueJson `term
         -- `_unwrap_opt` (TypeInfer): the receiver is `Option _`, so unwrap before projecting the field
         if json.getObjValAs? Bool "_unwrap_opt" == .ok true then

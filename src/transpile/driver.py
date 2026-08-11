@@ -558,8 +558,7 @@ def _function_has_ref_param(fn, class_names):
             for ann in (arg.get("annotation"), arg.get("_ty")):
                 if _is_container_annotation(ann):
                     return True
-                if (isinstance(ann, dict) and ann.get("node_type") == "Name"
-                        and ann.get("id") in class_names):
+                if _annotation_ref_class(ann, class_names) is not None:
                     return True
     return False
 
@@ -646,6 +645,54 @@ def annotate_container_returning_calls(module_json):
         for fn in local_functions.values():
             _annotate_container_return_calls(fn.get("body", []), container_returning)
         _annotate_container_return_calls(body, container_returning)
+
+    if isinstance(module_json, dict) and module_json.get("node_type") == "Module":
+        annotate_scope(module_json.get("body", []))
+
+
+def _annotate_object_return_calls(node, name_to_class):
+    """Stamp `_ref_class = C` on each call (at this scope level) to a function returning an object ref."""
+    if isinstance(node, dict):
+        if node.get("node_type") == "Call":
+            func = node.get("func")
+            if isinstance(func, dict) and func.get("node_type") == "Name" and func.get("id") in name_to_class:
+                node["_ref_class"] = name_to_class[func["id"]]
+        nt = node.get("node_type")
+        for key, value in node.items():
+            if nt == "FunctionDef" and key == "body":
+                continue
+            _annotate_object_return_calls(value, name_to_class)
+    elif isinstance(node, list):
+        for item in node:
+            _annotate_object_return_calls(item, name_to_class)
+
+
+def annotate_object_returning_calls(module_json):
+    """Under `--heap`, stamp `_ref_class = C` on every call to a user function whose declared
+    (`returns`) or inferred (`_ret_ty`) return type is a single object ref (`C` / `Optional[C]`). The
+    callee hands back a `Ref C`, so the bound target registers as a heap object (later `x.f` reads
+    dereference). Mirrors `annotate_container_returning_calls`; runs AFTER type inference."""
+    class_names = _collect_module_class_names(module_json)
+
+    def annotate_scope(body):
+        local_functions = {
+            fn["name"]: fn
+            for fn in _collect_scope_function_defs(body)
+            if isinstance(fn.get("name"), str)
+        }
+        for fn in local_functions.values():
+            annotate_scope(fn.get("body", []))
+        name_to_class = {}
+        for name, fn in local_functions.items():
+            c = (_annotation_ref_class(fn.get("returns"), class_names)
+                 or _annotation_ref_class(fn.get("_ret_ty"), class_names))
+            if c is not None:
+                name_to_class[name] = c
+        if not name_to_class:
+            return
+        for fn in local_functions.values():
+            _annotate_object_return_calls(fn.get("body", []), name_to_class)
+        _annotate_object_return_calls(body, name_to_class)
 
     if isinstance(module_json, dict) and module_json.get("node_type") == "Module":
         annotate_scope(module_json.get("body", []))
@@ -1647,6 +1694,35 @@ def _is_container_annotation(ann):
     return isinstance(val, dict) and val.get("node_type") == "Name" and val.get("id") in _CONTAINER_ANN_HEADS
 
 
+def _annotation_ref_class(ann, class_names):
+    """The user class an annotation carries as a single heap reference: a bare `C`, `Optional[C]`, or
+    `C | None`. Returns the class name, or `None`. A container (`list[C]`) is NOT a single object ref
+    (it is a container ref handled separately), so it returns `None` here."""
+    if not isinstance(ann, dict):
+        return None
+    nt = ann.get("node_type")
+    if nt == "Name":
+        cid = ann.get("id")
+        return cid if cid in class_names else None
+    if nt == "Subscript":
+        val = ann.get("value")
+        head = val.get("id") if isinstance(val, dict) else None
+        if head in ("Optional", "Union"):
+            sl = ann.get("slice")
+            elts = sl.get("elts") if isinstance(sl, dict) and sl.get("node_type") == "Tuple" else [sl]
+            for cand in elts:
+                c = _annotation_ref_class(cand, class_names)
+                if c is not None:
+                    return c
+        return None
+    if nt == "BinOp":  # `C | None`
+        for side in (ann.get("left"), ann.get("right")):
+            c = _annotation_ref_class(side, class_names)
+            if c is not None:
+                return c
+    return None
+
+
 def _collect_container_annotations(node, acc=None, seen=None):
     """Every distinct mutable-container annotation node reachable in the (type-stamped) AST — from
     inferred `_ty` binder stamps, explicit `annotation`s, and inferred `_ret_ty`. Used by `--heap` to
@@ -1701,6 +1777,9 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
             # Post-inference (so inferred `_ret_ty` is available): stamp calls whose callee returns a
             # mutable container, so the caller dereferences the returned object-ref.
             annotate_container_returning_calls(ast_json)
+            # Likewise for calls returning a single object ref (`C`/`Optional[C]`): stamp `_ref_class`
+            # so the bound target registers as a heap object (later `x.f` reads dereference).
+            annotate_object_returning_calls(ast_json)
 
     if ast_json.get("node_type") == "Module":
         body = ast_json.get("body", [])

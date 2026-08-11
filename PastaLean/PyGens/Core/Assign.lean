@@ -222,13 +222,22 @@ def heapAttrWriteTargetDoElem? (target : Json) (rhs : TSyntax `term) :
     if recvId == "self" && (← getHeapSelfRef) then pure true
     else pure (← heapVarClassOf? recvId.toName).isSome
   unless isHeapObj do return none
-  let lhs ← `($(mkIdent recvId.toName) ~> $(mkIdent attr.toName):ident)
+  -- An `Option (Ref C)` receiver (a ref-typed local, `nxt.next = v`) unwraps before the write.
+  let recvTerm ← if target.getObjValAs? Bool "_unwrap_opt" == .ok true then
+      `(($(mkIdent recvId.toName)).getD default)
+    else `($(mkIdent recvId.toName))
+  let lhs ← `($recvTerm ~> $(mkIdent attr.toName):ident)
   return some ⟨mkNode ``PastaLean.ptrWrite #[lhs.raw, mkAtom "<~", rhs.raw]⟩
 
 /-- The class name of a value expression that produces a heap object, if statically known: a
-constructor call (`_class_ctor` stamp) or a variable already known to hold one (`q = p`). -/
+constructor call (`_class_ctor` stamp), a field read yielding a heap reference (`_ref_class` stamp,
+e.g. `nxt = head.next` where `Node.next : Optional[Node]`), or a variable already known to hold one
+(`q = p`). -/
 def heapClassOfValue? (value : Json) : PygenM (Option String) := do
   match (value.getObjValAs? String "_class_ctor").toOption with
+  | some c => return some c
+  | none =>
+  match (value.getObjValAs? String "_ref_class").toOption with
   | some c => return some c
   | none =>
     if jsonNodeType? value == some "Name" then

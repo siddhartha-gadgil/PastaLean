@@ -526,15 +526,20 @@ partial def markTuples (env : Env) (json : Json) : Json :=
 /-- Mark every `x.attr` whose receiver `x` is `Option`-typed with
 `_unwrap_opt`, so the field codegen emits `(x.getD default).attr` instead of the invalid
 `Option.attr` projection. Covers the tree/linked-list traversal case (`root.val`, `root.left`).
-Skips nested defs (own scope). -/
+Also stamps `_ref_class = C` on an `x.attr` whose OWN type is a class `C` (a field holding a heap
+reference, e.g. `head.next : Optional[Node]`), so `--heap` codegen registers a local bound to it
+(`nxt = head.next`) as a heap object and dereferences through it. Skips nested defs (own scope). -/
 partial def markOptAttrs (sigs : Sigs) (env : Env) (json : Json) : Json :=
   if nodeTypeOf json == some "FunctionDef" then json
   else
     let json :=
       if nodeTypeOf json == some "Attribute" then
-        match (getField json "value").map (typeOfExpr sigs env) with
-        | some (.opt _) => json.setObjVal! "_unwrap_opt" (Json.bool true)
-        | _ => json
+        let json := match (getField json "value").map (typeOfExpr sigs env) with
+          | some (.opt _) => json.setObjVal! "_unwrap_opt" (Json.bool true)
+          | _ => json
+        match (typeOfExpr sigs env json).classNameOf? with
+        | some c => json.setObjVal! "_ref_class" (Json.str c)
+        | none => json
       else json
     match json with
     | .arr xs => Json.arr (xs.map (markOptAttrs sigs env))
@@ -1046,12 +1051,16 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
       -- reached by the intraprocedural per-request fallback (empty `sigs`), which resolves every call
       -- to `.unknown` and so misses the tuple-unpack container mask for `xs, ys = make_pair()`. Stamp
       -- just the unpack shapes here with the full interprocedural `sigs` — NOT the full `stampStmt`,
-      -- whose value-type ascriptions would perturb byte-identical value-mode output.
+      -- whose value-type ascriptions would perturb byte-identical value-mode output. `markOptAttrs` IS
+      -- run: it only stamps `_unwrap_opt` (an Option-receiver deref like `node.val` is invalid Lean
+      -- unless unwrapped, in either mode) and `_ref_class` (inert in value mode), so a `__main__`
+      -- linked-list/tree traversal derefs correctly too.
       if (s.getObjValAs? Bool "is_main_guard").toOption == some true then
         let genv := inferFunction sigs globals {} s
         let stampBlock (key : String) (s : Json) : Json :=
           match s.getObjValAs? (Array Json) key with
-          | .ok body => s.setObjVal! key (Json.arr (body.map (stampUnpackShapes sigs genv)))
+          | .ok body => s.setObjVal! key
+              (Json.arr (body.map (fun st => markOptAttrs sigs genv (stampUnpackShapes sigs genv st))))
           | _ => s
         stampBlock "orelse" (stampBlock "body" s)
       else s

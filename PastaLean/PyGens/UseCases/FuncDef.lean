@@ -145,7 +145,8 @@ def functionArgInfos (json : Json) (heapRefTypes : Bool := false) :
       match annJson?.map TypeInfer.ofAnnotation with
       | some pty =>
           match pty with
-          | .list _ | .set _ | .dict _ _ | .cls _ =>
+          -- `Optional[C]` lowers to `Option (Ref C)` (a nullable object reference).
+          | .list _ | .set _ | .dict _ _ | .cls _ | .opt (.cls _) =>
               argInfos := argInfos.push (mkIdent argName.toName, some (← heapTypeSyntax pty))
               continue
           | _ => pure ()
@@ -210,7 +211,9 @@ def functionHeapRefParams (json : Json) : PygenM (Array (Name × Option String))
         | none => jsonFieldOption arg "_ty"
       match annJson?.map TypeInfer.ofAnnotation with
       | some (.list _) | some (.set _) | some (.dict _ _) => refs := refs.push (argName.toName, none)
-      | some (.cls c) => refs := refs.push (argName.toName, some c)
+      -- `Optional[C]` (a `Ref C` that may be `none`, e.g. a linked-list `head`): registered as a ref
+      -- of class `c`; each use unwraps via its `_unwrap_opt` stamp before dereferencing.
+      | some (.cls c) | some (.opt (.cls c)) => refs := refs.push (argName.toName, some c)
       | _ => pure ()
   return refs
 
