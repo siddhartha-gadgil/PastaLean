@@ -25,7 +25,7 @@ theorem all_ne_not_mem {xs : List Nat} : (∀ (i : Nat), i ∈ [:xs.length].toLi
 theorem early_return_thm : ⦃⌜ True ⌝⦄ early_return xs k ⦃⇓ pos => ⌜ pos.isSome ↔ k ∈ xs ⌝⦄ := by
   mvcgen [early_return]
   invariants
-    · Invariant.withEarlyReturn
+    · Invariant.withEarlyReturnNewDo
         (onReturn := fun x y => ⌜ ∃ v,  v < xs.length ∧ x = some v ∧ xs[v]! = k ⌝)
         (onContinue := fun cur y => ⌜ ∀ i ∈ cur.prefix, xs[i]! ≠ k ⌝)
   with grind

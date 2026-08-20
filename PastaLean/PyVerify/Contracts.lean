@@ -398,9 +398,10 @@ def buildBullet (li : LoopInv) : PygenM (TSyntax `term) := do
   for a in li.accumulators do addVar a.toName
   addVar li.loopVar.toName
   -- A loop that `return`s/`break`s threads an early-return state; its invariant is supplied via
-  -- `Invariant.withEarlyReturn`. For the `True` postcondition a trivial pair discharges it.
+  -- `Invariant.withEarlyReturnNewDo` (the new `do` elaborator uses `Prod`, not `MProd`). For the
+  -- `True` postcondition a trivial pair discharges it.
   if li.hasEarlyExit then
-    return ← `(Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝))
+    return ← `(Invariant.withEarlyReturnNewDo (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝))
   let cur := mkIdent `cur
   let loopVarId := mkIdent li.loopVar.toName
   let body ←
