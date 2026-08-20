@@ -286,7 +286,11 @@ partial def methodReturn (sigs : Sigs) (env : Env) (attr : String) (recv : Optio
           let fromRecv := match recvT with | .dict _ v => v | _ => recvT.elemType
           fromRecv.join (args[1]?.elim .unknown (typeOfExpr sigs env))
       | "copy" => recvT
-      | _ => .unknown
+      | _ =>
+          -- A user method with a declared return type, keyed `"Class.method"` in `sigs`.
+          match recvT.classNameOf? with
+          | some c => (sigs.get? s!"{c}.{attr}").getD .unknown
+          | none => .unknown
 
 end
 

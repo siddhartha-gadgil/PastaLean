@@ -526,21 +526,27 @@ partial def markTuples (env : Env) (json : Json) : Json :=
 /-- Mark every `x.attr` whose receiver `x` is `Option`-typed with
 `_unwrap_opt`, so the field codegen emits `(x.getD default).attr` instead of the invalid
 `Option.attr` projection. Covers the tree/linked-list traversal case (`root.val`, `root.left`).
-Also stamps `_ref_class = C` on an `x.attr` whose OWN type is a class `C` (a field holding a heap
-reference, e.g. `head.next : Optional[Node]`), so `--heap` codegen registers a local bound to it
-(`nxt = head.next`) as a heap object and dereferences through it. Skips nested defs (own scope). -/
+Also stamps `_ref_class = C` on any expression whose OWN type is a class `C` — an attribute read
+(`head.next`), a container element (`nodes[i]`) or a call result (`o.get_inner()`) — so `--heap`
+codegen registers a local bound to it as a heap object and dereferences through it (and derefs a
+non-Name ref receiver directly). Skips nested defs (own scope). -/
 partial def markOptAttrs (sigs : Sigs) (env : Env) (json : Json) : Json :=
   if nodeTypeOf json == some "FunctionDef" then json
   else
     let json :=
-      if nodeTypeOf json == some "Attribute" then
+      match nodeTypeOf json with
+      | some "Attribute" =>
         let json := match (getField json "value").map (typeOfExpr sigs env) with
           | some (.opt _) => json.setObjVal! "_unwrap_opt" (Json.bool true)
           | _ => json
         match (typeOfExpr sigs env json).classNameOf? with
         | some c => json.setObjVal! "_ref_class" (Json.str c)
         | none => json
-      else json
+      | some "Subscript" | some "Call" =>
+        match (typeOfExpr sigs env json).classNameOf? with
+        | some c => json.setObjVal! "_ref_class" (Json.str c)
+        | none => json
+      | _ => json
     match json with
     | .arr xs => Json.arr (xs.map (markOptAttrs sigs env))
     | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markOptAttrs sigs env v)))
@@ -627,7 +633,8 @@ mutual
 calls with `sigs`), stamp its params and every binder in its body, and recurse into nested defs.
 A function whose returns disagree (`.any`) and that has no return annotation is marked `_box_return`
 so codegen boxes its result as `PyAny`. -/
-partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :=
+partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json)
+    (selfClass : Option String := none) : Json :=
   let env1 := inferFunction sigs outer hints fn
   -- Second pass: a param that pass 1 leaves `unknown` but that is used in a `PyAny`-dispatch position
   -- WILL be boxed to `PyAny` by codegen. Seed those as `.any` and re-infer, so `PyAny` propagates
@@ -673,8 +680,13 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
         else fn
     | _ => fn
   match fn.getObjValAs? (Array Json) "body" with
-  | .ok body => fn.setObjVal! "body"
-      (Json.arr (((body.map (stampStmt sigs env body)).map (markTuples env)).map (markOptAttrs sigs env)))
+  | .ok body =>
+      -- Type `self` for the ref-recognition pass ONLY (not param/stmt stamping), so a chained
+      -- self-field ref access (`self.leaf.v`) gets `_ref_class` and derefs through the pointer.
+      -- `_ref_class` is inert in value mode, so this cannot perturb byte-identical value-mode output.
+      let moEnv := match selfClass with | some c => env.insert "self" (.cls c) | none => env
+      fn.setObjVal! "body"
+        (Json.arr (((body.map (stampStmt sigs env body)).map (markTuples env)).map (markOptAttrs sigs moEnv)))
   | _ => fn
 
 /-- Stamp a (possibly nested) tuple-unpack target with the list-vs-`Prod` access mode at EVERY level,
@@ -957,6 +969,17 @@ partial def collectSigs (module : Json) : Sigs × ParamSigs := Id.run do
   -- Class field types share the `sigs` table under `"Class.field"` keys (no Python function name
   -- contains a dot, so they cannot collide with a return type).
   let mut sigs : Sigs := classFieldSigs module
+  -- A class instantiation `C(...)` returns an instance `.cls C` (keyed by the bare class name); a
+  -- method with a declared return type is keyed `"C.method"`. Both let a local bound to one type as a
+  -- heap ref (`a = Node(1)`, `got = o.get_inner()`) so `--heap` registers and dereferences it.
+  for st in topLevelStmts module do
+    if nodeTypeOf st == some "ClassDef" then
+      if let .ok cls := st.getObjValAs? String "name" then
+        sigs := sigs.insert cls (.cls cls)
+        for m in (st.getObjValAs? (Array Json) "methods").toOption.getD #[] do
+          if let .ok mname := m.getObjValAs? String "name" then
+            if let some r := getField m "returns" then
+              if !r.isNull then sigs := sigs.insert s!"{cls}.{mname}" (ofAnnotation r)
   for _ in [0:6] do
     let mut nextSigs := sigs
     let mut nextParams := params
@@ -1024,6 +1047,30 @@ partial def stampUnpackShapes (sigs : Sigs) (env : Env) (s : Json) : Json :=
         s := s.setObjVal! f (Json.arr (elems.map (stampUnpackShapes sigs env)))
     return s
 
+/-- Stamp `_container_ty` (an annotation node) on `__main__`-guard container assignments. A local
+list/dict/set at module scope is intentionally NOT `_ty`-stamped (that would perturb byte-identical
+value-mode output), so under `--heap` its cell type would otherwise never reach the `Val` universe —
+`nodes = [a, b]` needs `Storable Val (List (Ref Node))`. This marker is read ONLY by the driver's
+container-type collection; codegen ignores it, so value mode stays unperturbed. -/
+partial def stampContainerCells (sigs : Sigs) (env : Env) (s : Json) : Json :=
+  if nodeTypeOf s == some "FunctionDef" then s
+  else Id.run do
+    let mut s := s
+    if nodeTypeOf s == some "Assign" || nodeTypeOf s == some "AnnAssign" then
+      match getField s "target", getField s "value" with
+      | some target, some value =>
+          if nodeTypeOf target == some "Name" && (getField s "_container_ty").isNone then
+            let t := typeOfExpr sigs env value
+            if t.isContainer then
+              match toAnnotation? t with
+              | some ann => s := s.setObjVal! "_container_ty" ann
+              | none => pure ()
+      | _, _ => pure ()
+    for f in #["body", "orelse", "finalbody"] do
+      if let .ok elems := s.getObjValAs? (Array Json) f then
+        s := s.setObjVal! f (Json.arr (elems.map (stampContainerCells sigs env)))
+    return s
+
 /-- Stamp `_ty` across one top-level node, resolving calls with `sigs` and seeding each function's
 unannotated params from `params`. The driver sends one statement per request; a `FunctionDef`, a
 `ClassDef` (each method) or a `Module` (a mutual group) is stamped, anything else is unchanged. -/
@@ -1033,14 +1080,15 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
   match nodeTypeOf s with
   | some "FunctionDef" => stampFunction sigs (outerFor s) (hintsFor params s) s
   | some "ClassDef" =>
-      let s := match s.getObjValAs? String "name" with
-        | .ok cls => stampClassFields sigs cls s
-        | _ => s
+      let clsName? := (s.getObjValAs? String "name").toOption
+      let s := match clsName? with
+        | some cls => stampClassFields sigs cls s
+        | none => s
       -- A class keeps its methods under "methods"; older nodes use "body".
       #["methods", "body"].foldl (fun s key =>
         match s.getObjValAs? (Array Json) key with
         | .ok ms => s.setObjVal! key (Json.arr (ms.map fun m =>
-            if nodeTypeOf m == some "FunctionDef" then stampFunction sigs (outerFor m) (hintsFor params m) m else m))
+            if nodeTypeOf m == some "FunctionDef" then stampFunction sigs (outerFor m) (hintsFor params m) m clsName? else m))
         | _ => s) s
   | some "Module" =>
       match s.getObjValAs? (Array Json) "body" with
@@ -1060,7 +1108,8 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
         let stampBlock (key : String) (s : Json) : Json :=
           match s.getObjValAs? (Array Json) key with
           | .ok body => s.setObjVal! key
-              (Json.arr (body.map (fun st => markOptAttrs sigs genv (stampUnpackShapes sigs genv st))))
+              (Json.arr (body.map (fun st =>
+                markOptAttrs sigs genv (stampContainerCells sigs genv (stampUnpackShapes sigs genv st)))))
           | _ => s
         stampBlock "orelse" (stampBlock "body" s)
       else s

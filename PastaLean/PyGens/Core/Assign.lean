@@ -216,16 +216,23 @@ def heapAttrWriteTargetDoElem? (target : Json) (rhs : TSyntax `term) :
   unless jsonNodeType? target == some "Attribute" do return none
   let .ok recv := target.getObjVal? "value" | return none
   let .ok attr := target.getObjValAs? String "attr" | return none
-  unless jsonNodeType? recv == some "Name" do return none
-  let .ok recvId := recv.getObjValAs? String "id" | return none
-  let isHeapObj ←
-    if recvId == "self" && (← getHeapSelfRef) then pure true
-    else pure (← heapVarClassOf? recvId.toName).isSome
-  unless isHeapObj do return none
+  -- The receiver base: a registered Name (`self`/a class-typed local), or ANY non-Name expression
+  -- whose inferred type is a heap ref (`_ref_class`, e.g. `nodes[i].val = v`). Non-refs bail so the
+  -- caller falls back to the value-semantics record update.
+  let recvBase ← if jsonNodeType? recv == some "Name" then
+      let .ok recvId := recv.getObjValAs? String "id" | return none
+      let isHeapObj ←
+        if recvId == "self" && (← getHeapSelfRef) then pure true
+        else pure (← heapVarClassOf? recvId.toName).isSome
+      unless isHeapObj do return none
+      `($(mkIdent recvId.toName))
+    else if (recv.getObjValAs? String "_ref_class").toOption.isSome then
+      getCode recv `term
+    else return none
   -- An `Option (Ref C)` receiver (a ref-typed local, `nxt.next = v`) unwraps before the write.
   let recvTerm ← if target.getObjValAs? Bool "_unwrap_opt" == .ok true then
-      `(($(mkIdent recvId.toName)).getD default)
-    else `($(mkIdent recvId.toName))
+      `(($recvBase).getD default)
+    else pure recvBase
   let lhs ← `($recvTerm ~> $(mkIdent attr.toName):ident)
   return some ⟨mkNode ``PastaLean.ptrWrite #[lhs.raw, mkAtom "<~", rhs.raw]⟩
 

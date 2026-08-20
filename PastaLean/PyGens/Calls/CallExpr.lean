@@ -1155,6 +1155,14 @@ def attributeSyntax : (kind : SyntaxNodeKind) → Json →
                   `(($(mkIdent vid.toName)).getD default)
                 else `($(mkIdent vid.toName))
               return ← `((← ($recvTerm ~> $attrId)))
+          -- A non-Name receiver whose inferred type is a heap ref (`_ref_class`): `a.next.val`,
+          -- `nodes[i].val`. Lower the receiver, then dereference through the pointer.
+          else if (valueJson.getObjValAs? String "_ref_class").toOption.isSome then
+            let valueCode ← getCode valueJson `term
+            let recvTerm ← if json.getObjValAs? Bool "_unwrap_opt" == .ok true then
+                `(($valueCode).getD default)
+              else pure valueCode
+            return ← `((← ($recvTerm ~> $attrId)))
         let valueCode ← getCode valueJson `term
         -- `_unwrap_opt` (TypeInfer): the receiver is `Option _`, so unwrap before projecting the field
         if json.getObjValAs? Bool "_unwrap_opt" == .ok true then

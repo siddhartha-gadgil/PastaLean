@@ -1687,11 +1687,19 @@ _CONTAINER_ANN_HEADS = {
 
 
 def _is_container_annotation(ann):
-    """True when `ann` is a `list[...]`/`dict[...]`/`set[...]` annotation node."""
+    """True when `ann` is a `list[...]`/`dict[...]`/`set[...]` annotation node — including a dotted
+    head (`typing.List[...]`), which Lean's `ofAnnotation` already ref-types but which must also reach
+    the `Val` cell universe (`container_types`)."""
     if not isinstance(ann, dict) or ann.get("node_type") != "Subscript":
         return False
     val = ann.get("value")
-    return isinstance(val, dict) and val.get("node_type") == "Name" and val.get("id") in _CONTAINER_ANN_HEADS
+    if not isinstance(val, dict):
+        return False
+    if val.get("node_type") == "Name":
+        return val.get("id") in _CONTAINER_ANN_HEADS
+    if val.get("node_type") == "Attribute":  # `typing.List[...]`, `collections.abc.Sequence[...]`
+        return val.get("attr") in _CONTAINER_ANN_HEADS
+    return False
 
 
 def _annotation_ref_class(ann, class_names):
@@ -1725,12 +1733,13 @@ def _annotation_ref_class(ann, class_names):
 
 def _collect_container_annotations(node, acc=None, seen=None):
     """Every distinct mutable-container annotation node reachable in the (type-stamped) AST — from
-    inferred `_ty` binder stamps, explicit `annotation`s, and inferred `_ret_ty`. Used by `--heap` to
-    build a `Val` constructor per container type, including for local variables (not just fields)."""
+    inferred `_ty` binder stamps, explicit `annotation`s, inferred `_ret_ty`, and `_container_ty`
+    (heap-only markers on `__main__`-guard container locals, which are otherwise left unstamped). Used
+    by `--heap` to build a `Val` constructor per container type, including for local variables."""
     if acc is None:
         acc, seen = [], set()
     if isinstance(node, dict):
-        for key in ("_ty", "annotation", "_ret_ty"):
+        for key in ("_ty", "annotation", "_ret_ty", "_container_ty"):
             ann = node.get(key)
             if _is_container_annotation(ann):
                 marker = json.dumps(ann, sort_keys=True)

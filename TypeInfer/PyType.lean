@@ -98,6 +98,19 @@ def isContainer : PyType → Bool
   | .list _ | .set _ | .dict _ _ => true
   | _ => false
 
+/-- A concrete user class, possibly `Optional`- or container-wrapped (`Node`, `Optional[Node]`,
+`list[Node]`). Such an element pins its container's element type exactly — a `list[Node]` is as
+unambiguous as a `list[int]` — so the container is ascription-worthy (and, under `--heap`, MUST be
+ascribed so the `_ty` stamp reaches the `Val` cell universe). A bare `.cls` on its own is left out
+(see `needsAscription`): only a container OF one counts. -/
+partial def hasConcreteClass : PyType → Bool
+  | .cls _ => true
+  | .opt i => hasConcreteClass i
+  | .list e | .set e => hasConcreteClass e
+  | .dict _ v => hasConcreteClass v
+  | .tuple es => es.any hasConcreteClass
+  | _ => false
+
 /-- Should a *local* binding of this type be ascribed at all? Only discrete scalars, where an
 unascribed literal would otherwise default (`5` → `ℚ` in exact mode). Containers/floats are left for
 Lean to infer from the assignment RHS, so an ascription never *forces* an element type (e.g. `ℚ`)
@@ -108,15 +121,16 @@ partial def needsAscription : PyType → Bool
   -- A container of concrete scalars (`list[int]`, `set[str]`, `list[list[int]]`) is unambiguous, so
   -- ascribing it is safe *and* needed: without it a `List Int` local can be silently unified up to
   -- `List ℚ` by a cross-variable link (`vk = stk.pop()` with `vk` a float), which then fails when the
-  -- element is read as an `Int`. `float`/`unknown` elements stay unascribed (the numpy-`Float` hazard).
-  | .list e | .set e => needsAscription e
+  -- element is read as an `Int`. A container of a concrete class (`list[Node]`) is unambiguous the
+  -- same way. `float`/`unknown` elements stay unascribed (the numpy-`Float` hazard).
+  | .list e | .set e => needsAscription e || hasConcreteClass e
   -- Same reasoning for a dict of concrete scalars (`graph = {}` refined to `dict[int, int]`): it is
   -- unambiguous, and without the ascription a captured dict is lifted as an untyped parameter and
   -- `PyGetItem ?m …` goes stuck. A `float`/`unknown` side stays unascribed, as above.
-  | .dict k v => needsAscription k && needsAscription v
+  | .dict k v => (needsAscription k || hasConcreteClass k) && (needsAscription v || hasConcreteClass v)
   -- A tuple of concrete scalars is unambiguous too (`t = []; t.append((i, j))` → `list[(int,int)]`),
   -- and without it a captured list-of-pairs is lifted untyped.
-  | .tuple es => !es.isEmpty && es.all needsAscription
+  | .tuple es => !es.isEmpty && es.all (fun e => needsAscription e || hasConcreteClass e)
   -- The known-dynamic top type materialises as `PyAny`, which Lean cannot infer from a heterogeneous
   -- literal's first element — so a container wrapping it (`list[any]` → `List PyAny`) must be ascribed.
   | .any => true
