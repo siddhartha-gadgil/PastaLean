@@ -16,7 +16,7 @@ set_option maxHeartbeats 800000
 def sum_to_n := fun (n : Int) ↦
   (do
     let mut total : Int := (0 : Int)
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant ((2 : Int) *ₚ total == i *ₚ (i -ₚ (1 : Int)))
       total := total +ₚ i
     let _ := Libraries.passta.pyPassEnsures ((2 : Int) *ₚ total == n *ₚ (n +ₚ (1 : Int)))
@@ -35,7 +35,7 @@ def sum_to_n'rn := fun (n : Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant ((2 : Int) *ₚ total == i *ₚ (i -ₚ (1 : Int)))
         total := total +ₚ i
       let _ := Libraries.passta.pyPassEnsures ((2 : Int) *ₚ total == n *ₚ (n +ₚ (1 : Int)))

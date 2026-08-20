@@ -177,23 +177,23 @@ theorem total_nonincreasing :
 
 noncomputable def main' :=
   ((do
-      let mut ka := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut ke := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut k12 := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut k21 := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut vol := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut dose := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut dt := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut dose_step : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
-      let mut ndoses : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
+      let mut ka := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut ke := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut k12 := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut k21 := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut vol := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut dose := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut dt := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut dose_step : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut ndoses : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
       let mut depot := (0.0 : Rat)
       let mut central := (0.0 : Rat)
       let mut periph := (0.0 : Rat)
       let mut t := (0.0 : Rat)
       let mut dose_num : Int := (0 : Int)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Administer a dose into the gut depot when one is due.
         if h_1 : step %ₚ dose_step = (0 : Int) then 
           if h_2 : dose_num < ndoses then 
@@ -224,23 +224,23 @@ attribute [simp] main'
 
 def main''rn :=
   ((do
-      let mut ka := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut ke := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut k12 := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut k21 := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut vol := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut dose := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut dt := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut dose_step : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
-      let mut ndoses : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
+      let mut ka := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut ke := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut k12 := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut k21 := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut vol := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut dose := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut dt := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut dose_step : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
+      let mut ndoses : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
       let mut depot := (0.0 : Float)
       let mut central := (0.0 : Float)
       let mut periph := (0.0 : Float)
       let mut t := (0.0 : Float)
       let mut dose_num : Int := (0 : Int)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Administer a dose into the gut depot when one is due.
         if h_1 : step %ₚ dose_step == (0 : Int) then 
           if h_2 : dose_num < ndoses then 

@@ -24,7 +24,7 @@ gets stuck. Each local below is only pinned down by a *later* statement, not by 
 private def _pick'first_one := fun (pairs : List (List Int)) ↦ fun (graph : Std.HashMap Int Int) ↦
   Id.run
     (do
-      for u in (PastaLean.pyIter (PastaLean.pyKeys graph))do
+      for u in (PastaLean.pyIter (PastaLean.pyKeys graph)) do
         if h_1 : graph⦋u⦌ = (1 : Int) then 
           return u
         else
@@ -38,7 +38,7 @@ def pick := fun (pairs : List (List Int)) ↦
   Id.run
     (do
       let mut graph : Std.HashMap Int Int := Std.HashMap.ofList []
-      for _pair_1 in (PastaLean.pyIter pairs)do
+      for _pair_1 in (PastaLean.pyIter pairs) do
         let a := PastaLean.pyListGetItem _pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem _pair_1 (1 : Int)
         graph := PastaLean.pySetItem graph a b
@@ -50,7 +50,7 @@ attribute [simp, taste_ingr] pick
 private def _pick'first_one'rn := fun (pairs : List (List Int)) ↦ fun (graph : Std.HashMap Int Int) ↦
   Id.run
     (do
-      for u in (PastaLean.pyIter (PastaLean.pyKeys graph))do
+      for u in (PastaLean.pyIter (PastaLean.pyKeys graph)) do
         if h_1 : graph⦋u⦌ == (1 : Int) then 
           return u
         else
@@ -62,7 +62,7 @@ def pick'rn := fun (pairs : List (List Int)) ↦
   Id.run
     (do
       let mut graph : Std.HashMap Int Int := Std.HashMap.ofList []
-      for _pair_1 in (PastaLean.pyIter pairs)do
+      for _pair_1 in (PastaLean.pyIter pairs) do
         let a := PastaLean.pyListGetItem _pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem _pair_1 (1 : Int)
         graph := PastaLean.pySetItem graph a b
@@ -74,7 +74,7 @@ private def _tally'score := fun (seen : Std.HashMap String Int) ↦ fun (buckets
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for w in (PastaLean.pyIter (PastaLean.pyKeys seen))do
+      for w in (PastaLean.pyIter (PastaLean.pyKeys seen)) do
         total := total +ₚ (seen⦋w⦌ +ₚ PastaLean.pyLen buckets⦋PastaLean.pyLen w⦌)
       return total)
 
@@ -85,10 +85,10 @@ def tally := fun (words : List String) ↦
     (do
       let mut seen : Std.HashMap String Int := Std.HashMap.ofList []
       let mut buckets : Std.HashMap Int (List String) := Std.HashMap.ofList []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         seen := PastaLean.pySetItem seen w (PastaLean.pyGetD seen w (0 : Int) +ₚ (1 : Int))
         buckets := PastaLean.pySetItem buckets (PastaLean.pyLen w) []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         buckets := PastaLean.pySetItem buckets (PastaLean.pyLen w) (PastaLean.pyAppend buckets⦋PastaLean.pyLen w⦌ w)
       let __py_ret_1 := _tally'score seen buckets
       return __py_ret_1)
@@ -99,7 +99,7 @@ private def _tally'score'rn := fun (seen : Std.HashMap String Int) ↦ fun (buck
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for w in (PastaLean.pyIter (PastaLean.pyKeys seen))do
+      for w in (PastaLean.pyIter (PastaLean.pyKeys seen)) do
         total := total +ₚ (seen⦋w⦌ +ₚ PastaLean.pyLen buckets⦋PastaLean.pyLen w⦌)
       return total)
 
@@ -108,10 +108,10 @@ def tally'rn := fun (words : List String) ↦
     (do
       let mut seen : Std.HashMap String Int := Std.HashMap.ofList []
       let mut buckets : Std.HashMap Int (List String) := Std.HashMap.ofList []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         seen := PastaLean.pySetItem seen w (PastaLean.pyGetD seen w (0 : Int) +ₚ (1 : Int))
         buckets := PastaLean.pySetItem buckets (PastaLean.pyLen w) []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         buckets := PastaLean.pySetItem buckets (PastaLean.pyLen w) (PastaLean.pyAppend buckets⦋PastaLean.pyLen w⦌ w)
       let __py_ret_1 := _tally'score'rn seen buckets
       return __py_ret_1)
@@ -124,7 +124,7 @@ private def _walk'total := fun (graph : Libraries.collections.PyDefaultDict Int 
   Id.run
     (do
       let mut acc : Int := (0 : Int)
-      for k in (PastaLean.pyRange (PastaLean.pyLen todo))do
+      for k in (PastaLean.pyRange (PastaLean.pyLen todo)) do
         let __unpack_value_1 := todo⦋k⦌
         let __unpack_pair_1 := __unpack_value_1
         let mut i := Prod.fst __unpack_pair_1
@@ -140,7 +140,7 @@ def walk := fun (pairs : List (List Int)) ↦
       let mut graph : Libraries.collections.PyDefaultDict Int (List Int) := Libraries.collections.pyDefaultDictList
       let mut seen : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
       let mut todo : List (Int × Int) := []
-      for _pair_1 in (PastaLean.pyIter pairs)do
+      for _pair_1 in (PastaLean.pyIter pairs) do
         let a := PastaLean.pyListGetItem _pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem _pair_1 (1 : Int)
         graph := PastaLean.pySetItem graph a (PastaLean.pyAppend graph⦋a⦌ b)
@@ -156,7 +156,7 @@ private def _walk'total'rn := fun (graph : Libraries.collections.PyDefaultDict I
   Id.run
     (do
       let mut acc : Int := (0 : Int)
-      for k in (PastaLean.pyRange (PastaLean.pyLen todo))do
+      for k in (PastaLean.pyRange (PastaLean.pyLen todo)) do
         let __unpack_value_1 := todo⦋k⦌
         let __unpack_pair_1 := __unpack_value_1
         let mut i := Prod.fst __unpack_pair_1
@@ -170,7 +170,7 @@ def walk'rn := fun (pairs : List (List Int)) ↦
       let mut graph : Libraries.collections.PyDefaultDict Int (List Int) := Libraries.collections.pyDefaultDictList
       let mut seen : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
       let mut todo : List (Int × Int) := []
-      for _pair_1 in (PastaLean.pyIter pairs)do
+      for _pair_1 in (PastaLean.pyIter pairs) do
         let a := PastaLean.pyListGetItem _pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem _pair_1 (1 : Int)
         graph := PastaLean.pySetItem graph a (PastaLean.pyAppend graph⦋a⦌ b)

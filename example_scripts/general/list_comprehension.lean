@@ -190,7 +190,7 @@ def lc_with_side_effects :=
   Id.run
     (do
       let mut result : List Int := []
-      for x in (PastaLean.pyRange (5 : Int))do
+      for x in (PastaLean.pyRange (5 : Int)) do
         result := PastaLean.pyAppend result (x *ₚ x)
       let __py_ret_1 := (PastaLean.pyIter result).map fun y => y
       return __py_ret_1)
@@ -201,7 +201,7 @@ def lc_with_side_effects'rn :=
   Id.run
     (do
       let mut result : List Int := []
-      for x in (PastaLean.pyRange (5 : Int))do
+      for x in (PastaLean.pyRange (5 : Int)) do
         result := PastaLean.pyAppend result (x *ₚ x)
       let __py_ret_1 := (PastaLean.pyIter result).map fun y => y
       return __py_ret_1)

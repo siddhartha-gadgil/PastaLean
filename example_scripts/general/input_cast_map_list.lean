@@ -15,7 +15,7 @@ def read_int_list :=
   ((do
       let mut xs :=
         PastaLean.pyList
-          (PastaLean.pyMap PastaLean.pyInt (PastaLean.pyStringSplit (← PastaLean.ProofMode.pyInputProof "")))
+          (PastaLean.pyMap PastaLean.pyInt (PastaLean.pyStringSplit (← (PastaLean.ProofMode.pyInputProof ""))))
       return xs) :
     PastaLean.ProofMode.PyProofM _)
 
@@ -24,6 +24,6 @@ attribute [simp] read_int_list
 def read_int_list'rn :=
   ((do
       let mut xs :=
-        PastaLean.pyList (PastaLean.pyMap PastaLean.pyInt (PastaLean.pyStringSplit (← PastaLean.pyInputIO "")))
+        PastaLean.pyList (PastaLean.pyMap PastaLean.pyInt (PastaLean.pyStringSplit (← (PastaLean.pyInputIO ""))))
       return xs) :
     IO _)

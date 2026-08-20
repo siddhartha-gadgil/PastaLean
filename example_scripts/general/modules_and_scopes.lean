@@ -63,7 +63,7 @@ def calculate_sum :=
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange (10 : Int))do
+      for i in (PastaLean.pyRange (10 : Int)) do
         total := total +ₚ i
       return total)
 
@@ -73,7 +73,7 @@ def calculate_sum'rn :=
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange (10 : Int))do
+      for i in (PastaLean.pyRange (10 : Int)) do
         total := total +ₚ i
       return total)
 
@@ -95,7 +95,7 @@ def main : IO Unit := do
   let initState : PastaLean.ProofMode.IOState := ⟨inputStream, []⟩
   let (result, finalState) :=
     (((do
-          for _ in (PastaLean.pyRange (10 : Int))do
+          for _ in (PastaLean.pyRange (10 : Int)) do
             let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (greet (1 : Int))]
             let _ := calculate_sum
           let _ := get_global
@@ -112,7 +112,7 @@ def main : IO Unit := do
     throw (IO.userError (toString err))
 
 def main'rn : IO Unit := do
-  for _ in (PastaLean.pyRange (10 : Int))do
+  for _ in (PastaLean.pyRange (10 : Int)) do
     let _ ← pyPrintIO [pyPrintArg (greet'rn (1 : Int))]
     let _ := calculate_sum'rn
   let _ := get_global'rn

@@ -16,12 +16,12 @@ set_option maxHeartbeats 800000
 def pipeline := fun (xs : List Int) ↦
   (do
     let mut acc : Int := (0 : Int)
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       acc := acc +ₚ x
     let _ := Libraries.passta.pyPassAssert (acc == PastaLean.pySum xs)
     acc := acc *ₚ (2 : Int)
     let mut cnt : Int := (0 : Int)
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       cnt := cnt +ₚ (1 : Int)
     let _ := Libraries.passta.pyPassAssert (cnt == PastaLean.pyLen xs)
     let mut result : Int := acc +ₚ cnt
@@ -39,12 +39,12 @@ def pipeline'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut acc : Int := (0 : Int)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         acc := acc +ₚ x
       let _ := Libraries.passta.pyPassAssert (acc == PastaLean.pySum xs)
       acc := acc *ₚ (2 : Int)
       let mut cnt : Int := (0 : Int)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         cnt := cnt +ₚ (1 : Int)
       let _ := Libraries.passta.pyPassAssert (cnt == PastaLean.pyLen xs)
       let mut result : Int := acc +ₚ cnt

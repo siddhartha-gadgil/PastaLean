@@ -134,7 +134,7 @@ def mixed_scalar_accumulator := fun (xs : List Int) ↦
     (do
       -- int-seeded `ans` joins a float (`x / 2`) → must become float; the `0` seed coerces to `(0 : ℚ)`.
       let mut ans := (0 : Rat)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         ans := PastaLean.pyMax [ans, x /ₚ (2 : Int)]
       return ans)
 
@@ -145,7 +145,7 @@ def mixed_scalar_accumulator'rn := fun (xs : List Int) ↦
     (do
       -- int-seeded `ans` joins a float (`x / 2`) → must become float; the `0` seed coerces to `(0 : ℚ)`.
       let mut ans := (0 : Float)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         ans := PastaLean.pyMax [ans, PastaLean.pyFloat x /ₚ (2 : Int)]
       return ans)
 
@@ -155,7 +155,7 @@ def int_init_float_container := fun (nums : List Int) ↦
       -- `dp = [0]*n` later holds floats (`/ 2`) → `List float`, with the `0` element coerced.
       let mut n : Int := PastaLean.pyLen nums
       let mut dp := (PastaLean.pyListRepeat [(0 : Rat)] n : List Rat)
-      for i in (PastaLean.pyRange n (1 : Int))do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         dp := PastaLean.pySetItem dp i (dp⦋i -ₚ (1 : Int)⦌ /ₚ (2 : Int) +ₚ nums⦋i⦌ : Rat)
       return dp)
 
@@ -167,7 +167,7 @@ def int_init_float_container'rn := fun (nums : List Int) ↦
       -- `dp = [0]*n` later holds floats (`/ 2`) → `List float`, with the `0` element coerced.
       let mut n : Int := PastaLean.pyLen nums
       let mut dp := (PastaLean.pyListRepeat [(0 : Float)] n : List Float)
-      for i in (PastaLean.pyRange n (1 : Int))do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyFloat dp⦋i -ₚ (1 : Int)⦌ /ₚ (2 : Int) +ₚ nums⦋i⦌ : Float)
       return dp)
 
@@ -178,7 +178,7 @@ def inf_dp := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp := (PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int)) : List Rat)
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Rat)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌] : Rat)
       let __py_ret_1 := dp⦋n⦌
       return __py_ret_1)
@@ -192,7 +192,7 @@ def inf_dp'rn := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp := (PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int)) : List Float)
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Float)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌] : Float)
       let __py_ret_1 := dp⦋n⦌
       return __py_ret_1)
@@ -221,7 +221,7 @@ def untyped_param_arithmetic := fun (nums : PyAny) ↦
       -- `nums` is un-inferred → boxed `PyAny`; the two-pass seed propagates `PyAny` to the accumulator so
       -- `total` is `PyAny` (not `Int`), matching the boxed element arithmetic.
       let mut total : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         total := total +ₚ x *ₚ (2 : Int)
       return total)
 
@@ -233,7 +233,7 @@ def untyped_param_arithmetic'rn := fun (nums : PyAny) ↦
       -- `nums` is un-inferred → boxed `PyAny`; the two-pass seed propagates `PyAny` to the accumulator so
       -- `total` is `PyAny` (not `Int`), matching the boxed element arithmetic.
       let mut total : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         total := total +ₚ x *ₚ (2 : Int)
       return total)
 
@@ -243,7 +243,7 @@ def untyped_param_compare_and_div := fun (nums : PyAny) ↦
       -- Comparison, `%` and `/` on boxed (`PyAny`) values; `best` is a `let mut PyAny` slot reassigned
       -- across the loop (not shadowed).
       let mut best : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         if h_1 : x > best then 
           best := x +ₚ x %ₚ (3 : Int)
         else
@@ -259,7 +259,7 @@ def untyped_param_compare_and_div'rn := fun (nums : PyAny) ↦
       -- Comparison, `%` and `/` on boxed (`PyAny`) values; `best` is a `let mut PyAny` slot reassigned
       -- across the loop (not shadowed).
       let mut best : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         if h_1 : x > best then 
           best := x +ₚ x %ₚ (3 : Int)
         else
@@ -272,7 +272,7 @@ def untyped_param_bitwise := fun (nums : PyAny) ↦
     (do
       -- Bitwise (`| & `), floor-div (`//`) and shift on boxed (`PyAny`) values.
       let mut r : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         r := PastaLean.pyBitOr r (PastaLean.pyBitAnd x (1 : Int)) +ₚ PastaLean.pyFloorDiv x (2 : Int)
       let __py_ret_1 := PastaLean.pyShiftLeft r (1 : Int)
       return __py_ret_1)
@@ -284,7 +284,7 @@ def untyped_param_bitwise'rn := fun (nums : PyAny) ↦
     (do
       -- Bitwise (`| & `), floor-div (`//`) and shift on boxed (`PyAny`) values.
       let mut r : PyAny := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         r := PastaLean.pyBitOr r (PastaLean.pyBitAnd x (1 : Int)) +ₚ PastaLean.pyFloorDiv x (2 : Int)
       let __py_ret_1 := PastaLean.pyShiftLeft r (1 : Int)
       return __py_ret_1)
@@ -296,8 +296,8 @@ def grid_float_dp := fun (m : Int) ↦ fun (n : Int) ↦
       -- `f[i][j] = ...` teaches `f : list[list[float]]`, coercing the innermost `0`.
       let mut f := (PastaLean.pyRange m).map fun _ => PastaLean.pyListRepeat [(0 : Rat)] n
       f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Rat))
-      for i in (PastaLean.pyRange m)do
-        for j in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange m) do
+        for j in (PastaLean.pyRange n) do
           if h_1 : i > (0 : Int) then 
             f := PastaLean.pySetItem f i (PastaLean.pySetItem f⦋i⦌ j (f⦋i⦌⦋j⦌ +ₚ f⦋i -ₚ (1 : Int)⦌⦋j⦌ /ₚ (2 : Int)))
           else
@@ -314,8 +314,8 @@ def grid_float_dp'rn := fun (m : Int) ↦ fun (n : Int) ↦
       -- `f[i][j] = ...` teaches `f : list[list[float]]`, coercing the innermost `0`.
       let mut f := (PastaLean.pyRange m).map fun _ => PastaLean.pyListRepeat [(0 : Float)] n
       f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Float))
-      for i in (PastaLean.pyRange m)do
-        for j in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange m) do
+        for j in (PastaLean.pyRange n) do
           if h_1 : i > (0 : Int) then 
             f :=
               PastaLean.pySetItem f i

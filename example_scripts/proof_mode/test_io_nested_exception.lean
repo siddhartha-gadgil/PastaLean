@@ -15,7 +15,7 @@ set_option maxHeartbeats 0
 def main' :=
   ((do
       try
-        let mut x : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
+        let mut x : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
         let mut y := default
         try
           y := (10 : Int) /ₚ x

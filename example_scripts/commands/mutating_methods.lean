@@ -74,7 +74,7 @@ def tally := fun (nums : List Int) ↦
   Id.run
     (do
       let mut d : Std.HashMap Int Int := Std.HashMap.ofList []
-      for n in (PastaLean.pyIter nums)do
+      for n in (PastaLean.pyIter nums) do
         let mut seen := PastaLean.pyGetD d n (0 : Int)
         d := PastaLean.pyDictSetdefaultRest d n (0 : Int)
         d := PastaLean.pySetItem d n (seen +ₚ (1 : Int))
@@ -87,7 +87,7 @@ def tally'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut d : Std.HashMap Int Int := Std.HashMap.ofList []
-      for n in (PastaLean.pyIter nums)do
+      for n in (PastaLean.pyIter nums) do
         let mut seen := PastaLean.pyGetD d n (0 : Int)
         d := PastaLean.pyDictSetdefaultRest d n (0 : Int)
         d := PastaLean.pySetItem d n (seen +ₚ (1 : Int))

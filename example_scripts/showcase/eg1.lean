@@ -57,7 +57,7 @@ noncomputable def find_nearest_neighbor := fun (target : List Int) ↦ fun (data
         -- Find the index of the minimum distance
         -- Using a loop since index() might not be supported based on tests
         let mut min_index : Int := -(1 : Int)
-        for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances))do
+        for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances)) do
           let i := Prod.fst _pair_1
           let d := Prod.snd _pair_1
           if h_1 : d = min_dist then 
@@ -89,7 +89,7 @@ def find_nearest_neighbor'rn : List Int → List (List Int) → PastaLean.PyExce
     -- Find the index of the minimum distance
     -- Using a loop since index() might not be supported based on tests
     let mut min_index : Int := -(1 : Int)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances)) do
       let i := Prod.fst _pair_1
       let d := Prod.snd _pair_1
       if h_1 : d == min_dist then 

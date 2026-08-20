@@ -53,7 +53,7 @@ def smallest := fun (xs : List Int) ↦
   Id.run
     (do
       let mut lo := inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         lo := PastaLean.pyMin [lo, x]
       return lo)
 
@@ -63,7 +63,7 @@ def smallest'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut lo := inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         lo := PastaLean.pyMin [lo, x]
       return lo)
 
@@ -72,7 +72,7 @@ def scaled := fun (xs : List Rat) ↦
   Id.run
     (do
       let mut hi := -inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         hi := PastaLean.pyMax [hi, x *ₚ (2.0 : Rat)]
       return hi)
 
@@ -82,7 +82,7 @@ def scaled'rn := fun (xs : List Float) ↦
   Id.run
     (do
       let mut hi := -inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         hi := PastaLean.pyMax [hi, x *ₚ (2.0 : Float)]
       return hi)
 

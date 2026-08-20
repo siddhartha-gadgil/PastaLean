@@ -349,26 +349,26 @@ theorem spring_force_is_central :
 -- ----------------------------------------------------------------------------------------------
 def main' :=
   ((do
-      let mut k := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut m1 := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut m2 := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r1x := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r1y := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r1z := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r2x := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r2y := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut r2z := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v1x := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v1y := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v1z := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v2x := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v2y := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut v2z := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut dt := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
+      let mut k := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut m1 := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut m2 := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r1x := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r1y := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r1z := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r2x := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r2y := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut r2z := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v1x := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v1y := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v1z := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v2x := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v2y := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut v2z := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut dt := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
       let mut t := (0.0 : Rat)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x
@@ -412,26 +412,26 @@ attribute [simp] main'
 
 def main''rn :=
   ((do
-      let mut k := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut m1 := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut m2 := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r1x := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r1y := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r1z := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r2x := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r2y := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut r2z := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v1x := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v1y := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v1z := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v2x := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v2y := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut v2z := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut dt := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
+      let mut k := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut m1 := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut m2 := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r1x := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r1y := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r1z := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r2x := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r2y := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut r2z := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v1x := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v1y := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v1z := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v2x := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v2y := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut v2z := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut dt := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
       let mut t := (0.0 : Float)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x

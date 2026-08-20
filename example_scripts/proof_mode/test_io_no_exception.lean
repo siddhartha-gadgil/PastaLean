@@ -14,7 +14,7 @@ set_option maxHeartbeats 0
 -- Test: IO without explicit exception handling
 def main' :=
   ((do
-      let mut x : String := (← PastaLean.ProofMode.pyInputProof "")
+      let mut x : String := (← (PastaLean.ProofMode.pyInputProof ""))
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg x]) :
     PastaLean.ProofMode.PyProofM _)
 
@@ -22,6 +22,6 @@ attribute [simp] main'
 
 def main''rn :=
   ((do
-      let mut x : String := (← PastaLean.pyInputIO "")
+      let mut x : String := (← (PastaLean.pyInputIO ""))
       let _ ← pyPrintIO [pyPrintArg x]) :
     IO _)

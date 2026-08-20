@@ -40,7 +40,7 @@ noncomputable def mean_squared_error := fun (xs : List (List Rat)) ↦ fun (ys :
   Id.run
     (do
       let mut total := (0.0 : Real)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut diff := predict xs⦋i⦌ w1 b1 w2 b2 -ₚ ys⦋i⦌
         total := total +ₚ diff *ₚ diff
       let __py_ret_1 := total /ₚ PastaLean.pyLen xs
@@ -53,7 +53,7 @@ def mean_squared_error'rn := fun (xs : List (List Float)) ↦ fun (ys : List Flo
   Id.run
     (do
       let mut total := (0.0 : Float)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut diff := predict'rn xs⦋i⦌ w1 b1 w2 b2 -ₚ ys⦋i⦌
         total := total +ₚ diff *ₚ diff
       let __py_ret_1 := PastaLean.pyFloat total /ₚ PastaLean.pyLen xs
@@ -77,8 +77,8 @@ noncomputable def main' :=
       let mut epochs : Int := (4000 : Int)
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg "=== Training a neural net on XOR (NumPy + math) ==="]
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "initial loss: {mean_squared_error xs ys w1 b1 w2 b2}"]
-      for epoch in (PastaLean.pyRange epochs)do
-        for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for epoch in (PastaLean.pyRange epochs) do
+        for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
           let mut x := xs⦋i⦌
           let mut y := ys⦋i⦌
           -- Forward pass, keeping the hidden activations for backprop.
@@ -111,7 +111,7 @@ noncomputable def main' :=
         else
           let _ := ()
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg "learned predictions:"]
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut p := predict xs⦋i⦌ w1 b1 w2 b2
         let mut label : Int := if p > (0.5 : Real) then (1 : Int) else (0 : Int)
         let _ ←
@@ -139,8 +139,8 @@ def main''rn :=
       let mut epochs : Int := (4000 : Int)
       let _ ← pyPrintIO [pyPrintArg "=== Training a neural net on XOR (NumPy + math) ==="]
       let _ ← pyPrintIO [pyPrintArg s! "initial loss: {mean_squared_error'rn xs ys w1 b1 w2 b2}"]
-      for epoch in (PastaLean.pyRange epochs)do
-        for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for epoch in (PastaLean.pyRange epochs) do
+        for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
           let mut x := xs⦋i⦌
           let mut y := ys⦋i⦌
           -- Forward pass, keeping the hidden activations for backprop.
@@ -172,7 +172,7 @@ def main''rn :=
         else
           let _ := ()
       let _ ← pyPrintIO [pyPrintArg "learned predictions:"]
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut p := predict'rn xs⦋i⦌ w1 b1 w2 b2
         let mut label : Int := if p > (0.5 : Float) then (1 : Int) else (0 : Int)
         let _ ← pyPrintIO [pyPrintArg s! "  {xs⦋i⦌} -> {p }  (class {label }, target {PastaLean.pyInt ys⦋i⦌})"]) :

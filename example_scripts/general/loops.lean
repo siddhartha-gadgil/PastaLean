@@ -15,8 +15,8 @@ def nested_loops := fun n ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange i)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange i) do
           total := total +ₚ j
       return total)
 
@@ -26,8 +26,8 @@ def nested_loops'rn := fun n ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange i)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange i) do
           total := total +ₚ j
       return total)
 
@@ -35,10 +35,10 @@ def super_nested_loops := fun n ↦
   Id.run
     (do
       let mut res : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange n)do
-          for k in (PastaLean.pyRange n)do
-            for l in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange n) do
+          for k in (PastaLean.pyRange n) do
+            for l in (PastaLean.pyRange n) do
               res := res +ₚ (i +ₚ j +ₚ k +ₚ l)
       return res)
 
@@ -48,10 +48,10 @@ def super_nested_loops'rn := fun n ↦
   Id.run
     (do
       let mut res : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange n)do
-          for k in (PastaLean.pyRange n)do
-            for l in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange n) do
+          for k in (PastaLean.pyRange n) do
+            for l in (PastaLean.pyRange n) do
               res := res +ₚ (i +ₚ j +ₚ k +ₚ l)
       return res)
 
@@ -59,7 +59,7 @@ def while_in_for := fun n ↦
   Id.run
     (do
       let mut count : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let mut j : Int := i
         while (j > (0 : Int)) do
           count := count +ₚ (1 : Int)
@@ -72,7 +72,7 @@ def while_in_for'rn := fun n ↦
   Id.run
     (do
       let mut count : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let mut j : Int := i
         while (j > (0 : Int)) do
           count := count +ₚ (1 : Int)
@@ -83,7 +83,7 @@ def breakable_loop := fun n ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : i = (5 : Int) then 
           break
         else
@@ -105,7 +105,7 @@ def breakable_loop'rn := fun n ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : i == (5 : Int) then 
           break
         else
@@ -128,7 +128,7 @@ def for_leaks_out := fun (n : Int) ↦
       -- its own scope). `x` is read after the loop, so it is hoisted to `let mut x : Int := default`
       -- before the loop and the body reassigns it.
       let mut x : Int := default
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         x := i *ₚ (2 : Int)
       return x)
 
@@ -141,7 +141,7 @@ def for_leaks_out'rn := fun (n : Int) ↦
       -- its own scope). `x` is read after the loop, so it is hoisted to `let mut x : Int := default`
       -- before the loop and the body reassigns it.
       let mut x : Int := default
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         x := i *ₚ (2 : Int)
       return x)
 
@@ -151,8 +151,8 @@ def nested_leaks_out := fun (n : Int) ↦
       -- `y` is first bound in the INNERMOST loop yet read after the OUTERMOST — it hoists all the way to
       -- the function scope (the annotate pass collects an inner-bound name at the outer loop).
       let mut y : Int := default
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange n) do
           y := i *ₚ j
       return y)
 
@@ -164,8 +164,8 @@ def nested_leaks_out'rn := fun (n : Int) ↦
       -- `y` is first bound in the INNERMOST loop yet read after the OUTERMOST — it hoists all the way to
       -- the function scope (the annotate pass collects an inner-bound name at the outer loop).
       let mut y : Int := default
-      for i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange n) do
           y := i *ₚ j
       return y)
 
@@ -175,7 +175,7 @@ def loop_leak_conflicting := fun (n : Int) ↦
       -- A loop-body name bound at DIFFERENT types across branches leaks out as `PyAny` (hoisted before
       -- the loop as `let mut z : PyAny := emptyPyAny`; each branch reassigns, boxing).
       let mut z : PyAny := default
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : i %ₚ (2 : Int) = (0 : Int) then 
           z := i
         else
@@ -191,7 +191,7 @@ def loop_leak_conflicting'rn := fun (n : Int) ↦
       -- A loop-body name bound at DIFFERENT types across branches leaks out as `PyAny` (hoisted before
       -- the loop as `let mut z : PyAny := emptyPyAny`; each branch reassigns, boxing).
       let mut z : PyAny := default
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : i %ₚ (2 : Int) == (0 : Int) then 
           z := i
         else

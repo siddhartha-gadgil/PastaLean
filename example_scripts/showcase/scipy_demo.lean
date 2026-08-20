@@ -20,7 +20,7 @@ def variance := fun (xs : List Rat) ↦
     (do
       let mut m := Libraries.scipy.pyScipyTmean xs
       let mut total := (0.0 : Rat)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         total := total +ₚ (x -ₚ m) *ₚ (x -ₚ m)
       let __py_ret_1 := total /ₚ PastaLean.pyLen xs
       return __py_ret_1)
@@ -32,7 +32,7 @@ def variance'rn := fun (xs : List Float) ↦
     (do
       let mut m := Libraries.scipy.pyScipyTmean xs
       let mut total := (0.0 : Float)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         total := total +ₚ (x -ₚ m) *ₚ (x -ₚ m)
       let __py_ret_1 := PastaLean.pyFloat total /ₚ PastaLean.pyLen xs
       return __py_ret_1)

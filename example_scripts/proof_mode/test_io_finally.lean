@@ -15,7 +15,7 @@ set_option maxHeartbeats 0
 def main' :=
   ((do
       try
-        let mut x : String := (← PastaLean.ProofMode.pyInputProof "")
+        let mut x : String := (← (PastaLean.ProofMode.pyInputProof ""))
       catch caught =>
         throw caught
       finally

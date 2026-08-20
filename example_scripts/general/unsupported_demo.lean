@@ -25,7 +25,7 @@ def total_score := fun (scores : List Int) ↦
       let _ := pyUnsupported "logger.info(\"scoring\")"
       let mut blob := pyUnsupported "blob = requests.get(\"http://x\")"
       let mut total : Int := (0 : Int)
-      for s in (PastaLean.pyIter scores)do
+      for s in (PastaLean.pyIter scores) do
         total := total +ₚ s
       return total)
 
@@ -37,7 +37,7 @@ def total_score'rn := fun (scores : List Int) ↦
       let _ := pyUnsupported "logger.info(\"scoring\")"
       let mut blob := pyUnsupported "blob = requests.get(\"http://x\")"
       let mut total : Int := (0 : Int)
-      for s in (PastaLean.pyIter scores)do
+      for s in (PastaLean.pyIter scores) do
         total := total +ₚ s
       return total)
 

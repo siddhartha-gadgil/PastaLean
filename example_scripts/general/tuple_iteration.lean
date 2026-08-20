@@ -26,7 +26,7 @@ def neighbours := fun (i : Int) ↦ fun (j : Int) ↦
     (do
       let mut dirs : Int × Int × Int × Int × Int := (-(1 : Int), ((0 : Int), ((1 : Int), ((0 : Int), -(1 : Int)))))
       let mut out : List (Int × Int) := []
-      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs))do
+      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs)) do
         let a := Prod.fst _pair_1
         let b := Prod.snd _pair_1
         out := PastaLean.pyAppend out (i +ₚ a, j +ₚ b)
@@ -39,7 +39,7 @@ def neighbours'rn := fun (i : Int) ↦ fun (j : Int) ↦
     (do
       let mut dirs : Int × Int × Int × Int × Int := (-(1 : Int), ((0 : Int), ((1 : Int), ((0 : Int), -(1 : Int)))))
       let mut out : List (Int × Int) := []
-      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs))do
+      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs)) do
         let a := Prod.fst _pair_1
         let b := Prod.snd _pair_1
         out := PastaLean.pyAppend out (i +ₚ a, j +ₚ b)
@@ -50,7 +50,7 @@ def stats := fun (t : Int × Int × Int × Int × Int × Int × Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for x in (PastaLean.pyIter t)do
+      for x in (PastaLean.pyIter t) do
         total := total +ₚ x
       let __py_ret_1 := (total, (PastaLean.pyMax t, PastaLean.pyMin t))
       return __py_ret_1)
@@ -61,7 +61,7 @@ def stats'rn := fun (t : Int × Int × Int × Int × Int × Int × Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for x in (PastaLean.pyIter t)do
+      for x in (PastaLean.pyIter t) do
         total := total +ₚ x
       let __py_ret_1 := (total, (PastaLean.pyMax t, PastaLean.pyMin t))
       return __py_ret_1)
@@ -100,7 +100,7 @@ def nested_for_unpack := fun (xs : List Int) ↦ fun (ys : List Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int)))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int))) do
         let i := Prod.fst _pair_1
         let __for_unpack_1 := Prod.snd _pair_1
         let __unpack_value_1 := __for_unpack_1
@@ -116,7 +116,7 @@ def nested_for_unpack'rn := fun (xs : List Int) ↦ fun (ys : List Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int)))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int))) do
         let i := Prod.fst _pair_1
         let __for_unpack_1 := Prod.snd _pair_1
         let __unpack_value_1 := __for_unpack_1

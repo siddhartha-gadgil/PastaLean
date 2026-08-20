@@ -33,7 +33,7 @@ private partial def _count_components'dfs := fun (i : Int) ↦ fun (adj : List (
       else
         let _ := ()
       seen := PastaLean.pySetAdd seen i
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         let __unpack_value_1 := _count_components'dfs j adj seen
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t1 := Prod.fst __unpack_pair_1
@@ -46,7 +46,7 @@ def count_components := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut seen := PastaLean.pySetFromList []
       let mut __cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let __unpack_value_1 := _count_components'dfs i adj seen
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t3 := Prod.fst __unpack_pair_1
@@ -67,7 +67,7 @@ private partial def _count_components'dfs'rn := fun (i : Int) ↦ fun (adj : Lis
       else
         let _ := ()
       seen := PastaLean.pySetAdd seen i
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         let __unpack_value_1 := _count_components'dfs'rn j adj seen
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t1 := Prod.fst __unpack_pair_1
@@ -80,7 +80,7 @@ def count_components'rn := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut seen := PastaLean.pySetFromList []
       let mut __cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let __unpack_value_1 := _count_components'dfs'rn i adj seen
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t3 := Prod.fst __unpack_pair_1
@@ -102,7 +102,7 @@ def running := fun (xs : List Int) ↦
     (do
       let mut total : Int := (0 : Int)
       let mut __cc1 := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let __unpack_value_1 := _running'step x total
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t2 := Prod.fst __unpack_pair_1
@@ -121,7 +121,7 @@ def running'rn := fun (xs : List Int) ↦
     (do
       let mut total : Int := (0 : Int)
       let mut __cc1 := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let __unpack_value_1 := _running'step'rn x total
         let __unpack_pair_1 := __unpack_value_1
         let mut __thread_t2 := Prod.fst __unpack_pair_1

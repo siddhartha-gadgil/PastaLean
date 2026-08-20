@@ -227,16 +227,16 @@ theorem det_nonneg_of_symmetric_psd :
 -- ----------------------------------------------------------------------------------------------
 def main' :=
   ((do
-      let mut a := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut b := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut c := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut d := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut x := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut y := PastaLean.pyRat (← PastaLean.ProofMode.pyInputProof "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
+      let mut a := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut b := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut c := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut d := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut x := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut y := PastaLean.pyRat (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.ProofMode.pyInputProof ""))
       let mut detA := det a b c d
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- One step of the linear map (x, y) -> (a x + b y, c x + d y).
         let mut nx := a *ₚ x +ₚ b *ₚ y
         let mut ny := c *ₚ x +ₚ d *ₚ y
@@ -254,16 +254,16 @@ attribute [simp] main'
 
 def main''rn :=
   ((do
-      let mut a := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut b := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut c := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut d := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut x := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut y := PastaLean.pyFloat (← PastaLean.pyInputIO "")
-      let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
-      let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
+      let mut a := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut b := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut c := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut d := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut x := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut y := PastaLean.pyFloat (← (PastaLean.pyInputIO ""))
+      let mut nsteps : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
+      let mut every : Int := PastaLean.pyInt (← (PastaLean.pyInputIO ""))
       let mut detA := det'rn a b c d
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- One step of the linear map (x, y) -> (a x + b y, c x + d y).
         let mut nx := a *ₚ x +ₚ b *ₚ y
         let mut ny := c *ₚ x +ₚ d *ₚ y

@@ -16,7 +16,7 @@ def main' :=
   ((do
       let mut x : String := default
       try
-        x := (← PastaLean.ProofMode.pyInputProof "")
+        x := (← (PastaLean.ProofMode.pyInputProof ""))
       catch caught =>
         if (caught).OfKind == "EOFError" then 
           x := "default"
