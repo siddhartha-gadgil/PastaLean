@@ -2,23 +2,24 @@ import PastaLean
 import Std.Tactic.Do
 
 /-!
-# In-place singly-linked-list `reverse` — a framed separation-logic Hoare triple
+# In-place singly-linked-list `reverse` — a framed separation-logic Hoare triple on translator output
 
-A port of Lean PR #14614's showcase (an in-place doubly-linked-list reverse proven with `vcgen`)
-to PastaLean's **typed** `--heap` runtime. The differences:
+A separation-logic proof of `⦃ IsList xs head ⦄ reverse head ⦃ fun r => IsList xs.reverse r ⦄` where
+`reverse` is the **verbatim Lean that `pastalean translate --heap` emits** for the textbook Python
+in-place linked-list reverse (`example_scripts/heap/37_linked_list_reverse.py`): a `while` loop over
+`(prev, curr)` that reads each node's `next`, splices it to point back at `prev`, and advances.
 
-* PastaLean's heap holds one whole value per `Ref` cell (not raw per-field addresses), so a node is
-  the struct `Node { val, next }` — exactly what `pastalean translate --heap` emits for the recursive
-  `class Node: def __init__(self, val, next=None)` pattern (see `example_scripts/heap/07_optional_node.py`).
-  The list is therefore *singly* linked: `reverse` only rewrites each `next` pointer to point back.
-* A null pointer is `none : Option (Ref Node)`; the ghost list `xs : List Int` relates to the heap by
-  `IsList`, quantifying the tail pointer with the lattice `⨆` (`Lean.Order.iSup`).
-* Leaf steps reuse the library's proven `readRef_spec`/`writeRef_spec` and the registered
-  `@[frameproc]`, so the framing (`l ↦ v` carried untouched across the whole reverse) is automatic.
-
-`reverse.go`/`reverse` are hand-written (as in the PR): the program takes only a `head` pointer,
-`xs` is ghost in the specification, and the accumulator `go_spec` is proved by induction on the ghost
-list with the induction hypothesis fed to `vcgen` as the spec for the recursive call.
+* PastaLean's heap holds one whole value per `Ref` cell, so a node is the struct `Node { val, next }`;
+  a null pointer is `none : Option (Ref Node)`. The ghost list `xs : List Int` relates to the heap by
+  `IsList`, quantifying each tail pointer with the lattice `⨆` (`Lean.Order.iSup`).
+* The loop's decreasing quantity is the remaining spine length at `curr` — a *heap-resident* fact, not
+  a pure function of the two `Ref` pointers in the loop state. The stock pure `RepeatVariant` measure
+  cannot express it, so the loop is proven with the **ghost-`Nat` measure rule** `forIn_loop_ghost`
+  (in `PastaLean/PyAPI/Heap/Proof.lean`): the invariant `INV` carries a ghost `Nat`, and each continue
+  step re-establishes it at a strictly smaller index.
+* Leaf steps use the library's `readRefM_spec`/`writeRefM_spec` under `vcgen`; the registered
+  `@[frameproc]` frames the untouched tail across each step, and the closing `example` frames an
+  unrelated cell `l ↦ v` across the entire reverse.
 
 This module stays at the root namespace (as the translator emits) and is built as an independent
 compilation unit (lakefile `globs`), so its `Val` never collides with another example's.
@@ -52,34 +53,6 @@ instance : Storable Val Int where
     | _ => none
   project_inject := fun _ => rfl
 
-/-! ## Separating pure facts (`⌜φ⌝ ⊓ emp`) -/
-
-/-- Iris-style separating pure: the heap is empty *and* `φ` holds. -/
-noncomputable abbrev sepPure (φ : Prop) : HProp Val := ⌜φ⌝ ⊓ emp
-
-theorem sepPure_apply (φ : Prop) (s : Store Val) : sepPure φ s ↔ φ ∧ emp s := by
-  simp only [sepPure, hprop_meet_apply, hprop_ofProp_apply]
-
-/-- `sepPure P ∗ Q` floats `P` out as a pure fact and leaves `Q`. -/
-theorem sepPure_sepConj_iff (P : Prop) (Q : HProp Val) (s : Store Val) :
-    (sepPure P ∗ Q) s ↔ P ∧ Q s := by
-  rw [sepPure, sepConj_ofProp_meet_left, emp_sepConj]
-  simp only [hprop_meet_apply, hprop_ofProp_apply]
-
-@[grind =] theorem sepPure_true_eq_emp : sepPure True = emp := by
-  funext s; apply propext; simp [sepPure_apply]
-
-/-! ## Pointwise `⨆` on `HProp` -/
-
-/-- Pointwise characterization of the lattice `⨆` on `HProp Val`. -/
-theorem iSup_hprop_apply {ι : Type} (P : ι → HProp Val) (s : Store Val) :
-    (Lean.Order.iSup P) s ↔ ∃ i, (P i) s := by
-  unfold Lean.Order.iSup
-  rw [hprop_sup_apply]
-  constructor
-  · rintro ⟨f, ⟨i, rfl⟩, hf⟩; exact ⟨i, hf⟩
-  · rintro ⟨i, hi⟩; exact ⟨P i, ⟨i, rfl⟩, hi⟩
-
 /-! ## The list predicate `IsList xs p`
 
 `p` roots a null-terminated singly-linked list whose payloads are `xs`. Matching on the pointer in the
@@ -111,43 +84,8 @@ theorem IsList_cons_intro (node : Node) (r : Ref Node) (vs : List Int) :
   rw [IsList_cons_some]
   exact (iSup_hprop_apply _ _).mpr ⟨node.next, hs⟩
 
-@[grind =] theorem IsList_append_nil (xs : List Int) (r : Option (Ref Node)) :
-    IsList (xs ++ ([] : List Int)) r = IsList xs r := by simp
-
-/-! ## The program: fuel-bounded in-place reverse -/
-
-/-- Reverse accumulator: walk `curr`, splicing each cell's `next` to point at the reversed prefix
-`prev`. `fuel` bounds the remaining spine length (`xs.length` in the spec). -/
-def Node.reverse.go (fuel : Nat) (curr prev : Option (Ref Node)) : HeapM Val (Option (Ref Node)) :=
-  match fuel with
-  | 0 => pure prev
-  | fuel + 1 =>
-    match curr with
-    | none => pure prev
-    | some r => do
-      let node ← readRef r
-      writeRef r { node with next := prev }
-      Node.reverse.go fuel node.next (some r)
-
-/-- In-place reverse with fuel `xs.length` supplied at the specification. -/
-def Node.reverse (fuel : Nat) (head : Option (Ref Node)) : HeapM Val (Option (Ref Node)) :=
-  Node.reverse.go fuel head none
-
-/-! ## Specifications -/
-
-/-- Read a cons cell through its `IsList`: the returned `node` witnesses the head payload (`node.val`)
-and the tail pointer (`node.next`). Higher priority than `readRef_spec` so `vcgen` prefers the
-`IsList`-shaped precondition. -/
-@[spec high] theorem readRef_cons_IsList (v : Int) (vs : List Int) (r : Ref Node) :
-    ⦃ IsList (v :: vs) (some r) ⦄
-      readRef r
-    ⦃ fun node => (⌜node.val = v⌝ : HProp Val) ⊓ (r ↦ node ∗ IsList vs node.next) ⦄ := by
-  simp only [IsList_cons_some]
-  vcgen [readRef_spec] with finish
-
 /-- After rewriting `curr`'s `next` to `prev`, rebuild the cons cell onto the accumulator; the tail
-`IsList rest next` frames across. The read value fact `node.val = v` (floated out by the read spec)
-identifies the rebuilt head. -/
+`IsList rest next` frames across. The read value fact `nd.val = v` identifies the rebuilt head. -/
 theorem reverse_handoff_le (nd : Node) (v : Int) (rest acc : List Int)
     (r : Ref Node) (next prev : Option (Ref Node)) (hv : nd.val = v) (hn : nd.next = prev) :
     ((IsList acc prev ∗ IsList rest next) ∗ r ↦ nd)
@@ -158,69 +96,126 @@ theorem reverse_handoff_le (nd : Node) (v : Int) (rest acc : List Int)
   rw [heq]
   exact sepConj_mono_r (IsList_cons_intro nd r acc)
 
-/-- When the remaining segment is empty, `curr = none` and the accumulator is the whole result. -/
-theorem IsList_nil_acc_le (acc : List Int) (curr prev : Option (Ref Node)) :
-    (sepPure (curr = none) ∗ IsList acc prev) ⊑ IsList acc prev := by
-  intro s hs
-  exact ((sepPure_sepConj_iff (curr = none) (IsList acc prev) s).mp hs).2
+/-! ## The loop invariant
 
-/-- Accumulator spec — both induction cases are `vcgen` scripts.
-Pre: remaining segment `rest` at `curr`, plus the already-reversed prefix `acc` at `prev`.
-Post: the full reversal `rest.reverse ++ acc`. -/
-@[spec] theorem Node.reverse.go_spec (fuel : Nat) (rest acc : List Int)
-    (curr prev : Option (Ref Node)) (hle : rest.length ≤ fuel) :
-    ⦃ IsList rest curr ∗ IsList acc prev ⦄
-      Node.reverse.go fuel curr prev
-    ⦃ fun r => IsList (rest.reverse ++ acc) r ⦄ := by
-  induction rest generalizing fuel curr prev acc with
-  | nil =>
-    simp only [List.reverse_nil, List.nil_append, IsList_nil_eq]
-    cases fuel with
-    | zero =>
-      simp only [Node.reverse.go]
-      vcgen with (try finish;
-                  try exact IsList_nil_acc_le acc curr prev;
-                  try (intro s hs;
-                       exact ((sepPure_sepConj_iff (curr = none) (IsList acc prev) s).mp hs).2))
-    | succ fuel =>
+Carries a ghost `Nat` = the remaining spine length at `curr`. In the `.inl` (continue) case the heap
+is split as the reversed prefix `acc` at `prev` and the remaining segment `rest` at `curr`, with the
+pure witness `xs = acc.reverse ++ rest ∧ rest.length = n`. In the `.inr` (done) case the whole heap is
+the fully reversed list. -/
+noncomputable def INV (xs : List Int) :
+    Nat → (Option (Ref Node) × Option (Ref Node)) ⊕ (Option (Ref Node) × Option (Ref Node)) →
+    HProp Val
+  | n, .inl b => iSup (fun (ra : List Int × List Int) =>
+      sepPure (xs = ra.2.reverse ++ ra.1 ∧ ra.1.length = n) ∗ (IsList ra.1 b.2 ∗ IsList ra.2 b.1))
+  | _, .inr b => IsList xs.reverse b.1
+
+/-! ## The translated program (verbatim from `pastalean translate --heap`, example 37) -/
+
+def reverse := fun (head : Option (PastaLean.Ref Node)) ↦
+  ((do
+      let mut prev := Option.none
+      let mut curr := head
+      while (!PastaLean.pyIsNone curr) do
+        let mut nxt := (← (((curr).getD default) ~> next))
+        ((curr).getD default) ~> next <~ prev
+        prev := curr
+        curr := nxt
+      return prev) :
+    (PastaLean.HeapM Val) _)
+
+/-! ## The spec, proved on the translated `forIn` via the ghost measure -/
+
+theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
+    ⦃ IsList xs head ⦄ reverse head ⦃ fun r => IsList xs.reverse r ⦄ := by
+  simp only [reverse]
+  refine Triple.bind _ _ (fun b => iSup (fun n => INV xs n (.inr b))) ?hx ?hf
+  case hf =>
+    intro b
+    refine Triple.pure b.1 ?_
+    refine iSup_le _ _ (fun n => ?_)
+    simp only [INV]
+    exact PartialOrder.rel_refl
+  case hx =>
+    refine Triple.intro (PartialOrder.rel_trans
+      (y := INV xs xs.length (.inl (none, head))) ?hpre ?hloop)
+    case hloop =>
+      refine Triple.le_wp ?_
+      apply forIn_loop_ghost (inv := INV xs) (n₀ := xs.length)
+      intro n b
+      obtain ⟨prev, curr⟩ := b
+      simp only [INV]
+      refine Triple.iSup_pre _ _ _ ?_
+      rintro ⟨rest, acc⟩
+      refine Triple.sepPure_pre _ _ _ _ ?_
+      rintro ⟨hxs, hlen⟩
       cases curr with
       | none =>
-        simp only [Node.reverse.go]
-        vcgen with (try finish; try exact IsList_nil_acc_le acc none prev)
+        rw [if_neg (by decide)]
+        cases rest with
+        | nil =>
+          refine Triple.pure (ForInStep.done (prev, none)) ?_
+          show (IsList [] none ∗ IsList acc prev) ⊑ IsList xs.reverse prev
+          have hrev : xs.reverse = acc := by rw [hxs]; simp
+          rw [IsList_nil_none, emp_sepConj, hrev]
+        | cons v vs =>
+          refine Triple.pure (ForInStep.done (prev, none)) ?_
+          intro s hs
+          rw [IsList_cons_none] at hs
+          exact (((sepPure_sepConj_iff False (IsList acc prev) s).mp hs).1).elim
       | some r =>
-        constructor
-        intro s hs
-        exact absurd ((sepPure_sepConj_iff (some r = none) (IsList acc prev) s).mp hs).1 (by simp)
-  | cons v rest ih =>
-    match fuel, hle with
-    | 0, hle => simp at hle
-    | fuel + 1, hle =>
-      simp only [List.reverse_cons, List.append_assoc, List.singleton_append,
-        List.length_cons] at hle ⊢
-      cases curr with
-      | none =>
-        constructor
-        intro s hs
-        rw [IsList_cons_none] at hs
-        exact (((sepPure_sepConj_iff False (IsList acc prev) s).mp hs).1).elim
-      | some r =>
-        simp only [Node.reverse.go]
-        vcgen [-readRef_spec, readRef_cons_IsList, writeRef_spec,
-          fun (node : Node) => ih fuel (v :: acc) node.next (some r) (Nat.le_of_succ_le_succ hle)] with
-          (try finish;
-           try (rename_i nd hval _;
-                exact reverse_handoff_le {nd with next := prev} v rest acc r nd.next prev hval rfl))
-
-@[spec] theorem Node.reverse_spec (xs : List Int) (head : Option (Ref Node)) :
-    ⦃ IsList xs head ⦄ Node.reverse xs.length head ⦃ fun r => IsList xs.reverse r ⦄ := by
-  simp only [Node.reverse]
-  vcgen [-Node.reverse.go_spec,
-    Node.reverse.go_spec xs.length xs [] head none (Nat.le_refl _)] with
-    (try finish; try (simp [IsList_nil_none, sepConj_emp, IsList_append_nil]; finish))
+        cases rest with
+        | nil =>
+          refine Triple.intro (fun s hs => ?_)
+          rw [IsList_nil_eq] at hs
+          exact absurd (((sepPure_sepConj_iff (some r = none) (IsList acc prev) s).mp hs).1) (by simp)
+        | cons v vs =>
+          rw [if_pos (show (!PastaLean.pyIsNone (some r)) = true from rfl)]
+          simp only [Option.getD_some]
+          rw [IsList_cons_some]
+          refine Triple.iSup_sepConj_pre _ _ _ _ ?_
+          intro nptr
+          vcgen [readRefM_spec, writeRefM_spec]
+          case vc1 => exact frames_sepConj _ _
+          case vc2 => exact frames_sepConj _ _
+          case vc3 => exact frames_sepConj _ _
+          case vc4 =>
+            rename_i nd1 e1 nd2 e2 _u
+            subst e1
+            subst e2
+            have hlen' : (v :: vs).length = n := hlen
+            have hlt : vs.length < n := by
+              simp only [List.length_cons] at hlen'; omega
+            have hxs' : xs = acc.reverse ++ (v :: vs) := hxs
+            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
+              (⟨vs.length, hlt⟩ : {k // k < n}) ?_
+            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
+              ((vs, v :: acc) : List Int × List Int) ?_
+            have hspatial :
+                (IsList vs nptr ∗ IsList acc prev) ∗ r ↦ ({ val := v, next := prev } : Node)
+                  ⊑ IsList vs nptr ∗ IsList (v :: acc) (some r) := by
+              rw [sepConj_comm (IsList vs nptr) (IsList acc prev)]
+              exact reverse_handoff_le { val := v, next := prev } v vs acc r nptr prev rfl rfl
+            refine PartialOrder.rel_trans hspatial ?_
+            intro s hs
+            refine (sepPure_sepConj_iff _ _ s).mpr ⟨?_, hs⟩
+            refine ⟨?_, rfl⟩
+            show xs = (v :: acc).reverse ++ vs
+            rw [List.reverse_cons, List.append_assoc]
+            exact hxs'
+    case hpre =>
+      intro s hs
+      simp only [INV]
+      rw [iSup_hprop_apply]
+      refine ⟨(xs, []), ?_⟩
+      refine (sepPure_sepConj_iff _ _ s).mpr ⟨⟨?_, rfl⟩, ?_⟩
+      · simp
+      · show (IsList xs head ∗ IsList [] none) s
+        rw [IsList_nil_none, sepConj_emp]
+        exact hs
 
 /-- The `iFrame` moment at program scale: an unrelated cell `l ↦ v` is carried untouched across the
 entire reverse, framed automatically off `reverse_spec` by the registered `@[frameproc]`. -/
 example (xs : List Int) (head : Option (Ref Node)) (l : Ref Int) (v : Int) :
-    ⦃ (l ↦ v ∗ IsList xs head : HProp Val) ⦄ Node.reverse xs.length head
+    ⦃ (l ↦ v ∗ IsList xs head : HProp Val) ⦄ reverse head
     ⦃ fun r => l ↦ v ∗ IsList xs.reverse r ⦄ := by
-  vcgen [Node.reverse_spec] with finish
+  vcgen [reverse_spec] with finish

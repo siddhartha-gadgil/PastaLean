@@ -557,4 +557,230 @@ example [Storable V α] (r1 r2 : Ref α) (a b : α) (f : α → α) :
     ⦃ fun _ => r1 ↦ (f a) ∗ r2 ↦ b ⦄ := by
   vcgen [incM, readRefM_spec, writeRefM_spec] simplifying_assumptions with finish
 
+/-! ## While-loop support: a `MonadTail (HeapM V)` instance
+
+`vcgen` reasons about a `while` (desugared to `Lean.Loop.forIn`/`repeatM`) through `Spec.forIn_loop`,
+which requires `[MonadTail m]` — i.e. `HeapM V` must be a fixed-point-friendly monad (a `CCPO` with
+monotone `bind`). `EStateM` has no canonical `CCPO` (its bottom would have to be state-dependent), so
+we give it one with a **single fixed bottom** (`error` at an arbitrary `Nonempty` state), which is all
+`MonadTail` needs. `Heap V` is `Nonempty` via `emptyHeap`, so the `HeapM V = EStateM PyException
+(Heap V)` lift is `inferInstanceAs`. -/
+
+/-- A single fixed bottom for `EStateM` (an `error` at arbitrary `Nonempty` witnesses), **not**
+state-indexed — enough to make `EStateM` a `CCPO` for `MonadTail`'s fixed-point machinery. -/
+noncomputable def EStateM.botR {ε σ α : Type} [Nonempty ε] [Nonempty σ] : EStateM.Result ε σ α :=
+  EStateM.Result.error Classical.ofNonempty Classical.ofNonempty
+
+instance EStateM.instCCPO {ε σ α : Type} [Nonempty ε] [Nonempty σ] : CCPO (EStateM ε σ α) where
+  rel := PartialOrder.rel (α := ∀ _ : σ, FlatOrder (EStateM.botR (ε := ε) (σ := σ) (α := α)))
+  rel_refl := PartialOrder.rel_refl
+  rel_antisymm := PartialOrder.rel_antisymm
+  rel_trans := PartialOrder.rel_trans
+  has_csup hchain :=
+    CCPO.has_csup (α := ∀ _ : σ, FlatOrder (EStateM.botR (ε := ε) (σ := σ) (α := α))) hchain
+
+instance EStateM.instMonoBind {ε σ : Type} [Nonempty ε] [Nonempty σ] : MonoBind (EStateM ε σ) where
+  bind_mono_left {_ _ a₁ a₂ f} h₁₂ := by
+    intro s
+    specialize h₁₂ s
+    change FlatOrder.rel (EStateM.bind a₁ f s) (EStateM.bind a₂ f s)
+    simp only [EStateM.bind]
+    generalize a₁ s = a₁ at h₁₂; generalize a₂ s = a₂ at h₁₂
+    cases h₁₂
+    · exact .bot
+    · exact .refl
+  bind_mono_right {_ _ a f₁ f₂} h₁₂ := by
+    intro w
+    change FlatOrder.rel (EStateM.bind a f₁ w) (EStateM.bind a f₂ w)
+    simp only [EStateM.bind]
+    split
+    · exact h₁₂ _ _
+    · exact .refl
+
+instance EStateM.instMonadTail {ε σ : Type} [Nonempty ε] [Nonempty σ] :
+    Lean.Order.MonadTail (EStateM ε σ) where
+  instCCPO _ := inferInstance
+  bind_mono_right h := MonoBind.bind_mono_right h
+
+instance instHeapNonempty : Nonempty (Heap V) := ⟨emptyHeap⟩
+
+instance instHeapMCCPO : CCPO (HeapM V α) := inferInstanceAs (CCPO (HeapBase V α))
+
+instance instHeapMMonoBind : MonoBind (HeapM V) := inferInstanceAs (MonoBind (HeapBase V))
+
+instance instHeapMMonadTail : Lean.Order.MonadTail (HeapM V) :=
+  inferInstanceAs (Lean.Order.MonadTail (HeapBase V))
+
+/-! ## Separating pure facts (`⌜φ⌝ ⊓ emp`) — carry loop bounds as `∗`-atoms in while invariants
+
+A `while` loop invariant that constrains the counter (`i ≤ k`) must carry that bound *and* stay in a
+shape the `@[frameproc]` can cancel `↦` out of. Wrapping the whole invariant in `⌜φ⌝ ⊓ ·` buries the
+`↦` atom (no `∗` to rearrange), so instead the bound rides as a separating conjunct `∗ sepPure φ`:
+the `↦` stays a clean `∗`-atom the frame procedure cancels, while the pure fact frames. -/
+
+/-- Iris-style separating pure: the heap is empty *and* `φ` holds. Kept a (reducible) `abbrev` so
+`vcgen`'s `sym_simp` floats the `⌜·⌝` out of `∗` exactly as for a bare `⌜φ⌝ ⊓ emp`. -/
+noncomputable abbrev sepPure (φ : Prop) : HProp V := ⌜φ⌝ ⊓ emp
+
+theorem sepPure_apply (φ : Prop) (s : Store V) : sepPure φ s ↔ φ ∧ emp s := by
+  simp only [sepPure, hprop_meet_apply, hprop_ofProp_apply]
+
+/-- `sepPure P ∗ Q` floats `P` out as a pure fact and leaves `Q`. -/
+theorem sepPure_sepConj_iff (P : Prop) (Q : HProp V) (s : Store V) :
+    (sepPure P ∗ Q) s ↔ P ∧ Q s := by
+  rw [sepPure, sepConj_ofProp_meet_left, emp_sepConj]
+  simp only [hprop_meet_apply, hprop_ofProp_apply]
+
+@[grind =] theorem sepPure_true_eq_emp : (sepPure True : HProp V) = emp := by
+  funext s; apply propext; simp [sepPure_apply]
+
+/-- Attach a provable pure fact as a separating conjunct. -/
+theorem le_sepConj_sepPure (P : HProp V) (φ : Prop) (hφ : φ) : P ⊑ P ∗ sepPure φ := by
+  intro s hs
+  rw [sepConj_comm]
+  exact (sepPure_sepConj_iff φ P s).mpr ⟨hφ, hs⟩
+
+/-- Drop a separating pure conjunct (its fact is discarded). -/
+theorem sepConj_sepPure_le (P : HProp V) (φ : Prop) : (P ∗ sepPure φ) ⊑ P := by
+  intro s hs
+  rw [sepConj_comm] at hs
+  exact ((sepPure_sepConj_iff φ P s).mp hs).2
+
+/-- Consume a separating pure conjunct, exposing its fact to prove the remainder. -/
+theorem sepPure_conj_elim {P Q : HProp V} {φ : Prop} (h : φ → P ⊑ Q) : (P ∗ sepPure φ) ⊑ Q := by
+  intro s hs
+  rw [sepConj_comm] at hs
+  obtain ⟨hφ, hP⟩ := (sepPure_sepConj_iff φ P s).mp hs
+  exact h hφ s hP
+
+/-! ## Pointwise `⨆` on `HProp` -/
+
+/-- Pointwise characterization of the lattice `⨆` on `HProp V`. -/
+theorem iSup_hprop_apply {ι : Type} (P : ι → HProp V) (s : Store V) :
+    (Lean.Order.iSup P) s ↔ ∃ i, (P i) s := by
+  unfold Lean.Order.iSup
+  rw [hprop_sup_apply]
+  constructor
+  · rintro ⟨f, ⟨i, rfl⟩, hf⟩; exact ⟨i, hf⟩
+  · rintro ⟨i, hi⟩; exact ⟨P i, ⟨i, rfl⟩, hi⟩
+
+/-! ## Ghost-`Nat` measure loop rules
+
+A weakest-precondition rule for `while`/`forIn` whose termination metric is a ghost `Nat` carried in
+the invariant (`inv : Nat → α ⊕ β → Pred`), rather than a pure function of the loop state: each
+continue step re-establishes the invariant at a strictly smaller ghost index (via `⨆` over
+`{k // k < n}`). This proves loops whose decreasing quantity is *heap-resident* — e.g. the remaining
+spine length of a linked list being reversed in place — which the stock pure `RepeatVariant` rule
+cannot express. Generic over any `WPMonad`. -/
+
+universe ghu ghv ghp ghe
+
+section GhostWhile
+variable {α β : Type ghu} {m : Type ghu → Type ghv} {Pred : Type ghp} {EPred : Type ghe}
+variable [Monad m] [Lean.Order.MonadTail m] [Assertion Pred] [Assertion EPred]
+  [WPMonad m Pred EPred]
+
+theorem repeatM_ghost
+    {init : α} {f : α → m (α ⊕ β)} [Nonempty β]
+    (inv : Nat → α ⊕ β → Pred)
+    (einv : EPred)
+    (n₀ : Nat)
+    (step : ∀ (n : Nat) (a : α),
+      Triple
+        (f a)
+        (inv n (.inl a))
+        (fun r => match r with
+          | .inl a' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl a'))
+          | .inr b => inv n (.inr b))
+        einv) :
+    Triple
+      (repeatM f init)
+      (inv n₀ (.inl init))
+      (fun b => Lean.Order.iSup (fun n => inv n (.inr b)))
+      einv := by
+  suffices key : ∀ (n : Nat) (a : α),
+      Triple
+        (_root_.repeatM f a)
+        (inv n (.inl a))
+        (fun b => Lean.Order.iSup (fun k => inv k (.inr b)))
+        einv
+    from key n₀ init
+  intro n
+  induction n using Nat.strongRecOn with
+  | _ n ih =>
+    intro a
+    rw [_root_.repeatM.Internal.eq_of_monadTail (f := f) a]
+    refine Triple.bind (f := fun x => match x with
+      | .inl a' => _root_.repeatM f a'
+      | .inr b => Pure.pure b)
+      (f a) (fun r => match r with
+        | .inl a' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl a'))
+        | .inr b => inv n (.inr b))
+      (step n a) ?_
+    rintro (a' | b)
+    · refine Triple.intro ?_
+      refine Lean.Order.iSup_le _ _ ?_
+      rintro ⟨n', hn'⟩
+      exact (ih n' hn' a').le_wp
+    · exact Triple.pure b (Lean.Order.le_iSup (fun k => inv k (.inr b)) n)
+
+-- `haveI` (not `have`) is load-bearing: it registers `Nonempty β` as a local instance for
+-- `apply repeatM_ghost`; the style linter's `have` suggestion would drop it from instance search.
+set_option linter.style.haveILetI false in
+theorem forIn_loop_ghost
+    {l : Lean.Loop} {init : β} {f : Unit → β → m (ForInStep β)}
+    (inv : Nat → β ⊕ β → Pred)
+    (einv : EPred)
+    (n₀ : Nat)
+    (step : ∀ (n : Nat) (b : β),
+      Triple
+        (f () b)
+        (inv n (.inl b))
+        (fun r => match r with
+          | .yield b' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl b'))
+          | .done b' => inv n (.inr b'))
+        einv) :
+    Triple
+      (forIn l init f)
+      (inv n₀ (.inl init))
+      (fun b => Lean.Order.iSup (fun n => inv n (.inr b)))
+      einv := by
+  haveI : Nonempty β := ⟨init⟩
+  change Triple (pre := inv n₀ (.inl init)) (_root_.Lean.Loop.forIn l init f)
+    (fun b => Lean.Order.iSup (fun n => inv n (.inr b))) einv
+  simp only [_root_.Lean.Loop.forIn]
+  apply repeatM_ghost (inv := inv) (einv := einv) (n₀ := n₀)
+  intro n b
+  apply Triple.bind
+  · exact step n b
+  · intro r
+    cases r with
+    | yield b' => exact Triple.pure (Sum.inl b') Lean.Order.PartialOrder.rel_refl
+    | done b' => exact Triple.pure (Sum.inr b') Lean.Order.PartialOrder.rel_refl
+
+end GhostWhile
+
+/-! ## Precondition-shaping helpers (peel `iSup` / `sepPure` off a heap-triple precondition) -/
+
+theorem Triple.iSup_pre {ι : Type} {γ : Type} (P : ι → HProp V)
+    (x : HeapM V γ) (Q : γ → HProp V) {epost : HeapEPred V}
+    (h : ∀ i, Triple x (P i) Q epost) : Triple x (iSup P) Q epost :=
+  Triple.intro (iSup_le _ _ (fun i => (h i).le_wp))
+
+theorem Triple.sepPure_pre {γ : Type} (φ : Prop) (R : HProp V)
+    (x : HeapM V γ) (Q : γ → HProp V) {epost : HeapEPred V}
+    (h : φ → Triple x R Q epost) : Triple x (sepPure φ ∗ R) Q epost :=
+  Triple.intro (fun s hs =>
+    have hsplit := (sepPure_sepConj_iff φ R s).mp hs
+    (h hsplit.1).le_wp s hsplit.2)
+
+theorem Triple.iSup_sepConj_pre {ι : Type} {γ : Type} (P : ι → HProp V) (R : HProp V)
+    (x : HeapM V γ) (Q : γ → HProp V) {epost : HeapEPred V}
+    (h : ∀ i, Triple x (P i ∗ R) Q epost) : Triple x (iSup P ∗ R) Q epost := by
+  refine Triple.intro (fun s hs => ?_)
+  obtain ⟨s₁, s₂, hd, hun, hP, hR⟩ := hs
+  rw [iSup_hprop_apply] at hP
+  obtain ⟨i, hPi⟩ := hP
+  exact (h i).le_wp s ⟨s₁, s₂, hd, hun, hPi, hR⟩
+
 end PastaLean
