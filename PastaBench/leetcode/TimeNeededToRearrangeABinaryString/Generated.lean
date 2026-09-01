@@ -20,15 +20,17 @@ namespace PastaBench.leetcode.TimeNeededToRearrangeABinaryString
 
 def secondsToRemoveOccurrences := fun (s : String) ↦
   (do
+    let mut s := s
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy (PastaLean.pyCount s "01")) do
-      let mut s : String := PastaLean.pyStringReplace s "01" "10"
+      s := PastaLean.pyStringReplace s "01" "10"
       ans := ans +ₚ (1 : Int)
     let _ := Libraries.passta.pyPassAssert (PastaLean.pyCount s "01" == (0 : Int))
     return ans : Id _)
 
 @[spec]
-theorem secondsToRemoveOccurrences_spec : ⦃⌜True⌝⦄ secondsToRemoveOccurrences s ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem secondsToRemoveOccurrences_spec {s : String} :
+    ⦃⌜True⌝⦄ secondsToRemoveOccurrences s ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [secondsToRemoveOccurrences, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   all_goals sorry

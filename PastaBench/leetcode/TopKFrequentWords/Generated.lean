@@ -24,7 +24,7 @@ def topKFrequent := fun (words : List String) ↦ fun (k : Int) ↦
     let __py_ret_1 := PastaLean.pySlice (PastaLean.pySortBy (fun x ↦ (-cnt⦋x⦌, x)) false cnt) none (some k) none
     return __py_ret_1 : Id _)
 
-theorem topKFrequent_spec : ⦃⌜k ≥ (0 : Int)⌝⦄ topKFrequent words k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem topKFrequent_spec {words : List String} {k : Int} : ⦃⌜k ≥ (0 : Int)⌝⦄ topKFrequent words k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [topKFrequent, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

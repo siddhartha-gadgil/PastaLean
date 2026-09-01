@@ -20,19 +20,19 @@ namespace PastaBench.leetcode.MaximumProductAfterKIncrements
 
 def maximumProduct := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
+    let mut nums := nums
     nums := Libraries.heapq.pyHeapify nums
-    for _ in (PastaLean.pyRange k)do
+    for _ in (PastaLean.pyRange k) do
       nums := Libraries.heapq.pyHeapreplaceRest nums (nums⦋(0 : Int)⦌ +ₚ (1 : Int))
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
     let __py_ret_1 := Libraries.functools.pyReduce nums fun (x : _) ↦ fun (y : _) ↦ x *ₚ y %ₚ mod
     return __py_ret_1 : Id _)
 
-theorem maximumProduct_spec :
+theorem maximumProduct_spec {nums : List Int} {k : Int} :
     ⦃⌜k ≥ (0 : Int) ∧ PastaLean.pyLen nums > (0 : Int)⌝⦄ maximumProduct nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maximumProduct, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [maximumProduct, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximumProduct'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -41,7 +41,7 @@ def maximumProduct'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen nums > (0 : Int)))
       nums := Libraries.heapq.pyHeapify nums
-      for _ in (PastaLean.pyRange k)do
+      for _ in (PastaLean.pyRange k) do
         nums := Libraries.heapq.pyHeapreplaceRest nums (nums⦋(0 : Int)⦌ +ₚ (1 : Int))
       let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
       let __py_ret_1 := Libraries.functools.pyReduce nums fun (x : _) ↦ fun (y : _) ↦ x *ₚ y %ₚ mod

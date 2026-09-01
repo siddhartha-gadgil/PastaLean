@@ -20,9 +20,10 @@ namespace PastaBench.leetcode.FindTheDistanceValueBetweenTwoArrays
 
 def findTheDistanceValue := fun (arr1 : List Int) ↦ fun (arr2 : List Int) ↦ fun (d : Int) ↦
   (do
+    let mut arr2 := arr2
     arr2 := PastaLean.pySort arr2
     let mut ans : Int := (0 : Int)
-    for x in (PastaLean.pyIter arr1)do
+    for x in (PastaLean.pyIter arr1) do
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ PastaLean.pyLen arr1))
       let mut i := Libraries.bisect.pyBisectLeft arr2 (x -ₚ d)
@@ -33,12 +34,12 @@ def findTheDistanceValue := fun (arr1 : List Int) ↦ fun (arr2 : List Int) ↦ 
     return ans : Id _)
 
 @[spec]
-theorem findTheDistanceValue_spec :
+theorem findTheDistanceValue_spec {arr1 : List Int} {arr2 : List Int} {d : Int} :
     ⦃⌜d ≥ (0 : Int)⌝⦄ findTheDistanceValue arr1 arr2 d ⦃⇓ans => ⌜(0 : Int) ≤ ans ∧ ans ≤ PastaLean.pyLen arr1⌝⦄ :=
   by
-  mvcgen [findTheDistanceValue, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [findTheDistanceValue, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ => ⌜ans ≥ (0 : Int) ∧ ans ≤ PastaLean.pyLen arr1⌝
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def findTheDistanceValue'rn := fun (arr1 : List Int) ↦ fun (arr2 : List Int) ↦ fun (d : Int) ↦
   Id.run
@@ -47,7 +48,7 @@ def findTheDistanceValue'rn := fun (arr1 : List Int) ↦ fun (arr2 : List Int) �
       let _ := Libraries.passta.pyPassRequires (decide (d ≥ (0 : Int)))
       arr2 := PastaLean.pySort arr2
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyIter arr1)do
+      for x in (PastaLean.pyIter arr1) do
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ PastaLean.pyLen arr1))
         let mut i := Libraries.bisect.pyBisectLeft arr2 (x -ₚ d)

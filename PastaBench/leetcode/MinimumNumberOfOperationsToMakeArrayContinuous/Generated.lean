@@ -20,19 +20,20 @@ namespace PastaBench.leetcode.MinimumNumberOfOperationsToMakeArrayContinuous
 
 def minOperations := fun (nums : List Int) ↦
   (do
+    let mut nums := nums
     let mut __chain_1 := PastaLean.pyLen nums
     let mut ans := __chain_1
     let mut n := __chain_1
-    let mut nums : List Int := PastaLean.pySort (PastaLean.pySet nums)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    nums := PastaLean.pySort (PastaLean.pySet nums)
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let v := Prod.snd _pair_1
-      let mut j := bisect_right nums (v +ₚ n -ₚ (1 : Int))
+      let mut j := Libraries.bisect.pyBisectRight nums (v +ₚ n -ₚ (1 : Int))
       ans := PastaLean.pyMin [ans, n -ₚ (j -ₚ i)]
     return ans : Id _)
 
 @[spec]
-theorem minOperations_spec : ⦃⌜True⌝⦄ minOperations nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem minOperations_spec {nums : List Int} : ⦃⌜True⌝⦄ minOperations nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [minOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -45,10 +46,10 @@ def minOperations'rn := fun (nums : List Int) ↦
       let mut ans := __chain_1
       let mut n := __chain_1
       nums := PastaLean.pySort (PastaLean.pySet nums)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let v := Prod.snd _pair_1
-        let mut j := bisect_right nums (v +ₚ n -ₚ (1 : Int))
+        let mut j := Libraries.bisect.pyBisectRight nums (v +ₚ n -ₚ (1 : Int))
         ans := PastaLean.pyMin [ans, n -ₚ (j -ₚ i)]
       return ans)
 

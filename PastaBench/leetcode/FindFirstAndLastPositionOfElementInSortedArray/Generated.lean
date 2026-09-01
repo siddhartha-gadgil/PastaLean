@@ -22,10 +22,10 @@ def searchRange := fun (nums : List Int) ↦ fun (target : Int) ↦
   (do
     let mut l := Libraries.bisect.pyBisectLeft nums target
     let mut r := Libraries.bisect.pyBisectLeft nums (target +ₚ (1 : Int))
-    let __py_ret_1 := if l == r then [-(1 : Int), -(1 : Int)] else [l, r -ₚ (1 : Int)]
+    let __py_ret_1 := if l = r then [-(1 : Int), -(1 : Int)] else [l, r -ₚ (1 : Int)]
     return __py_ret_1 : Id _)
 
-theorem searchRange_spec :
+theorem searchRange_spec {nums : List Int} {target : Int} :
     ⦃⌜PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen nums -ₚ (1 : Int))).map fun i =>
             decide (nums⦋i⦌ ≤ nums⦋i +ₚ (1 : Int)⦌))⌝⦄

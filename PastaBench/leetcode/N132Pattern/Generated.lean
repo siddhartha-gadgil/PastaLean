@@ -25,7 +25,7 @@ def find132pattern := fun (nums : List Int) ↦
   (do
     let mut vk := -inf
     let mut stk : List Int := []
-    for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int)))))do
+    for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int))))) do
       if h_1 : x < vk then 
         return Bool.true
       else
@@ -37,7 +37,7 @@ def find132pattern := fun (nums : List Int) ↦
     return Bool.false : Id _)
 
 @[spec]
-theorem find132pattern_spec :
+theorem find132pattern_spec {nums : List Int} :
     ⦃⌜True⌝⦄ find132pattern nums ⦃⇓result =>
       ⌜result =
           PastaLean.pyStdAny
@@ -46,16 +46,15 @@ theorem find132pattern_spec :
                 (PastaLean.pyRange (PastaLean.pyLen nums) (j +ₚ (1 : Int))).map fun k =>
                   decide (nums⦋i⦌ < nums⦋k⦌) && decide (nums⦋k⦌ < nums⦋j⦌))⌝⦄ :=
   by
-  mvcgen [find132pattern, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  sorry
+  mvcgen [find132pattern, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def find132pattern'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut vk := -inf
       let mut stk : List Int := []
-      for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int)))))do
+      for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int))))) do
         if h_1 : x < vk then 
           return Bool.true
         else

@@ -24,7 +24,7 @@ def maxSubarrayLength := fun (nums : List Int) ↦ fun (k : Int) ↦
     let mut __chain_1 := (0 : Int)
     let mut ans := __chain_1
     let mut j := __chain_1
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
@@ -39,7 +39,7 @@ def maxSubarrayLength := fun (nums : List Int) ↦ fun (k : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem maxSubarrayLength_spec :
+theorem maxSubarrayLength_spec {nums : List Int} {k : Int} :
     ⦃⌜k ≥ (0 : Int)⌝⦄ maxSubarrayLength nums k ⦃⇓ans => ⌜(0 : Int) ≤ ans ∧ ans ≤ PastaLean.pyLen nums⌝⦄ :=
   by
   mvcgen [maxSubarrayLength, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -53,7 +53,7 @@ def maxSubarrayLength'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let mut __chain_1 := (0 : Int)
       let mut ans := __chain_1
       let mut j := __chain_1
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))

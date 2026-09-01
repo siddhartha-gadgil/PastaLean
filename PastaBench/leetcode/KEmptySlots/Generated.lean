@@ -33,21 +33,23 @@ def BinaryIndexedTree.new := fun n ↦
       return self)
 
 def BinaryIndexedTree.update := fun (self : BinaryIndexedTree) ↦ fun x ↦ fun delta ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
-    -- ensure we never go out of bounds on c
-    let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
-    let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
-    let _ := Libraries.passta.pyPassDecreases (self.n +ₚ (1 : Int) -ₚ x)
-    while (x ≤ self.n) do
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
+      -- ensure we never go out of bounds on c
+      let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
+      let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
+      let _ := Libraries.passta.pyPassDecreases (self.n +ₚ (1 : Int) -ₚ x)
+      while (x ≤ self.n) do
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
 attribute [simp, taste_ingr] BinaryIndexedTree.update
 
-def BinaryIndexedTree.query := fun (self : BinaryIndexedTree) ↦ fun (x : PyAny) ↦
+def BinaryIndexedTree.query := fun (self : BinaryIndexedTree) ↦ fun x ↦
   Id.run
     (do
       let mut x := x
@@ -78,19 +80,21 @@ def BinaryIndexedTree'rn.new := fun n ↦
       return self)
 
 def BinaryIndexedTree'rn.update := fun (self : BinaryIndexedTree'rn) ↦ fun x ↦ fun delta ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
-    -- ensure we never go out of bounds on c
-    let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
-    let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
-    let _ := Libraries.passta.pyPassDecreases (self.n +ₚ (1 : Int) -ₚ x)
-    while (x ≤ self.n) do
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
+      -- ensure we never go out of bounds on c
+      let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
+      let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
+      let _ := Libraries.passta.pyPassDecreases (self.n +ₚ (1 : Int) -ₚ x)
+      while (x ≤ self.n) do
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
-def BinaryIndexedTree'rn.query := fun (self : BinaryIndexedTree'rn) ↦ fun (x : PyAny) ↦
+def BinaryIndexedTree'rn.query := fun (self : BinaryIndexedTree'rn) ↦ fun x ↦
   Id.run
     (do
       let mut x := x
@@ -109,13 +113,13 @@ def kEmptySlots := fun (bulbs : List Int) ↦ fun (k : Int) ↦
     let mut n : Int := PastaLean.pyLen bulbs
     let mut tree := BinaryIndexedTree.new n
     let mut vis : List Bool := PastaLean.pyListRepeat [Bool.false] (n +ₚ (1 : Int))
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate bulbs (1 : Int)))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate bulbs (1 : Int))) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       -- Bounds for x and i
       let _ := Libraries.passta.pyPassAssert (decide ((1 : Int) ≤ x) && decide (x ≤ n))
       let _ := Libraries.passta.pyPassAssert (decide ((1 : Int) ≤ i) && decide (i ≤ n))
-      let _ := BinaryIndexedTree.update tree x (1 : Int)
+      tree := BinaryIndexedTree.update tree x (1 : Int)
       vis := PastaLean.pySetItem vis x Bool.true
       -- check left neighbor
       let mut y : Int := x -ₚ k -ₚ (1 : Int)
@@ -139,13 +143,13 @@ def kEmptySlots := fun (bulbs : List Int) ↦ fun (k : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem kEmptySlots_spec :
+theorem kEmptySlots_spec {bulbs : List Int} {k : Int} :
     ⦃⌜(PastaLean.pyLen bulbs > (0 : Int) ∧ PastaLean.pyLen (PastaLean.pySet bulbs) = PastaLean.pyLen bulbs) ∧
           k ≥ (0 : Int)⌝⦄
       kEmptySlots bulbs k ⦃⇓result => ⌜-(1 : Int) ≤ result ∧ result ≤ PastaLean.pyLen bulbs⌝⦄ :=
   by
   mvcgen [kEmptySlots, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; sorry; sorry; sorry; pyany_cases <;> grind +locals; sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; sorry; sorry; sorry; sorry; pyany_cases <;> grind +locals
 
 def kEmptySlots'rn := fun (bulbs : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -157,13 +161,13 @@ def kEmptySlots'rn := fun (bulbs : List Int) ↦ fun (k : Int) ↦
       let mut n : Int := PastaLean.pyLen bulbs
       let mut tree := BinaryIndexedTree'rn.new n
       let mut vis : List Bool := PastaLean.pyListRepeat [Bool.false] (n +ₚ (1 : Int))
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate bulbs (1 : Int)))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate bulbs (1 : Int))) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         -- Bounds for x and i
         let _ := Libraries.passta.pyPassAssert (decide ((1 : Int) ≤ x) && decide (x ≤ n))
         let _ := Libraries.passta.pyPassAssert (decide ((1 : Int) ≤ i) && decide (i ≤ n))
-        let _ := BinaryIndexedTree'rn.update tree x (1 : Int)
+        tree := BinaryIndexedTree'rn.update tree x (1 : Int)
         vis := PastaLean.pySetItem vis x Bool.true
         -- check left neighbor
         let mut y : Int := x -ₚ k -ₚ (1 : Int)

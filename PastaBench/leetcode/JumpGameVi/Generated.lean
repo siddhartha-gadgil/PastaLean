@@ -23,11 +23,11 @@ private def _naive_maxResult := fun (nums : List Int) ↦ fun (k : Int) ↦
     (do
       -- pure DP spec for correctness
       let mut n : Int := PastaLean.pyLen nums
-      let mut f2 := PastaLean.pyListRepeat [PastaLean.pyNonFinite "-inf"] n
+      let mut f2 := (PastaLean.pyListRepeat [PastaLean.pyNonFinite "-inf"] n : List Rat)
       f2 := PastaLean.pySetItem f2 (0 : Int) (nums⦋(0 : Int)⦌ : Rat)
-      for i in (PastaLean.pyRange n (1 : Int))do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         -- take max of the last k DP values
-        let mut lo : Int := if decide (i -ₚ k > (0 : Int)) then i -ₚ k else (0 : Int)
+        let mut lo : Int := if i -ₚ k > (0 : Int) then i -ₚ k else (0 : Int)
         f2 :=
           PastaLean.pySetItem f2 i (nums⦋i⦌ +ₚ PastaLean.pyMax (PastaLean.pySlice f2 (some lo) (some i) none) : Rat)
       let __py_ret_1 := f2⦋(-1 : Int)⦌
@@ -40,11 +40,11 @@ private def _naive_maxResult'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
     (do
       -- pure DP spec for correctness
       let mut n : Int := PastaLean.pyLen nums
-      let mut f2 := PastaLean.pyListRepeat [PastaLean.pyNonFinite "-inf"] n
+      let mut f2 := (PastaLean.pyListRepeat [PastaLean.pyNonFinite "-inf"] n : List Float)
       f2 := PastaLean.pySetItem f2 (0 : Int) (nums⦋(0 : Int)⦌ : Float)
-      for i in (PastaLean.pyRange n (1 : Int))do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         -- take max of the last k DP values
-        let mut lo : Int := if decide (i -ₚ k > (0 : Int)) then i -ₚ k else (0 : Int)
+        let mut lo : Int := if i -ₚ k > (0 : Int) then i -ₚ k else (0 : Int)
         f2 :=
           PastaLean.pySetItem f2 i
             (nums⦋i⦌ +ₚ PastaLean.pyMax (PastaLean.pySlice f2 (some lo) (some i) none) : Float)
@@ -56,7 +56,7 @@ def maxResult := fun (nums : List Int) ↦ fun (k : Int) ↦
     let mut n : Int := PastaLean.pyLen nums
     let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] n
     let mut q : List Int := Libraries.collections.pyDeque [(0 : Int)]
-    for i in (PastaLean.pyRange n)do
+    for i in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       -- q only holds valid indices in the sliding window [max(0, i-k) .. i]
@@ -89,22 +89,25 @@ def maxResult := fun (nums : List Int) ↦ fun (k : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem maxResult_spec :
+theorem maxResult_spec {nums : List Int} {k : Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧ k > (0 : Int)⌝⦄ maxResult nums k ⦃⇓result =>
       ⌜result = _naive_maxResult nums k⌝⦄ :=
   by
-  mvcgen [maxResult, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [maxResult, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f, q⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (((((0 : Int) ≤ i ∧ i ≤ n) ∧
-              PastaLean.pyAll ((PastaLean.pyIter q).map fun j => decide ((0 : Int) ≤ j) && decide (j < n))) ∧
+      (((0 : Int) ≤ i ∧
             PastaLean.pyAll
               ((PastaLean.pyIter q).map fun j =>
                 decide (PastaLean.pyMax [(0 : Int), i -ₚ k] ≤ j) && decide (j ≤ i))) ∧
           PastaLean.pyLen q > (0 : Int)) ∧
         PastaLean.pyAll
           ((PastaLean.pyRange i (PastaLean.pyMax [(0 : Int), i -ₚ k])).map fun j => decide (f⦋q⦋(0 : Int)⦌⦌ ≥ f⦋j⦌))⌝
-  sorry
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxResult'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -114,7 +117,7 @@ def maxResult'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let mut n : Int := PastaLean.pyLen nums
       let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut q : List Int := Libraries.collections.pyDeque [(0 : Int)]
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         -- q only holds valid indices in the sliding window [max(0, i-k) .. i]

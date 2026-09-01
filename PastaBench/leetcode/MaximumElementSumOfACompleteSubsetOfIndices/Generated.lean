@@ -22,7 +22,7 @@ def maximumSum := fun (nums : List Int) ↦
   (do
     let mut n : Int := PastaLean.pyLen nums
     let mut ans : Int := (0 : Int)
-    for k in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+    for k in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ k))
       let _ := Libraries.passta.pyPassInvariant (decide (k ≤ n))
       let mut t : Int := (0 : Int)
@@ -39,20 +39,22 @@ def maximumSum := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem maximumSum_spec : ⦃⌜True⌝⦄ maximumSum nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem maximumSum_spec {nums : List Int} : ⦃⌜True⌝⦄ maximumSum nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [maximumSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [maximumSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let k := (cur.prefix.length : Int);
-      (1 : Int) ≤ k ∧ k ≤ n⌝
-  sorry
+      (1 : Int) ≤ k⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; pyany_cases <;> grind +locals; sorry; sorry
 
 def maximumSum'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : Int := (0 : Int)
-      for k in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for k in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ k))
         let _ := Libraries.passta.pyPassInvariant (decide (k ≤ n))
         let mut t : Int := (0 : Int)

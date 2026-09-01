@@ -20,7 +20,7 @@ namespace PastaBench.leetcode.Largest3SameDigitNumberInString
 
 def largestGoodInteger := fun (num : String) ↦
   (do
-    for i in (PastaLean.pyRange (-(1 : Int)) (9 : Int) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (9 : Int) (-(1 : Int))) do
       let mut s := PastaLean.pyStr i *ₚ (3 : Int)
       if h_1 : PastaLean.pyContains num s then 
         let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains num s)
@@ -30,17 +30,16 @@ def largestGoodInteger := fun (num : String) ↦
     return "" : Id _)
 
 @[spec]
-theorem largestGoodInteger_spec :
+theorem largestGoodInteger_spec {num : String} :
     ⦃⌜True⌝⦄ largestGoodInteger num ⦃⇓result => ⌜result = "" ∨ PastaLean.pyContains num result⌝⦄ :=
   by
-  mvcgen [largestGoodInteger, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [largestGoodInteger, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; sorry; sorry; sorry; pyany_cases <;> grind +locals
 
 def largestGoodInteger'rn := fun (num : String) ↦
   Id.run
     (do
-      for i in (PastaLean.pyRange (-(1 : Int)) (9 : Int) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (9 : Int) (-(1 : Int))) do
         let mut s := PastaLean.pyStr i *ₚ (3 : Int)
         if h_1 : PastaLean.pyContains num s then 
           let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains num s)

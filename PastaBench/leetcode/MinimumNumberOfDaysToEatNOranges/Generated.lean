@@ -18,31 +18,7 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.MinimumNumberOfDaysToEatNOranges
 
-private def _minDays_dfs := fun (n : Int) ↦
-  (do
-    if h_1 : n < (2 : Int) then 
-      return n
-    else
-      let _ := ()
-    let __py_ret_1 :=
-      (1 : Int) +ₚ
-        PastaLean.pyMin
-          [n %ₚ (2 : Int) +ₚ _minDays_dfs (PastaLean.pyFloorDiv n (2 : Int)),
-            n %ₚ (3 : Int) +ₚ _minDays_dfs (PastaLean.pyFloorDiv n (3 : Int))]
-    return __py_ret_1 : Id _)
-
-theorem _minDays_dfs_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ _minDays_dfs n ⦃⇓_ => ⌜True⌝⦄ :=
-  by
-  mvcgen [_minDays_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-
-def minDays := fun (n : Int) ↦ _minDays_dfs n
-
-attribute [simp] minDays
-
-@[taste_ingr]
-theorem minDays_spec : ∀ (n : Int), n ≥ (0 : Int) → _minDays_dfs n ≥ (0 : Int) ∧ _minDays_dfs n ≤ n := by intros; sorry
-
-private partial def _minDays_dfs'rn : Int → Int := fun (n : Int) ↦
+private partial def _minDays'dfs : Int → Int := fun (n : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
@@ -53,10 +29,32 @@ private partial def _minDays_dfs'rn : Int → Int := fun (n : Int) ↦
       let __py_ret_1 :=
         (1 : Int) +ₚ
           PastaLean.pyMin
-            [n %ₚ (2 : Int) +ₚ _minDays_dfs'rn (PastaLean.pyFloorDiv n (2 : Int)),
-              n %ₚ (3 : Int) +ₚ _minDays_dfs'rn (PastaLean.pyFloorDiv n (3 : Int))]
+            [n %ₚ (2 : Int) +ₚ _minDays'dfs (PastaLean.pyFloorDiv n (2 : Int)),
+              n %ₚ (3 : Int) +ₚ _minDays'dfs (PastaLean.pyFloorDiv n (3 : Int))]
       return __py_ret_1)
 
-def minDays'rn := fun (n : Int) ↦ _minDays_dfs'rn n
+def minDays := fun (n : Int) ↦ _minDays'dfs n
+
+attribute [simp] minDays
+
+@[taste_ingr]
+theorem minDays_spec : ∀ (n : Int), n ≥ (0 : Int) → _minDays'dfs n ≥ (0 : Int) ∧ _minDays'dfs n ≤ n := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+
+private partial def _minDays'dfs'rn : Int → Int := fun (n : Int) ↦
+  Id.run
+    (do
+      let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
+      if h_1 : n < (2 : Int) then 
+        return n
+      else
+        let _ := ()
+      let __py_ret_1 :=
+        (1 : Int) +ₚ
+          PastaLean.pyMin
+            [n %ₚ (2 : Int) +ₚ _minDays'dfs'rn (PastaLean.pyFloorDiv n (2 : Int)),
+              n %ₚ (3 : Int) +ₚ _minDays'dfs'rn (PastaLean.pyFloorDiv n (3 : Int))]
+      return __py_ret_1)
+
+def minDays'rn := fun (n : Int) ↦ _minDays'dfs'rn n
 
 end PastaBench.leetcode.MinimumNumberOfDaysToEatNOranges

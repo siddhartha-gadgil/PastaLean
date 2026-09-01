@@ -22,22 +22,22 @@ def numberOfSubstrings := fun (s : String) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
-    for c in (PastaLean.pyIter s)do
+    for c in (PastaLean.pyIter s) do
       cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ +ₚ (1 : Int))
       ans := ans +ₚ cnt⦋c⦌
     return ans : Id _)
 
 @[spec]
-theorem numberOfSubstrings_spec :
+theorem numberOfSubstrings_spec {s : String} :
     ⦃⌜True⌝⦄ numberOfSubstrings s ⦃⇓ans =>
       ⌜(2 : Int) *ₚ ans =
           PastaLean.pySum
             ((PastaLean.pyIter (PastaLean.pySet s)).map fun c =>
               PastaLean.pyCount s c *ₚ (PastaLean.pyCount s c +ₚ (1 : Int)))⌝⦄ :=
   by
-  mvcgen [numberOfSubstrings, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜ans = (cur.prefix.map (fun c => cnt⦋c⦌)).sum⌝
-  all_goals sorry
+  mvcgen [numberOfSubstrings, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, ans⟩ => ⌜ans = (cur.prefix.map (fun c => cnt⦋c⦌)).sum⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def numberOfSubstrings'rn := fun (s : String) ↦
   Id.run
@@ -46,7 +46,7 @@ def numberOfSubstrings'rn := fun (s : String) ↦
       -- Closed‐form: for each distinct c, if occ = s.count(c), then it contributes occ*(occ+1)/2.
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
       let mut ans : Int := (0 : Int)
-      for c in (PastaLean.pyIter s)do
+      for c in (PastaLean.pyIter s) do
         cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ +ₚ (1 : Int))
         ans := ans +ₚ cnt⦋c⦌
       return ans)

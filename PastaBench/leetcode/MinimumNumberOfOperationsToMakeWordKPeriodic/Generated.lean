@@ -29,7 +29,7 @@ def minimumOperationsToMakeKPeriodic := fun (word : String) ↦ fun (k : Int) �
               ((PastaLean.pyRange n (0 : Int) k).map fun i => PastaLean.pySlice word (some i) (some (i +ₚ k)) none)))
     return __py_ret_1 : Id _)
 
-theorem minimumOperationsToMakeKPeriodic_spec :
+theorem minimumOperationsToMakeKPeriodic_spec {word : String} {k : Int} :
     ⦃⌜k > (0 : Int) ∧ k ≤ PastaLean.pyLen word⌝⦄ minimumOperationsToMakeKPeriodic word k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minimumOperationsToMakeKPeriodic, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]

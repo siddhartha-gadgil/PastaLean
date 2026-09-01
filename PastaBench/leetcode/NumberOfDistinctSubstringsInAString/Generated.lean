@@ -19,7 +19,7 @@ set_option maxHeartbeats 0
 namespace PastaBench.leetcode.NumberOfDistinctSubstringsInAString
 
 def countDistinct := fun (s : String) ↦
-  let n := PastaLean.pyLen s
+  let n := (PastaLean.pyLen s : Int)
   PastaLean.pyLen
     (PastaLean.pySetFromList
       ((PastaLean.pyRange n).flatMap fun i =>
@@ -29,7 +29,7 @@ def countDistinct := fun (s : String) ↦
 attribute [simp, taste_ingr] countDistinct
 
 def countDistinct'rn := fun (s : String) ↦
-  let n := PastaLean.pyLen s
+  let n := (PastaLean.pyLen s : Int)
   PastaLean.pyLen
     (PastaLean.pySetFromList
       ((PastaLean.pyRange n).flatMap fun i =>

@@ -34,7 +34,7 @@ def isOneBitCharacter := fun (bits : List Int) ↦
     let __py_ret_1 := i == n -ₚ (1 : Int)
     return __py_ret_1 : Id _)
 
-theorem isOneBitCharacter_spec :
+theorem isOneBitCharacter_spec {bits : List Int} :
     ⦃⌜PastaLean.pyLen bits > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter bits).map fun b => decide (b ≥ (0 : Int)))⌝⦄
       isOneBitCharacter bits ⦃⇓_ => ⌜True⌝⦄ :=

@@ -31,7 +31,7 @@ def closeStrings := fun (word1 : String) ↦ fun (word2 : String) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem closeStrings_spec :
+theorem closeStrings_spec {word1 : String} {word2 : String} :
     ⦃⌜True⌝⦄ closeStrings word1 word2 ⦃⇓result =>
       ⌜result =
           (PastaLean.pySort (PastaLean.pyAnys (Libraries.collections.pyCounter word1)) =

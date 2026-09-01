@@ -18,7 +18,7 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.LeastOperatorsToExpressNumber
 
-private partial def _leastOpsExpressTarget_dfs : Int → Int → Int := fun (v : Int) ↦ fun (x : Int) ↦
+private partial def _leastOpsExpressTarget'dfs : Int → Int → Int := fun (v : Int) ↦ fun (x : Int) ↦
   Id.run
     (do
       if h_1 : x ≥ v then 
@@ -32,25 +32,25 @@ private partial def _leastOpsExpressTarget_dfs : Int → Int → Int := fun (v :
       if h_2 : x ^ₚ k -ₚ v < v then 
         let __py_ret_1 :=
           PastaLean.pyMin
-            [k +ₚ _leastOpsExpressTarget_dfs (x ^ₚ k -ₚ v) x,
-              k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget_dfs (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x]
+            [k +ₚ _leastOpsExpressTarget'dfs (x ^ₚ k -ₚ v) x,
+              k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget'dfs (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x]
         return __py_ret_1
       else
         let _ := ()
-      let __py_ret_1 := k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget_dfs (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x
+      let __py_ret_1 := k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget'dfs (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x
       return __py_ret_1)
 
 def leastOpsExpressTarget := fun (x : Int) ↦ fun (target : Int) ↦
   (do
-    let __py_ret_1 := _leastOpsExpressTarget_dfs target x
+    let __py_ret_1 := _leastOpsExpressTarget'dfs target x
     return __py_ret_1 : Id _)
 
-theorem leastOpsExpressTarget_spec :
+theorem leastOpsExpressTarget_spec {x : Int} {target : Int} :
     ⦃⌜x ≥ (2 : Int) ∧ target ≥ (1 : Int)⌝⦄ leastOpsExpressTarget x target ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [leastOpsExpressTarget, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
-private partial def _leastOpsExpressTarget_dfs'rn : Int → Int → Int := fun (v : Int) ↦ fun (x : Int) ↦
+private partial def _leastOpsExpressTarget'dfs'rn : Int → Int → Int := fun (v : Int) ↦ fun (x : Int) ↦
   Id.run
     (do
       if h_1 : x ≥ v then 
@@ -64,12 +64,12 @@ private partial def _leastOpsExpressTarget_dfs'rn : Int → Int → Int := fun (
       if h_2 : x ^ₚ k -ₚ v < v then 
         let __py_ret_1 :=
           PastaLean.pyMin
-            [k +ₚ _leastOpsExpressTarget_dfs'rn (x ^ₚ k -ₚ v) x,
-              k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget_dfs'rn (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x]
+            [k +ₚ _leastOpsExpressTarget'dfs'rn (x ^ₚ k -ₚ v) x,
+              k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget'dfs'rn (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x]
         return __py_ret_1
       else
         let _ := ()
-      let __py_ret_1 := k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget_dfs'rn (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x
+      let __py_ret_1 := k -ₚ (1 : Int) +ₚ _leastOpsExpressTarget'dfs'rn (v -ₚ x ^ₚ (k -ₚ (1 : Int))) x
       return __py_ret_1)
 
 def leastOpsExpressTarget'rn := fun (x : Int) ↦ fun (target : Int) ↦
@@ -77,7 +77,7 @@ def leastOpsExpressTarget'rn := fun (x : Int) ↦ fun (target : Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (x ≥ (2 : Int)))
       let _ := Libraries.passta.pyPassRequires (decide (target ≥ (1 : Int)))
-      let __py_ret_1 := _leastOpsExpressTarget_dfs'rn target x
+      let __py_ret_1 := _leastOpsExpressTarget'dfs'rn target x
       return __py_ret_1)
 
 end PastaBench.leetcode.LeastOperatorsToExpressNumber

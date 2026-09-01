@@ -18,14 +18,14 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.CheckIfAllAsAppearsBeforeAllBs
 
-def checkString := fun (s : String) ↦ !(PastaLean.pyStrContainsSubstr s "ba")
+def checkString := fun (s : String) ↦ !PastaLean.pyStrContainsSubstr s "ba"
 
 attribute [simp] checkString
 
 @[taste_ingr]
 theorem checkString_spec :
-    ∀ (s : String), (!(PastaLean.pyStrContainsSubstr s "ba")) = !(PastaLean.pyStrContainsSubstr s "ba") := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
+    ∀ (s : String), (!PastaLean.pyStrContainsSubstr s "ba") = !PastaLean.pyStrContainsSubstr s "ba" := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
 
-def checkString'rn := fun (s : String) ↦ !(PastaLean.pyStrContainsSubstr s "ba")
+def checkString'rn := fun (s : String) ↦ !PastaLean.pyStrContainsSubstr s "ba"
 
 end PastaBench.leetcode.CheckIfAllAsAppearsBeforeAllBs

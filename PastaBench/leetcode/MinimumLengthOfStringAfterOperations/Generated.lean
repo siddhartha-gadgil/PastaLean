@@ -19,7 +19,7 @@ set_option maxHeartbeats 0
 namespace PastaBench.leetcode.MinimumLengthOfStringAfterOperations
 
 def minimumLength := fun (s : String) ↦
-  let cnt := Libraries.collections.pyCounter s
+  let cnt := (Libraries.collections.pyCounter s : Libraries.collections.PyDefaultDict String Int)
   PastaLean.pySum
     ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x =>
       if PastaLean.pyTruthy (PastaLean.pyBitAnd x (1 : Int)) then (1 : Int) else (2 : Int))
@@ -27,7 +27,7 @@ def minimumLength := fun (s : String) ↦
 attribute [simp, taste_ingr] minimumLength
 
 def minimumLength'rn := fun (s : String) ↦
-  let cnt := Libraries.collections.pyCounter s
+  let cnt := (Libraries.collections.pyCounter s : Libraries.collections.PyDefaultDict String Int)
   PastaLean.pySum
     ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x =>
       if PastaLean.pyTruthy (PastaLean.pyBitAnd x (1 : Int)) then (1 : Int) else (2 : Int))

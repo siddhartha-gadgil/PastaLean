@@ -22,25 +22,25 @@ def minSteps := fun (s : String) ↦ fun (t : String) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
     let mut ans : Int := (0 : Int)
-    for c in (PastaLean.pyIter t)do
+    for c in (PastaLean.pyIter t) do
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
       cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
       ans := ans +ₚ decide (cnt⦋c⦌ < (0 : Int))
     return ans : Id _)
 
 @[spec]
-theorem minSteps_spec : ⦃⌜True⌝⦄ minSteps s t ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem minSteps_spec {s : String} {t : String} : ⦃⌜True⌝⦄ minSteps s t ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [minSteps, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜ans ≥ (0 : Int)⌝
-  all_goals sorry
+  mvcgen [minSteps, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, ans⟩ => ⌜ans ≥ (0 : Int)⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def minSteps'rn := fun (s : String) ↦ fun (t : String) ↦
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
       let mut ans : Int := (0 : Int)
-      for c in (PastaLean.pyIter t)do
+      for c in (PastaLean.pyIter t) do
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
         ans := ans +ₚ decide (cnt⦋c⦌ < (0 : Int))

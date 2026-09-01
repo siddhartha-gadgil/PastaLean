@@ -21,25 +21,24 @@ namespace PastaBench.leetcode.N4KeysKeyboard
 def maxA := fun (n : Int) ↦
   (do
     let mut dp : List Int := PastaLean.pyList (PastaLean.pyRange (n +ₚ (1 : Int)))
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (3 : Int))do
-      for j in (PastaLean.pyRange (i -ₚ (1 : Int)) (2 : Int))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (3 : Int)) do
+      for j in (PastaLean.pyRange (i -ₚ (1 : Int)) (2 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMax [dp⦋i⦌, dp⦋j -ₚ (1 : Int)⦌ *ₚ (i -ₚ j)])
     let __py_ret_1 := dp⦋(-1 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem maxA_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ maxA n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem maxA_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ maxA n ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maxA, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [maxA, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxA'rn := fun (n : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
       let mut dp : List Int := PastaLean.pyList (PastaLean.pyRange (n +ₚ (1 : Int)))
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (3 : Int))do
-        for j in (PastaLean.pyRange (i -ₚ (1 : Int)) (2 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (3 : Int)) do
+        for j in (PastaLean.pyRange (i -ₚ (1 : Int)) (2 : Int)) do
           dp := PastaLean.pySetItem dp i (PastaLean.pyMax [dp⦋i⦌, dp⦋j -ₚ (1 : Int)⦌ *ₚ (i -ₚ j)])
       let __py_ret_1 := dp⦋(-1 : Int)⦌
       return __py_ret_1)

@@ -27,7 +27,7 @@ theorem reverseWords_spec :
     ∀ (s : String),
       PastaLean.pyStringSplit (PastaLean.pyStringJoin " " (PastaLean.pyReversed (PastaLean.pyStringSplit s))) =
         PastaLean.pyList (PastaLean.pyReversed (PastaLean.pyStringSplit s)) :=
-  by sorry
+  by all_goals sorry
 
 def reverseWords'rn := fun (s : String) ↦ PastaLean.pyStringJoin " " (PastaLean.pyReversed (PastaLean.pyStringSplit s))
 

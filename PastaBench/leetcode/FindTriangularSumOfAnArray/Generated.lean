@@ -20,25 +20,26 @@ namespace PastaBench.leetcode.FindTriangularSumOfAnArray
 
 def triangularSum := fun (nums : List Int) ↦
   (do
-    for k in (PastaLean.pyRange (0 : Int) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int)))do
-      for i in (PastaLean.pyRange k)do
+    let mut nums := nums
+    for k in (PastaLean.pyRange (0 : Int) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int))) do
+      for i in (PastaLean.pyRange k) do
         nums := PastaLean.pySetItem nums i ((nums⦋i⦌ +ₚ nums⦋i +ₚ (1 : Int)⦌) %ₚ (10 : Int))
     let __py_ret_1 := nums⦋(0 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem triangularSum_spec : ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ triangularSum nums ⦃⇓_ => ⌜True⌝⦄ :=
+theorem triangularSum_spec {nums : List Int} :
+    ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ triangularSum nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [triangularSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [triangularSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def triangularSum'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut nums := nums
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen nums > (0 : Int)))
-      for k in (PastaLean.pyRange (0 : Int) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int)))do
-        for i in (PastaLean.pyRange k)do
+      for k in (PastaLean.pyRange (0 : Int) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int))) do
+        for i in (PastaLean.pyRange k) do
           nums := PastaLean.pySetItem nums i ((nums⦋i⦌ +ₚ nums⦋i +ₚ (1 : Int)⦌) %ₚ (10 : Int))
       let __py_ret_1 := nums⦋(0 : Int)⦌
       return __py_ret_1)

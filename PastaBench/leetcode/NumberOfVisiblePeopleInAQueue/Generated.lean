@@ -23,7 +23,7 @@ def canSeePersonsCount := fun (heights : List Int) ↦
     let mut n : Int := PastaLean.pyLen heights
     let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
     let mut stk : List Int := []
-    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen ans))
       -- Pop all shorter people to the right
@@ -39,14 +39,16 @@ def canSeePersonsCount := fun (heights : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem canSeePersonsCount_spec :
+theorem canSeePersonsCount_spec {heights : List Int} :
     ⦃⌜True⌝⦄ canSeePersonsCount heights ⦃⇓ans => ⌜PastaLean.pyLen ans = PastaLean.pyLen heights⌝⦄ :=
   by
-  mvcgen [canSeePersonsCount, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [canSeePersonsCount, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, stk⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (0 : Int) ≤ i ∧ i < PastaLean.pyLen ans⌝
-  sorry
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def canSeePersonsCount'rn := fun (heights : List Int) ↦
   Id.run
@@ -54,7 +56,7 @@ def canSeePersonsCount'rn := fun (heights : List Int) ↦
       let mut n : Int := PastaLean.pyLen heights
       let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut stk : List Int := []
-      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen ans))
         -- Pop all shorter people to the right

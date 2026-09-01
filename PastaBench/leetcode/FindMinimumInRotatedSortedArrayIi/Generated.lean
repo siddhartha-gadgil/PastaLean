@@ -33,7 +33,7 @@ def findMin := fun (nums : List Int) ↦
           (PastaLean.pyMin (PastaLean.pySlice nums (some left) (some (right +ₚ (1 : Int))) none) ==
             PastaLean.pyMin nums)
       let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
       if h_1 : nums⦋mid⦌ > nums⦋right⦌ then 
         left := mid +ₚ (1 : Int)
       else
@@ -46,7 +46,8 @@ def findMin := fun (nums : List Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem findMin_spec : ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ findMin nums ⦃⇓result => ⌜result = PastaLean.pyMin nums⌝⦄ :=
+theorem findMin_spec {nums : List Int} :
+    ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ findMin nums ⦃⇓result => ⌜result = PastaLean.pyMin nums⌝⦄ :=
   by
   mvcgen [findMin, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -68,7 +69,7 @@ def findMin'rn := fun (nums : List Int) ↦
             (PastaLean.pyMin (PastaLean.pySlice nums (some left) (some (right +ₚ (1 : Int))) none) ==
               PastaLean.pyMin nums)
         let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
         if h_1 : nums⦋mid⦌ > nums⦋right⦌ then 
           left := mid +ₚ (1 : Int)
         else

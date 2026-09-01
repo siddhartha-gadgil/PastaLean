@@ -22,7 +22,7 @@ def lexicalOrder := fun (n : Int) ↦
   (do
     let mut ans : List Int := []
     let mut v : Int := (1 : Int)
-    for _ in (PastaLean.pyRange n)do
+    for _ in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ PastaLean.pyLen ans))
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen ans ≤ n))
       let _ := Libraries.passta.pyPassDecreases (n -ₚ PastaLean.pyLen ans)
@@ -37,13 +37,15 @@ def lexicalOrder := fun (n : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem lexicalOrder_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ lexicalOrder n ⦃⇓ans => ⌜PastaLean.pyLen ans = n⌝⦄ :=
+theorem lexicalOrder_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ lexicalOrder n ⦃⇓ans => ⌜PastaLean.pyLen ans = n⌝⦄ :=
   by
-  mvcgen [lexicalOrder, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, v⟩ =>
+  mvcgen [lexicalOrder, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, v⟩ =>
     ⌜let _ := (cur.prefix.length : Int);
       (0 : Int) ≤ PastaLean.pyLen ans ∧ PastaLean.pyLen ans ≤ n⌝
-  sorry
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def lexicalOrder'rn := fun (n : Int) ↦
   Id.run
@@ -51,7 +53,7 @@ def lexicalOrder'rn := fun (n : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
       let mut ans : List Int := []
       let mut v : Int := (1 : Int)
-      for _ in (PastaLean.pyRange n)do
+      for _ in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ PastaLean.pyLen ans))
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen ans ≤ n))
         let _ := Libraries.passta.pyPassDecreases (n -ₚ PastaLean.pyLen ans)

@@ -30,7 +30,7 @@ theorem countOdds_spec :
         low ≤ high →
           PastaLean.pyShiftRight (high +ₚ (1 : Int)) (1 : Int) -ₚ PastaLean.pyShiftRight low (1 : Int) =
             PastaLean.pySum
-              ((List.filter (fun i => i %ₚ (2 : Int) != (0 : Int)) (PastaLean.pyRange (high +ₚ (1 : Int)) low)).map
+              ((List.filter (fun i => i %ₚ (2 : Int) ≠ (0 : Int)) (PastaLean.pyRange (high +ₚ (1 : Int)) low)).map
                 fun i => (1 : Int)) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 

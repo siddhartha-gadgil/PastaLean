@@ -27,7 +27,7 @@ def miceAndCheese := fun (reward1 : List Int) ↦ fun (reward2 : List Int) ↦ f
         PastaLean.pySum ((PastaLean.pyIter (PastaLean.pySlice idx (some k) none none)).map fun i => reward2⦋i⦌)
     return __py_ret_1 : Id _)
 
-theorem miceAndCheese_spec :
+theorem miceAndCheese_spec {reward1 : List Int} {reward2 : List Int} {k : Int} :
     ⦃⌜(PastaLean.pyLen reward1 = PastaLean.pyLen reward2 ∧ (0 : Int) ≤ k) ∧ k ≤ PastaLean.pyLen reward1⌝⦄
       miceAndCheese reward1 reward2 k ⦃⇓_ => ⌜True⌝⦄ :=
   by

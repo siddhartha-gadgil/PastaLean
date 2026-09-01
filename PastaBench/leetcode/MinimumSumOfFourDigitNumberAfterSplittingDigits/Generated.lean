@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.MinimumSumOfFourDigitNumberAfterSplittingDigits
 
 def minimumSum := fun (num : Int) ↦
   (do
+    let mut num := num
     let mut nums : List Int := []
     while (PastaLean.pyTruthy num) do
       nums := PastaLean.pyAppend nums (num %ₚ (10 : Int))
@@ -28,10 +29,10 @@ def minimumSum := fun (num : Int) ↦
     let __py_ret_1 := (10 : Int) *ₚ (nums⦋(0 : Int)⦌ +ₚ nums⦋(1 : Int)⦌) +ₚ nums⦋(2 : Int)⦌ +ₚ nums⦋(3 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem minimumSum_spec : ⦃⌜(1000 : Int) ≤ num ∧ num < (10000 : Int)⌝⦄ minimumSum num ⦃⇓_ => ⌜True⌝⦄ :=
+theorem minimumSum_spec {num : Int} : ⦃⌜(1000 : Int) ≤ num ∧ num < (10000 : Int)⌝⦄ minimumSum num ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minimumSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  all_goals sorry
 
 def minimumSum'rn := fun (num : Int) ↦
   Id.run

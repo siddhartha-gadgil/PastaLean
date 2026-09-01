@@ -20,7 +20,7 @@ namespace PastaBench.leetcode.FindThePivotInteger
 
 def pivotInteger := fun (n : Int) ↦
   (do
-    for x in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+    for x in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
       if h_1 : ((1 : Int) +ₚ x) *ₚ x = (x +ₚ n) *ₚ (n -ₚ x +ₚ (1 : Int)) then 
         return x
       else
@@ -29,21 +29,20 @@ def pivotInteger := fun (n : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem pivotInteger_spec :
+theorem pivotInteger_spec {n : Int} :
     ⦃⌜n ≥ (1 : Int)⌝⦄ pivotInteger n ⦃⇓result =>
       ⌜result = -(1 : Int) ∨
           ((1 : Int) ≤ result ∧ result ≤ n) ∧
             ((1 : Int) +ₚ result) *ₚ result = (result +ₚ n) *ₚ (n -ₚ result +ₚ (1 : Int))⌝⦄ :=
   by
-  mvcgen [pivotInteger, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [pivotInteger, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; sorry; sorry; sorry; pyany_cases <;> grind +locals
 
 def pivotInteger'rn := fun (n : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (1 : Int)))
-      for x in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for x in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         if h_1 : ((1 : Int) +ₚ x) *ₚ x == (x +ₚ n) *ₚ (n -ₚ x +ₚ (1 : Int)) then 
           return x
         else

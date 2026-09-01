@@ -20,26 +20,28 @@ namespace PastaBench.leetcode.CalculateDigitSumOfAString
 
 def digitSum := fun (s : String) ↦ fun (k : Int) ↦
   (do
+    let mut s := s
     while (PastaLean.pyLen s > k) do
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen s > k))
       let _ := Libraries.passta.pyPassInvariant (PastaLean.pyIsDecimal s)
       let mut t : List String := []
       let mut n : Int := PastaLean.pyLen s
-      for i in (PastaLean.pyRange n (0 : Int) k)do
+      for i in (PastaLean.pyRange n (0 : Int) k) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let mut x : Int := (0 : Int)
-        for j in (PastaLean.pyRange (PastaLean.pyMin [i +ₚ k, n]) i)do
+        for j in (PastaLean.pyRange (PastaLean.pyMin [i +ₚ k, n]) i) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j < n))
           x := x +ₚ PastaLean.pyInt s⦋j⦌
         t := PastaLean.pyAppend t (PastaLean.pyStr x)
-      let mut s : String := PastaLean.pyStringJoin "" t
+      s := PastaLean.pyStringJoin "" t
     let _ := Libraries.passta.pyPassAssert (decide (PastaLean.pyLen s ≤ k))
     return s : Id _)
 
 @[spec]
-theorem digitSum_spec : ⦃⌜k > (0 : Int) ∧ PastaLean.pyIsDecimal s⌝⦄ digitSum s k ⦃⇓s => ⌜PastaLean.pyLen s ≤ k⌝⦄ :=
+theorem digitSum_spec {s : String} {k : Int} :
+    ⦃⌜k > (0 : Int) ∧ PastaLean.pyIsDecimal s⌝⦄ digitSum s k ⦃⇓s => ⌜PastaLean.pyLen s ≤ k⌝⦄ :=
   by
   mvcgen [digitSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -55,11 +57,11 @@ def digitSum'rn := fun (s : String) ↦ fun (k : Int) ↦
         let _ := Libraries.passta.pyPassInvariant (PastaLean.pyIsDecimal s)
         let mut t : List String := []
         let mut n : Int := PastaLean.pyLen s
-        for i in (PastaLean.pyRange n (0 : Int) k)do
+        for i in (PastaLean.pyRange n (0 : Int) k) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
           let _ := Libraries.passta.pyPassInvariant (decide (i < n))
           let mut x : Int := (0 : Int)
-          for j in (PastaLean.pyRange (PastaLean.pyMin [i +ₚ k, n]) i)do
+          for j in (PastaLean.pyRange (PastaLean.pyMin [i +ₚ k, n]) i) do
             let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
             let _ := Libraries.passta.pyPassInvariant (decide (j < n))
             x := x +ₚ PastaLean.pyInt s⦋j⦌

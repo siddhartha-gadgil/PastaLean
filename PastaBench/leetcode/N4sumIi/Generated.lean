@@ -21,8 +21,9 @@ namespace PastaBench.leetcode.N4sumIi
 def fourSumCount := fun (nums1 : List Int) ↦ fun (nums2 : List Int) ↦ fun (nums3 : List Int) ↦
   fun (nums4 : List Int) ↦
   let cnt :=
-    Libraries.collections.pyCounter
-      ((PastaLean.pyIter nums1).flatMap fun a => (PastaLean.pyIter nums2).map fun b => a +ₚ b)
+    (Libraries.collections.pyCounter
+        ((PastaLean.pyIter nums1).flatMap fun a => (PastaLean.pyIter nums2).map fun b => a +ₚ b) :
+      Libraries.collections.PyDefaultDict Int Int)
   PastaLean.pySum ((PastaLean.pyIter nums3).flatMap fun c => (PastaLean.pyIter nums4).map fun d => cnt⦋-(c +ₚ d)⦌)
 
 attribute [simp] fourSumCount
@@ -42,15 +43,16 @@ theorem fourSumCount_spec :
                 ((PastaLean.pyIter nums1).flatMap fun a =>
                   (PastaLean.pyIter nums2).flatMap fun b =>
                     (PastaLean.pyIter nums3).flatMap fun c =>
-                      (List.filter (fun d => a +ₚ b +ₚ c +ₚ d == (0 : Int)) (PastaLean.pyIter nums4)).map fun d =>
+                      (List.filter (fun d => a +ₚ b +ₚ c +ₚ d = (0 : Int)) (PastaLean.pyIter nums4)).map fun d =>
                         (1 : Int)) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def fourSumCount'rn := fun (nums1 : List Int) ↦ fun (nums2 : List Int) ↦ fun (nums3 : List Int) ↦
   fun (nums4 : List Int) ↦
   let cnt :=
-    Libraries.collections.pyCounter
-      ((PastaLean.pyIter nums1).flatMap fun a => (PastaLean.pyIter nums2).map fun b => a +ₚ b)
+    (Libraries.collections.pyCounter
+        ((PastaLean.pyIter nums1).flatMap fun a => (PastaLean.pyIter nums2).map fun b => a +ₚ b) :
+      Libraries.collections.PyDefaultDict Int Int)
   PastaLean.pySum ((PastaLean.pyIter nums3).flatMap fun c => (PastaLean.pyIter nums4).map fun d => cnt⦋-(c +ₚ d)⦌)
 
 end PastaBench.leetcode.N4sumIi

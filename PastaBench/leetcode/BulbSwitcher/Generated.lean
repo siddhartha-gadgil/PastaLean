@@ -18,7 +18,7 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.BulbSwitcher
 
-def bulbSwitch := fun (n : Int) ↦ PastaLean.pyInt (Libraries.math.pyMathSqrtR n)
+noncomputable def bulbSwitch := fun (n : Int) ↦ PastaLean.pyInt (Libraries.math.pyMathSqrtR n)
 
 attribute [simp] bulbSwitch
 

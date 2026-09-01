@@ -26,7 +26,7 @@ def isUgly := fun (n : Int) ↦
         return Bool.false
       else
         let _ := ()
-      for x in (PastaLean.pyIter [(2 : Int), (3 : Int), (5 : Int)])do
+      for x in (PastaLean.pyIter [(2 : Int), (3 : Int), (5 : Int)]) do
         while (n %ₚ x = (0 : Int)) do
           n := PastaLean.pyFloorDiv n x
       let __py_ret_1 := n == (1 : Int)
@@ -42,7 +42,7 @@ def isUgly'rn := fun (n : Int) ↦
         return Bool.false
       else
         let _ := ()
-      for x in (PastaLean.pyIter [(2 : Int), (3 : Int), (5 : Int)])do
+      for x in (PastaLean.pyIter [(2 : Int), (3 : Int), (5 : Int)]) do
         while (n %ₚ x == (0 : Int)) do
           n := PastaLean.pyFloorDiv n x
       let __py_ret_1 := n == (1 : Int)

@@ -31,7 +31,7 @@ def maxRunTime := fun (n : Int) ↦ fun (batteries : List Int) ↦
       let _ :=
         Libraries.passta.pyPassInvariant
           (decide (PastaLean.pySum ((PastaLean.pyIter batteries).map fun x => PastaLean.pyMin [x, l]) ≥ n *ₚ l))
-      let mut mid := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
       if h_1 : PastaLean.pySum ((PastaLean.pyIter batteries).map fun x => PastaLean.pyMin [x, mid]) ≥ n *ₚ mid then 
         let _ :=
           Libraries.passta.pyPassAssert
@@ -42,7 +42,7 @@ def maxRunTime := fun (n : Int) ↦ fun (batteries : List Int) ↦
     return l : Id _)
 
 @[spec]
-theorem maxRunTime_spec :
+theorem maxRunTime_spec {n : Int} {batteries : List Int} :
     ⦃⌜n > (0 : Int) ∧ PastaLean.pyAll ((PastaLean.pyIter batteries).map fun x => decide (x ≥ (0 : Int)))⌝⦄
       maxRunTime n batteries ⦃⇓l =>
       ⌜PastaLean.pySum ((PastaLean.pyIter batteries).map fun x => PastaLean.pyMin [x, l]) ≥ n *ₚ l⌝⦄ :=
@@ -68,7 +68,7 @@ def maxRunTime'rn := fun (n : Int) ↦ fun (batteries : List Int) ↦
         let _ :=
           Libraries.passta.pyPassInvariant
             (decide (PastaLean.pySum ((PastaLean.pyIter batteries).map fun x => PastaLean.pyMin [x, l]) ≥ n *ₚ l))
-        let mut mid := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
         if h_1 : PastaLean.pySum ((PastaLean.pyIter batteries).map fun x => PastaLean.pyMin [x, mid]) ≥ n *ₚ mid then 
           let _ :=
             Libraries.passta.pyPassAssert

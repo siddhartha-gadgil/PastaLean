@@ -20,31 +20,36 @@ namespace PastaBench.leetcode.FindAValueOfAMysteriousFunctionClosestToTarget
 
 def closestToTarget := fun (arr : List Int) ↦ fun (target : Int) ↦
   (do
-    let mut ans : Int := PastaLean.pyAbs (arr⦋(0 : Int)⦌ -ₚ target)
+    let mut ans : Int := Libraries.operator.pyOperatorAbs (arr⦋(0 : Int)⦌ -ₚ target)
     let mut s : List Int := PastaLean.pySetFromList [arr⦋(0 : Int)⦌]
-    for x in (PastaLean.pyIter arr)do
+    for x in (PastaLean.pyIter arr) do
       s :=
         PastaLean.pyBitOr (PastaLean.pySetFromList ((PastaLean.pyIter s).map fun y => PastaLean.pyBitAnd x y))
           (PastaLean.pySetFromList [x])
-      ans := PastaLean.pyMin [ans, PastaLean.pyMin ((PastaLean.pyIter s).map fun y => PastaLean.pyAbs (y -ₚ target))]
+      ans :=
+        PastaLean.pyMin
+          [ans, PastaLean.pyMin ((PastaLean.pyIter s).map fun y => Libraries.operator.pyOperatorAbs (y -ₚ target))]
     return ans : Id _)
 
-theorem closestToTarget_spec : ⦃⌜PastaLean.pyLen arr > (0 : Int)⌝⦄ closestToTarget arr target ⦃⇓_ => ⌜True⌝⦄ :=
+theorem closestToTarget_spec {arr : List Int} {target : Int} :
+    ⦃⌜PastaLean.pyLen arr > (0 : Int)⌝⦄ closestToTarget arr target ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [closestToTarget, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, s, ans⟩ => ⌜True⌝
+  mvcgen [closestToTarget, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def closestToTarget'rn := fun (arr : List Int) ↦ fun (target : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen arr > (0 : Int)))
-      let mut ans : Int := PastaLean.pyAbs (arr⦋(0 : Int)⦌ -ₚ target)
+      let mut ans : Int := Libraries.operator.pyOperatorAbs (arr⦋(0 : Int)⦌ -ₚ target)
       let mut s : List Int := PastaLean.pySetFromList [arr⦋(0 : Int)⦌]
-      for x in (PastaLean.pyIter arr)do
+      for x in (PastaLean.pyIter arr) do
         s :=
           PastaLean.pyBitOr (PastaLean.pySetFromList ((PastaLean.pyIter s).map fun y => PastaLean.pyBitAnd x y))
             (PastaLean.pySetFromList [x])
-        ans := PastaLean.pyMin [ans, PastaLean.pyMin ((PastaLean.pyIter s).map fun y => PastaLean.pyAbs (y -ₚ target))]
+        ans :=
+          PastaLean.pyMin
+            [ans, PastaLean.pyMin ((PastaLean.pyIter s).map fun y => Libraries.operator.pyOperatorAbs (y -ₚ target))]
       return ans)
 
 end PastaBench.leetcode.FindAValueOfAMysteriousFunctionClosestToTarget

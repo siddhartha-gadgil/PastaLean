@@ -18,36 +18,32 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.NumberOfWaysToBuildHouseOfCards
 
-private def _houseOfCards_dfs := fun (n : Int) ↦ fun (k : Int) ↦
-  (do
-    let _ := Libraries.passta.pyPassDecreases (n +ₚ (1 : Int) -ₚ k)
-    let mut x : Int := (3 : Int) *ₚ k +ₚ (2 : Int)
-    if h_1 : x > n then 
-      return (0 : Int)
-    else
-      let _ := ()
-    if h_2 : x = n then 
-      return (1 : Int)
-    else
-      let _ := ()
-    let __py_ret_1 := _houseOfCards_dfs (n -ₚ x) (k +ₚ (1 : Int)) +ₚ _houseOfCards_dfs n (k +ₚ (1 : Int))
-    return __py_ret_1 : Id _)
+private partial def _houseOfCards'dfs : Int → Int → Int := fun (n : Int) ↦ fun (k : Int) ↦
+  Id.run
+    (do
+      let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
+      let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
+      let _ := Libraries.passta.pyPassDecreases (n +ₚ (1 : Int) -ₚ k)
+      let mut x : Int := (3 : Int) *ₚ k +ₚ (2 : Int)
+      if h_1 : x > n then 
+        return (0 : Int)
+      else
+        let _ := ()
+      if h_2 : x = n then 
+        return (1 : Int)
+      else
+        let _ := ()
+      let __py_ret_1 := _houseOfCards'dfs (n -ₚ x) (k +ₚ (1 : Int)) +ₚ _houseOfCards'dfs n (k +ₚ (1 : Int))
+      return __py_ret_1)
 
-@[spec]
-theorem _houseOfCards_dfs_spec :
-    ⦃⌜n ≥ (0 : Int) ∧ k ≥ (0 : Int)⌝⦄ _houseOfCards_dfs n k ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
-  by
-  mvcgen [_houseOfCards_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
-
-def houseOfCards := fun (n : Int) ↦ _houseOfCards_dfs n (0 : Int)
+def houseOfCards := fun (n : Int) ↦ _houseOfCards'dfs n (0 : Int)
 
 attribute [simp] houseOfCards
 
 @[taste_ingr]
-theorem houseOfCards_spec : ∀ (n : Int), n ≥ (0 : Int) → _houseOfCards_dfs n (0 : Int) ≥ (0 : Int) := by intros; sorry
+theorem houseOfCards_spec : ∀ (n : Int), n ≥ (0 : Int) → _houseOfCards'dfs n (0 : Int) ≥ (0 : Int) := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _houseOfCards_dfs'rn : Int → Int → Int := fun (n : Int) ↦ fun (k : Int) ↦
+private partial def _houseOfCards'dfs'rn : Int → Int → Int := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
@@ -62,9 +58,9 @@ private partial def _houseOfCards_dfs'rn : Int → Int → Int := fun (n : Int) 
         return (1 : Int)
       else
         let _ := ()
-      let __py_ret_1 := _houseOfCards_dfs'rn (n -ₚ x) (k +ₚ (1 : Int)) +ₚ _houseOfCards_dfs'rn n (k +ₚ (1 : Int))
+      let __py_ret_1 := _houseOfCards'dfs'rn (n -ₚ x) (k +ₚ (1 : Int)) +ₚ _houseOfCards'dfs'rn n (k +ₚ (1 : Int))
       return __py_ret_1)
 
-def houseOfCards'rn := fun (n : Int) ↦ _houseOfCards_dfs'rn n (0 : Int)
+def houseOfCards'rn := fun (n : Int) ↦ _houseOfCards'dfs'rn n (0 : Int)
 
 end PastaBench.leetcode.NumberOfWaysToBuildHouseOfCards

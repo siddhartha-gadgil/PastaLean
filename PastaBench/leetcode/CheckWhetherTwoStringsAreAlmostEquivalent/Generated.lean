@@ -22,10 +22,12 @@ def checkAlmostEquivalent := fun (word1 : String) ↦ fun (word2 : String) ↦
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter word1
-      for c in (PastaLean.pyIter word2)do
+      for c in (PastaLean.pyIter word2) do
         cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
       let __py_ret_1 :=
-        PastaLean.pyAll ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x => decide (PastaLean.pyAbs x ≤ (3 : Int)))
+        PastaLean.pyAll
+          ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x =>
+            decide (Libraries.operator.pyOperatorAbs x ≤ (3 : Int)))
       return __py_ret_1)
 
 attribute [simp, taste_ingr] checkAlmostEquivalent
@@ -34,10 +36,12 @@ def checkAlmostEquivalent'rn := fun (word1 : String) ↦ fun (word2 : String) �
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter word1
-      for c in (PastaLean.pyIter word2)do
+      for c in (PastaLean.pyIter word2) do
         cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
       let __py_ret_1 :=
-        PastaLean.pyAll ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x => decide (PastaLean.pyAbs x ≤ (3 : Int)))
+        PastaLean.pyAll
+          ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun x =>
+            decide (Libraries.operator.pyOperatorAbs x ≤ (3 : Int)))
       return __py_ret_1)
 
 end PastaBench.leetcode.CheckWhetherTwoStringsAreAlmostEquivalent

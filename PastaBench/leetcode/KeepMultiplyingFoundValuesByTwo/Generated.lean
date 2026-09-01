@@ -20,17 +20,18 @@ namespace PastaBench.leetcode.KeepMultiplyingFoundValuesByTwo
 
 def findFinalValue := fun (nums : List Int) ↦ fun (original : Int) ↦
   (do
+    let mut original := original
     while (PastaLean.pyContains (PastaLean.pySet nums) original) do
       original := PastaLean.pyShiftLeft original (1 : Int)
-    let _ := Libraries.passta.pyPassAssert !(PastaLean.pyContains (PastaLean.pySet nums) original)
+    let _ := Libraries.passta.pyPassAssert !PastaLean.pyContains (PastaLean.pySet nums) original
     return original : Id _)
 
 @[spec]
-theorem findFinalValue_spec :
-    ⦃⌜True⌝⦄ findFinalValue nums original ⦃⇓original => ⌜!(PastaLean.pyContains (PastaLean.pySet nums) original)⌝⦄ :=
+theorem findFinalValue_spec {nums : List Int} {original : Int} :
+    ⦃⌜True⌝⦄ findFinalValue nums original ⦃⇓original => ⌜!PastaLean.pyContains (PastaLean.pySet nums) original⌝⦄ :=
   by
   mvcgen [findFinalValue, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  all_goals sorry
 
 def findFinalValue'rn := fun (nums : List Int) ↦ fun (original : Int) ↦
   Id.run
@@ -38,7 +39,7 @@ def findFinalValue'rn := fun (nums : List Int) ↦ fun (original : Int) ↦
       let mut original := original
       while (PastaLean.pyContains (PastaLean.pySet nums) original) do
         original := PastaLean.pyShiftLeft original (1 : Int)
-      let _ := Libraries.passta.pyPassAssert !(PastaLean.pyContains (PastaLean.pySet nums) original)
+      let _ := Libraries.passta.pyPassAssert !PastaLean.pyContains (PastaLean.pySet nums) original
       return original)
 
 end PastaBench.leetcode.KeepMultiplyingFoundValuesByTwo

@@ -19,7 +19,7 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.MinimumElementsToAddToFormAGivenSum
 
 def minElements := fun (nums : List Int) ↦ fun (limit : Int) ↦ fun (goal : Int) ↦
-  let d := PastaLean.pyAbs (PastaLean.pySum nums -ₚ goal)
+  let d := (Libraries.operator.pyOperatorAbs (PastaLean.pySum nums -ₚ goal) : Int)
   PastaLean.pyFloorDiv (d +ₚ limit -ₚ (1 : Int)) limit
 
 attribute [simp] minElements
@@ -29,16 +29,16 @@ theorem minElements_spec :
     ∀ (nums : List Int),
       ∀ (limit : Int),
         ∀ (goal : Int),
-          let d := PastaLean.pyAbs (PastaLean.pySum nums -ₚ goal)
+          let d := Libraries.operator.pyOperatorAbs (PastaLean.pySum nums -ₚ goal)
           limit > (0 : Int) →
             PastaLean.pyFloorDiv (d +ₚ limit -ₚ (1 : Int)) limit *ₚ limit ≥
-                PastaLean.pyAbs (PastaLean.pySum nums -ₚ goal) ∧
+                Libraries.operator.pyOperatorAbs (PastaLean.pySum nums -ₚ goal) ∧
               (PastaLean.pyFloorDiv (d +ₚ limit -ₚ (1 : Int)) limit -ₚ (1 : Int)) *ₚ limit <
-                PastaLean.pyAbs (PastaLean.pySum nums -ₚ goal) :=
+                Libraries.operator.pyOperatorAbs (PastaLean.pySum nums -ₚ goal) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def minElements'rn := fun (nums : List Int) ↦ fun (limit : Int) ↦ fun (goal : Int) ↦
-  let d := PastaLean.pyAbs (PastaLean.pySum nums -ₚ goal)
+  let d := (Libraries.operator.pyOperatorAbs (PastaLean.pySum nums -ₚ goal) : Int)
   PastaLean.pyFloorDiv (d +ₚ limit -ₚ (1 : Int)) limit
 
 end PastaBench.leetcode.MinimumElementsToAddToFormAGivenSum

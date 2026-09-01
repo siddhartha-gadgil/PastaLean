@@ -23,10 +23,10 @@ def maximumNumberOfOnes := fun (width : Int) ↦ fun (height : Int) ↦ fun (sid
     let mut x : Int := sideLength
     let mut cnt : List Int := PastaLean.pyListRepeat [(0 : Int)] (x *ₚ x)
     let _ := Libraries.passta.pyPassAssert (PastaLean.pyLen cnt == x *ₚ x)
-    for i in (PastaLean.pyRange width)do
+    for i in (PastaLean.pyRange width) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < width))
-      for j in (PastaLean.pyRange height)do
+      for j in (PastaLean.pyRange height) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j < height))
         let mut k : Int := i %ₚ x *ₚ x +ₚ j %ₚ x
@@ -36,15 +36,16 @@ def maximumNumberOfOnes := fun (width : Int) ↦ fun (height : Int) ↦ fun (sid
     let __py_ret_1 := PastaLean.pySum (PastaLean.pySlice cnt none (some maxOnes) none)
     return __py_ret_1 : Id _)
 
-theorem maximumNumberOfOnes_spec :
+theorem maximumNumberOfOnes_spec {width : Int} {height : Int} {sideLength : Int} {maxOnes : Int} :
     ⦃⌜((width ≥ (0 : Int) ∧ height ≥ (0 : Int)) ∧ sideLength > (0 : Int)) ∧ maxOnes ≥ (0 : Int)⌝⦄
       maximumNumberOfOnes width height sideLength maxOnes ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maximumNumberOfOnes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [maximumNumberOfOnes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (0 : Int) ≤ i ∧ i < width⌝
-  sorry
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximumNumberOfOnes'rn := fun (width : Int) ↦ fun (height : Int) ↦ fun (sideLength : Int) ↦ fun (maxOnes : Int) ↦
   Id.run
@@ -56,10 +57,10 @@ def maximumNumberOfOnes'rn := fun (width : Int) ↦ fun (height : Int) ↦ fun (
       let mut x : Int := sideLength
       let mut cnt : List Int := PastaLean.pyListRepeat [(0 : Int)] (x *ₚ x)
       let _ := Libraries.passta.pyPassAssert (PastaLean.pyLen cnt == x *ₚ x)
-      for i in (PastaLean.pyRange width)do
+      for i in (PastaLean.pyRange width) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < width))
-        for j in (PastaLean.pyRange height)do
+        for j in (PastaLean.pyRange height) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j < height))
           let mut k : Int := i %ₚ x *ₚ x +ₚ j %ₚ x

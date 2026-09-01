@@ -22,31 +22,27 @@ def divisibilityArray := fun (word : String) ↦ fun (m : Int) ↦
   (do
     let mut ans : List Int := []
     let mut x : Int := (0 : Int)
-    for c in (PastaLean.pyIter word)do
+    for c in (PastaLean.pyIter word) do
       -- x is always a valid remainder mod m
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
       let _ := Libraries.passta.pyPassInvariant (decide (x < m))
       -- update remainder for the next prefix
       x := (x *ₚ (10 : Int) +ₚ PastaLean.pyInt c) %ₚ m
       -- record divisibility of this prefix
-      ans := PastaLean.pyAppend ans (if x == (0 : Int) then (1 : Int) else (0 : Int))
+      ans := PastaLean.pyAppend ans (if x = (0 : Int) then (1 : Int) else (0 : Int))
     return ans : Id _)
 
 @[spec]
-theorem divisibilityArray_spec :
+theorem divisibilityArray_spec {word : String} {m : Int} :
     ⦃⌜m > (0 : Int)⌝⦄ divisibilityArray word m ⦃⇓ans =>
-      ⌜(PastaLean.pyLen ans = PastaLean.pyLen word ∧
-            PastaLean.pyAll
-              ((PastaLean.pyRange (PastaLean.pyLen word)).map fun i =>
-                PastaLean.pyContains ((0 : Int), (1 : Int)) ans⦋i⦌)) ∧
+      ⌜PastaLean.pyLen ans = PastaLean.pyLen word ∧
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen word)).map fun i =>
-              (ans⦋i⦌ == (1 : Int)) ==
-                (PastaLean.pyInt (PastaLean.pySlice word none (some (i +ₚ (1 : Int))) none) %ₚ m == (0 : Int)))⌝⦄ :=
+              PastaLean.pyContains [(0 : Int), (1 : Int)] ans⦋i⦌)⌝⦄ :=
   by
-  mvcgen [divisibilityArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, x⟩ => ⌜(0 : Int) ≤ x ∧ x < m⌝
-  all_goals sorry
+  mvcgen [divisibilityArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, x⟩ => ⌜(0 : Int) ≤ x ∧ x < m⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def divisibilityArray'rn := fun (word : String) ↦ fun (m : Int) ↦
   Id.run
@@ -56,7 +52,7 @@ def divisibilityArray'rn := fun (word : String) ↦ fun (m : Int) ↦
       -- Each entry is 0 or 1 and indicates whether the corresponding prefix is divisible by m
       let mut ans : List Int := []
       let mut x : Int := (0 : Int)
-      for c in (PastaLean.pyIter word)do
+      for c in (PastaLean.pyIter word) do
         -- x is always a valid remainder mod m
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
         let _ := Libraries.passta.pyPassInvariant (decide (x < m))

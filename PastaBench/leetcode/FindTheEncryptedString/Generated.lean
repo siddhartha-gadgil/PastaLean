@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.FindTheEncryptedString
 def getEncryptedString := fun (s : String) ↦ fun (k : Int) ↦
   (do
     let mut cs : List String := PastaLean.pyList s
-    for i in (PastaLean.pyRange (PastaLean.pyLen s))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen s)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen s))
       let _ :=
@@ -37,23 +37,23 @@ def getEncryptedString := fun (s : String) ↦ fun (k : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem getEncryptedString_spec :
+theorem getEncryptedString_spec {s : String} {k : Int} :
     ⦃⌜True⌝⦄ getEncryptedString s k ⦃⇓result =>
       ⌜PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen s)).map fun i => result⦋i⦌ == s⦋(i +ₚ k) %ₚ PastaLean.pyLen s⦌)⌝⦄ :=
   by
-  mvcgen [getEncryptedString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [getEncryptedString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cs⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       ((0 : Int) ≤ i ∧ i < PastaLean.pyLen s) ∧
         PastaLean.pyAll ((PastaLean.pyRange i).map fun j => cs⦋j⦌ == s⦋(j +ₚ k) %ₚ PastaLean.pyLen s⦌)⌝
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; pyany_cases <;> grind +locals
 
 def getEncryptedString'rn := fun (s : String) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut cs : List String := PastaLean.pyList s
-      for i in (PastaLean.pyRange (PastaLean.pyLen s))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen s)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen s))
         let _ :=

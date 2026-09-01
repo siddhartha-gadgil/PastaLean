@@ -26,7 +26,7 @@ def maxProfit := fun (prices : List Int) ↦
     let mut f2 := Prod.fst (Prod.snd __unpack_pair_1)
     let mut f3 := Prod.fst (Prod.snd (Prod.snd __unpack_pair_1))
     let mut f4 := Prod.snd (Prod.snd (Prod.snd __unpack_pair_1))
-    for price in (PastaLean.pyIter (PastaLean.pySlice prices (some (1 : Int)) none none))do
+    for price in (PastaLean.pyIter (PastaLean.pySlice prices (some (1 : Int)) none none)) do
       let _ := Libraries.passta.pyPassInvariant (decide (f4 ≥ (0 : Int)))
       f1 := PastaLean.pyMax [f1, -price]
       f2 := PastaLean.pyMax [f2, f1 +ₚ price]
@@ -35,11 +35,11 @@ def maxProfit := fun (prices : List Int) ↦
     return f4 : Id _)
 
 @[spec]
-theorem maxProfit_spec : ⦃⌜PastaLean.pyLen prices ≥ (1 : Int)⌝⦄ maxProfit prices ⦃⇓f4 => ⌜f4 ≥ (0 : Int)⌝⦄ :=
+theorem maxProfit_spec {prices : List Int} :
+    ⦃⌜PastaLean.pyLen prices ≥ (1 : Int)⌝⦄ maxProfit prices ⦃⇓f4 => ⌜f4 ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [maxProfit, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜f4 ≥ (0 : Int)⌝
-  all_goals sorry
+  mvcgen [maxProfit, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxProfit'rn := fun (prices : List Int) ↦
   Id.run
@@ -51,7 +51,7 @@ def maxProfit'rn := fun (prices : List Int) ↦
       let mut f2 := Prod.fst (Prod.snd __unpack_pair_1)
       let mut f3 := Prod.fst (Prod.snd (Prod.snd __unpack_pair_1))
       let mut f4 := Prod.snd (Prod.snd (Prod.snd __unpack_pair_1))
-      for price in (PastaLean.pyIter (PastaLean.pySlice prices (some (1 : Int)) none none))do
+      for price in (PastaLean.pyIter (PastaLean.pySlice prices (some (1 : Int)) none none)) do
         let _ := Libraries.passta.pyPassInvariant (decide (f4 ≥ (0 : Int)))
         f1 := PastaLean.pyMax [f1, -price]
         f2 := PastaLean.pyMax [f2, f1 +ₚ price]

@@ -24,7 +24,7 @@ def numberOfSpecialSubstrings := fun (s : String) ↦
     let mut __chain_1 := (0 : Int)
     let mut ans := __chain_1
     let mut j := __chain_1
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
       let i := Prod.fst _pair_1
       let c := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
@@ -45,7 +45,7 @@ def numberOfSpecialSubstrings := fun (s : String) ↦
     return ans : Id _)
 
 @[spec]
-theorem numberOfSpecialSubstrings_spec :
+theorem numberOfSpecialSubstrings_spec {s : String} :
     ⦃⌜True⌝⦄ numberOfSpecialSubstrings s ⦃⇓ans =>
       ⌜ans ≥ (0 : Int) ∧
           ans ≤ PastaLean.pyFloorDiv (PastaLean.pyLen s *ₚ (PastaLean.pyLen s +ₚ (1 : Int))) (2 : Int)⌝⦄ :=
@@ -60,7 +60,7 @@ def numberOfSpecialSubstrings'rn := fun (s : String) ↦
       let mut __chain_1 := (0 : Int)
       let mut ans := __chain_1
       let mut j := __chain_1
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
         let i := Prod.fst _pair_1
         let c := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))

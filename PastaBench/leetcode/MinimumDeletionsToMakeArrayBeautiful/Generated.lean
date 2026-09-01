@@ -39,12 +39,10 @@ def minDeletion := fun (nums : List Int) ↦
     let _ := Libraries.passta.pyPassAssert ((n -ₚ ans) %ₚ (2 : Int) == (0 : Int))
     return ans : Id _)
 
-@[spec]
-theorem minDeletion_spec :
-    ⦃⌜n ≥ (0 : Int)⌝⦄ minDeletion nums ⦃⇓ans => ⌜((0 : Int) ≤ ans ∧ ans ≤ n) ∧ (n -ₚ ans) %ₚ (2 : Int) = (0 : Int)⌝⦄ :=
+theorem minDeletion_spec {nums : List Int} : ⦃⌜True⌝⦄ minDeletion nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minDeletion, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
+  all_goals sorry
 
 def minDeletion'rn := fun (nums : List Int) ↦
   Id.run

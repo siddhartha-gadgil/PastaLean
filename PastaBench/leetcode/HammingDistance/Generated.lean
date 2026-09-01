@@ -23,7 +23,8 @@ def hammingDistance := fun (x : Int) ↦ fun (y : Int) ↦
     let __py_ret_1 := PastaLean.pyBitCount (PastaLean.pyBitXor x y)
     return __py_ret_1 : Id _)
 
-theorem hammingDistance_spec : ⦃⌜x ≥ (0 : Int) ∧ y ≥ (0 : Int)⌝⦄ hammingDistance x y ⦃⇓_ => ⌜True⌝⦄ :=
+theorem hammingDistance_spec {x : Int} {y : Int} :
+    ⦃⌜x ≥ (0 : Int) ∧ y ≥ (0 : Int)⌝⦄ hammingDistance x y ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [hammingDistance, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

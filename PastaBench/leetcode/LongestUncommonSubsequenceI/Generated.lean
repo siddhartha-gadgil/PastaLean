@@ -19,7 +19,7 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.LongestUncommonSubsequenceI
 
 def findLUSlength := fun (a : String) ↦ fun (b : String) ↦
-  if a == b then -(1 : Int) else PastaLean.pyMax [PastaLean.pyLen a, PastaLean.pyLen b]
+  if a = b then -(1 : Int) else PastaLean.pyMax [PastaLean.pyLen a, PastaLean.pyLen b]
 
 attribute [simp] findLUSlength
 

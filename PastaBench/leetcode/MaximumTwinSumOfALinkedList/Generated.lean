@@ -36,10 +36,11 @@ def ListNode'rn.new (val : _ := (0 : Int)) (next : Option ListNode'rn := Option.
 
 def pairSum := fun (head : Option ListNode) ↦
   (do
+    let mut head := head
     let mut s : List Int := []
     while (PastaLean.pyTruthy head) do
       s := PastaLean.pyAppend s ((head).getD default).val
-      let mut head := ((head).getD default).next
+      head := ((head).getD default).next
     let mut pairs : List Int :=
       (PastaLean.pyRange (PastaLean.pyShiftRight (PastaLean.pyLen s) (1 : Int))).map fun i =>
         s⦋i⦌ +ₚ s⦋-(i +ₚ (1 : Int))⦌
@@ -47,18 +48,18 @@ def pairSum := fun (head : Option ListNode) ↦
     let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains pairs res)
     return res : Id _)
 
-theorem pairSum_spec :
-    ⦃⌜Option.isSome head ∧ Option.isSome ((head).getD default).next⌝⦄ pairSum head ⦃⇓_ => ⌜True⌝⦄ :=
+theorem pairSum_spec {head : Option ListNode} :
+    ⦃⌜!PastaLean.pyIsNone head ∧ !PastaLean.pyIsNone ((head).getD default).next⌝⦄ pairSum head ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [pairSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def pairSum'rn := fun (head : Option ListNode) ↦
   Id.run
     (do
       let mut head := head
-      let _ := Libraries.passta.pyPassRequires (Option.isSome head)
-      let _ := Libraries.passta.pyPassRequires (Option.isSome ((head).getD default).next)
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone head
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone ((head).getD default).next
       let mut s : List Int := []
       while (PastaLean.pyTruthy head) do
         s := PastaLean.pyAppend s ((head).getD default).val

@@ -40,8 +40,8 @@ def maxLength := fun (ribbons : List Int) ↦ fun (k : Int) ↦
           (decide
             (PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x (right +ₚ (1 : Int))) < k))
       let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
-      let mut cnt := PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x mid)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
+      let mut cnt : Int := PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x mid)
       if h_1 : cnt ≥ k then 
         left := mid
       else
@@ -49,7 +49,7 @@ def maxLength := fun (ribbons : List Int) ↦ fun (k : Int) ↦
     return left : Id _)
 
 @[spec]
-theorem maxLength_spec :
+theorem maxLength_spec {ribbons : List Int} {k : Int} :
     ⦃⌜(PastaLean.pyLen ribbons > (0 : Int) ∧ PastaLean.pyMin ribbons ≥ (0 : Int)) ∧ k > (0 : Int)⌝⦄
       maxLength ribbons k ⦃⇓left =>
       ⌜PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x (left +ₚ (1 : Int))) < k ∧
@@ -87,8 +87,8 @@ def maxLength'rn := fun (ribbons : List Int) ↦ fun (k : Int) ↦
               (PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x (right +ₚ (1 : Int))) <
                 k))
         let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
-        let mut cnt := PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x mid)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
+        let mut cnt : Int := PastaLean.pySum ((PastaLean.pyIter ribbons).map fun x => PastaLean.pyFloorDiv x mid)
         if h_1 : cnt ≥ k then 
           left := mid
         else

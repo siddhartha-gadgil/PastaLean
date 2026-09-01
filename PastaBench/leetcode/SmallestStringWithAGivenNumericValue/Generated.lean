@@ -40,7 +40,7 @@ def getSmallestString := fun (n : Int) ↦ fun (k : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem getSmallestString_spec :
+theorem getSmallestString_spec {n : Int} {k : Int} :
     ⦃⌜(n ≥ (1 : Int) ∧ k ≥ n) ∧ k ≤ (26 : Int) *ₚ n⌝⦄ getSmallestString n k ⦃⇓result =>
       ⌜PastaLean.pyLen result = n ∧
           PastaLean.pySum

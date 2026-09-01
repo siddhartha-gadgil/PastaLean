@@ -38,50 +38,38 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _bstToGst_dfs := fun (root : Option TreeNode) ↦ fun (s : Int) ↦
-  Id.run
-    (do
-      let mut root := root
-      let mut s := s
-      if h_1 : Option.isNone root then 
-        return s
-      else
-        let _ := ()
-      s := _bstToGst_dfs ((root).getD default).right s
-      s := s +ₚ ((root).getD default).val
-      root := some { (root).getD default with val := s }
-      s := _bstToGst_dfs ((root).getD default).left s
-      return s)
+private partial def _bstToGst'dfs := fun (root : Option TreeNode) ↦ fun (s : Int) ↦
+  if PastaLean.pyIsNone root then s
+  else
+    let s := _bstToGst'dfs ((root).getD default).right s
+    let s := (s +ₚ ((root).getD default).val : Int)
+    let root.val := s
+    let s := _bstToGst'dfs ((root).getD default).left s
+    s
 
 def bstToGst := fun (root : Option TreeNode) ↦
   (do
     let mut s : Int := (0 : Int)
-    s := _bstToGst_dfs root s
+    s := _bstToGst'dfs root s
     return root : Id _)
 
 @[spec]
-theorem bstToGst_spec : ⦃⌜True⌝⦄ bstToGst root ⦃⇓root => ⌜root = root⌝⦄ :=
+theorem bstToGst_spec {root : Option TreeNode} : ⦃⌜True⌝⦄ bstToGst root ⦃⇓root => ⌜root = root⌝⦄ :=
   by
   mvcgen [bstToGst, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
-private partial def _bstToGst_dfs'rn := fun (root : Option TreeNode) ↦ fun (s : Int) ↦
-  Id.run
-    (do
-      let mut root := root
-      let mut s := s
-      if h_1 : Option.isNone root then 
-        return s
-      else
-        let _ := ()
-      s := _bstToGst_dfs'rn ((root).getD default).right s
-      s := s +ₚ ((root).getD default).val
-      root := some { (root).getD default with val := s }
-      s := _bstToGst_dfs'rn ((root).getD default).left s
-      return s)
+private partial def _bstToGst'dfs'rn := fun (root : Option TreeNode) ↦ fun (s : Int) ↦
+  if PastaLean.pyIsNone root then s
+  else
+    let s := _bstToGst'dfs'rn ((root).getD default).right s
+    let s := (s +ₚ ((root).getD default).val : Int)
+    let root.val := s
+    let s := _bstToGst'dfs'rn ((root).getD default).left s
+    s
 
 def bstToGst'rn := fun (root : Option TreeNode) ↦
   let s := (0 : Int)
-  let s := _bstToGst_dfs'rn root s
+  let s := _bstToGst'dfs'rn root s
   root
 
 end PastaBench.leetcode.BinarySearchTreeToGreaterSumTree

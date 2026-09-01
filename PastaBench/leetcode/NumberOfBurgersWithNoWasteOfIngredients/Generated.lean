@@ -36,7 +36,7 @@ def numOfBurgers := fun (tomatoSlices : Int) ↦ fun (cheeseSlices : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem numOfBurgers_spec :
+theorem numOfBurgers_spec {tomatoSlices : Int} {cheeseSlices : Int} :
     ⦃⌜tomatoSlices ≥ (0 : Int) ∧ cheeseSlices ≥ (0 : Int)⌝⦄ numOfBurgers tomatoSlices cheeseSlices ⦃⇓result =>
       ⌜result = [] ∨
           (((PastaLean.pyLen result = (2 : Int) ∧ result⦋(0 : Int)⦌ ≥ (0 : Int)) ∧ result⦋(1 : Int)⦌ ≥ (0 : Int)) ∧

@@ -21,14 +21,14 @@ namespace PastaBench.leetcode.MinimumNumberOfIncreasingSubsequenceToBeRemoved
 def minOperations := fun (nums : List Int) ↦
   (do
     let mut g : List Int := []
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let __unpack_value_1 := ((0 : Int), PastaLean.pyLen g)
       let __unpack_pair_1 := __unpack_value_1
       let mut l := Prod.fst __unpack_pair_1
       let mut r := Prod.snd __unpack_pair_1
       -- binary-search [l, r) to find first index where g[idx] < x
       while (l < r) do
-        let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
         let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
         let _ := Libraries.passta.pyPassInvariant (decide (r ≤ PastaLean.pyLen g))
@@ -45,25 +45,24 @@ def minOperations := fun (nums : List Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem minOperations_spec :
+theorem minOperations_spec {nums : List Int} :
     ⦃⌜True⌝⦄ minOperations nums ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result ≤ PastaLean.pyLen nums⌝⦄ :=
   by
-  mvcgen [minOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [minOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def minOperations'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut g : List Int := []
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let __unpack_value_1 := ((0 : Int), PastaLean.pyLen g)
         let __unpack_pair_1 := __unpack_value_1
         let mut l := Prod.fst __unpack_pair_1
         let mut r := Prod.snd __unpack_pair_1
         -- binary-search [l, r) to find first index where g[idx] < x
         while (l < r) do
-          let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+          let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
           let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
           let _ := Libraries.passta.pyPassInvariant (decide (r ≤ PastaLean.pyLen g))

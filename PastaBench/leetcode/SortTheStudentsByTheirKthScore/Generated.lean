@@ -23,7 +23,7 @@ def sortTheStudents := fun (score : List (List Int)) ↦ fun (k : Int) ↦
     let __py_ret_1 := PastaLean.pySortBy (fun x ↦ -x⦋k⦌) false score
     return __py_ret_1 : Id _)
 
-theorem sortTheStudents_spec :
+theorem sortTheStudents_spec {score : List (List Int)} {k : Int} :
     ⦃⌜k ≥ (0 : Int) ∧ PastaLean.pyAll ((PastaLean.pyIter score).map fun row => decide (k < PastaLean.pyLen row))⌝⦄
       sortTheStudents score k ⦃⇓_ => ⌜True⌝⦄ :=
   by

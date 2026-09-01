@@ -29,11 +29,11 @@ def findKthNumber := fun (m : Int) ↦ fun (n : Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassInvariant (decide (left ≤ right))
       let _ := Libraries.passta.pyPassInvariant (decide (right ≤ m *ₚ n))
       let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
       -- mid is at least 1 since left ≥ 1.
       let _ := Libraries.passta.pyPassAssert (decide (mid ≥ (1 : Int)))
       let mut cnt : Int := (0 : Int)
-      for i in (PastaLean.pyRange (m +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (m +ₚ (1 : Int)) (1 : Int)) do
         -- Bound i for safe division and summation.
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i ≤ m))
         -- cnt is nonnegative and accumulates the true count up to i-1.
@@ -48,7 +48,7 @@ def findKthNumber := fun (m : Int) ↦ fun (n : Int) ↦ fun (k : Int) ↦
     return left : Id _)
 
 @[spec]
-theorem findKthNumber_spec :
+theorem findKthNumber_spec {m : Int} {n : Int} {k : Int} :
     ⦃⌜(m > (0 : Int) ∧ n > (0 : Int)) ∧ (1 : Int) ≤ k ∧ k ≤ m *ₚ n⌝⦄ findKthNumber m n k ⦃⇓left =>
       ⌜PastaLean.pySum
               ((PastaLean.pyRange (m +ₚ (1 : Int)) (1 : Int)).map fun i =>
@@ -82,11 +82,11 @@ def findKthNumber'rn := fun (m : Int) ↦ fun (n : Int) ↦ fun (k : Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (left ≤ right))
         let _ := Libraries.passta.pyPassInvariant (decide (right ≤ m *ₚ n))
         let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
         -- mid is at least 1 since left ≥ 1.
         let _ := Libraries.passta.pyPassAssert (decide (mid ≥ (1 : Int)))
         let mut cnt : Int := (0 : Int)
-        for i in (PastaLean.pyRange (m +ₚ (1 : Int)) (1 : Int))do
+        for i in (PastaLean.pyRange (m +ₚ (1 : Int)) (1 : Int)) do
           -- Bound i for safe division and summation.
           let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i ≤ m))
           -- cnt is nonnegative and accumulates the true count up to i-1.

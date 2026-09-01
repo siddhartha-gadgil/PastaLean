@@ -21,10 +21,11 @@ namespace PastaBench.leetcode.NumberOfDistinctBinaryStringsAfterApplyingOperatio
 def countDistinctStrings := fun (s : String) ↦ fun (k : Int) ↦
   (do
     let __py_ret_1 :=
-      PastaLean.pyPow (2 : Int) (PastaLean.pyLen s -ₚ k +ₚ (1 : Int)) %ₚ ((10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int))
+      Libraries.math.pyMathPowExact (2 : Int) (PastaLean.pyLen s -ₚ k +ₚ (1 : Int)) %ₚ
+        ((10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int))
     return __py_ret_1 : Id _)
 
-theorem countDistinctStrings_spec :
+theorem countDistinctStrings_spec {s : String} {k : Int} :
     ⦃⌜k ≥ (0 : Int) ∧ k ≤ PastaLean.pyLen s +ₚ (1 : Int)⌝⦄ countDistinctStrings s k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [countDistinctStrings, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -35,7 +36,8 @@ def countDistinctStrings'rn := fun (s : String) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let _ := Libraries.passta.pyPassRequires (decide (k ≤ PastaLean.pyLen s +ₚ (1 : Int)))
       let __py_ret_1 :=
-        PastaLean.pyPow (2 : Int) (PastaLean.pyLen s -ₚ k +ₚ (1 : Int)) %ₚ ((10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int))
+        Libraries.math.pyMathPow (2 : Int) (PastaLean.pyLen s -ₚ k +ₚ (1 : Int)) %ₚ
+          ((10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int))
       return __py_ret_1)
 
 end PastaBench.leetcode.NumberOfDistinctBinaryStringsAfterApplyingOperations

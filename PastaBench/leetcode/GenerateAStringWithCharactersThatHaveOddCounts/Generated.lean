@@ -29,7 +29,7 @@ def generateTheString := fun (n : Int) ↦
     Id _)
 
 @[spec]
-theorem generateTheString_spec :
+theorem generateTheString_spec {n : Int} :
     ⦃⌜n ≥ (1 : Int)⌝⦄ generateTheString n ⦃⇓result =>
       ⌜PastaLean.pyLen result = n ∧
           PastaLean.pyAll

@@ -20,12 +20,13 @@ namespace PastaBench.leetcode.LongestHappyPrefix
 
 def longestPrefix := fun (s : String) ↦
   (do
-    for i in (PastaLean.pyRange (PastaLean.pyLen s) (1 : Int))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen s) (1 : Int)) do
       if h_1 : PastaLean.pySlice s none (some (-i)) none = PastaLean.pySlice s (some i) none none then 
         let _ :=
           Libraries.passta.pyPassAssert
-            (PastaLean.pyTruthy (PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none)) &&
-              PastaLean.pyTruthy (PastaLean.pyStringEndswith s (PastaLean.pySlice s (some i) none none)))
+            (if PastaLean.pyTruthy (PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none)) then
+              PastaLean.pyStringEndswith s (PastaLean.pySlice s (some i) none none)
+            else PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none))
         let __py_ret_1 := PastaLean.pySlice s (some i) none none
         return __py_ret_1
       else
@@ -33,24 +34,24 @@ def longestPrefix := fun (s : String) ↦
     return "" : Id _)
 
 @[spec]
-theorem longestPrefix_spec :
+theorem longestPrefix_spec {s : String} :
     ⦃⌜True⌝⦄ longestPrefix s ⦃⇓result =>
       ⌜PastaLean.pyTruthy (PastaLean.pyStringStartswith s result) = true ∧
           PastaLean.pyTruthy (PastaLean.pyStringEndswith s result) = true⌝⦄ :=
   by
-  mvcgen [longestPrefix, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
+  mvcgen [longestPrefix, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def longestPrefix'rn := fun (s : String) ↦
   Id.run
     (do
-      for i in (PastaLean.pyRange (PastaLean.pyLen s) (1 : Int))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen s) (1 : Int)) do
         if h_1 : PastaLean.pySlice s none (some (-i)) none == PastaLean.pySlice s (some i) none none then 
           let _ :=
             Libraries.passta.pyPassAssert
-              (PastaLean.pyTruthy (PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none)) &&
-                PastaLean.pyTruthy (PastaLean.pyStringEndswith s (PastaLean.pySlice s (some i) none none)))
+              (if PastaLean.pyTruthy (PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none)) then
+                PastaLean.pyStringEndswith s (PastaLean.pySlice s (some i) none none)
+              else PastaLean.pyStringStartswith s (PastaLean.pySlice s (some i) none none))
           let __py_ret_1 := PastaLean.pySlice s (some i) none none
           return __py_ret_1
         else

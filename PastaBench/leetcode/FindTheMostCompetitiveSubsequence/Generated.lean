@@ -22,7 +22,7 @@ def mostCompetitive := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut stk : List Int := []
     let mut n : Int := PastaLean.pyLen nums
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let v := Prod.snd _pair_1
       while ((PastaLean.pyTruthy stk = true ∧ stk⦋(-1 : Int)⦌ > v) ∧ PastaLean.pyLen stk +ₚ n -ₚ i > k) do
@@ -33,7 +33,8 @@ def mostCompetitive := fun (nums : List Int) ↦ fun (k : Int) ↦
         let _ := ()
     return stk : Id _)
 
-theorem mostCompetitive_spec : ⦃⌜k ≥ (0 : Int) ∧ k ≤ PastaLean.pyLen nums⌝⦄ mostCompetitive nums k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem mostCompetitive_spec {nums : List Int} {k : Int} :
+    ⦃⌜k ≥ (0 : Int) ∧ k ≤ PastaLean.pyLen nums⌝⦄ mostCompetitive nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [mostCompetitive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -45,7 +46,7 @@ def mostCompetitive'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≤ PastaLean.pyLen nums))
       let mut stk : List Int := []
       let mut n : Int := PastaLean.pyLen nums
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let v := Prod.snd _pair_1
         while

@@ -26,7 +26,7 @@ def maxArea := fun (height : List Int) ↦
     let mut r := Prod.snd __unpack_pair_1
     let mut ans : Int := (0 : Int)
     while (l < r) do
-      let mut t := PastaLean.pyMin [height⦋l⦌, height⦋r⦌] *ₚ (r -ₚ l)
+      let mut t : Int := PastaLean.pyMin [height⦋l⦌, height⦋r⦌] *ₚ (r -ₚ l)
       ans := PastaLean.pyMax [ans, t]
       if h_1 : height⦋l⦌ < height⦋r⦌ then 
         l := l +ₚ (1 : Int)
@@ -35,7 +35,7 @@ def maxArea := fun (height : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem maxArea_spec :
+theorem maxArea_spec {height : List Int} :
     ⦃⌜PastaLean.pyLen height ≥ (2 : Int)⌝⦄ maxArea height ⦃⇓ans =>
       ⌜ans =
           if
@@ -65,7 +65,7 @@ def maxArea'rn := fun (height : List Int) ↦
       let mut r := Prod.snd __unpack_pair_1
       let mut ans : Int := (0 : Int)
       while (l < r) do
-        let mut t := PastaLean.pyMin [height⦋l⦌, height⦋r⦌] *ₚ (r -ₚ l)
+        let mut t : Int := PastaLean.pyMin [height⦋l⦌, height⦋r⦌] *ₚ (r -ₚ l)
         ans := PastaLean.pyMax [ans, t]
         if h_1 : height⦋l⦌ < height⦋r⦌ then 
           l := l +ₚ (1 : Int)

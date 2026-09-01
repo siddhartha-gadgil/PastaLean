@@ -24,14 +24,14 @@ def numberOfWeeks := fun (milestones : List Int) ↦
     let __unpack_pair_1 := __unpack_value_1
     let mut mx := Prod.fst __unpack_pair_1
     let mut s := Prod.snd __unpack_pair_1
-    let mut rest := s -ₚ mx
+    let mut rest : Int := s -ₚ mx
     let _ := Libraries.passta.pyPassAssert (mx == PastaLean.pyMax milestones)
     let _ := Libraries.passta.pyPassAssert (s == PastaLean.pySum milestones)
-    let __py_ret_1 := if decide (mx > rest +ₚ (1 : Int)) then rest *ₚ (2 : Int) +ₚ (1 : Int) else s
+    let __py_ret_1 := if mx > rest +ₚ (1 : Int) then rest *ₚ (2 : Int) +ₚ (1 : Int) else s
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem numberOfWeeks_spec :
+theorem numberOfWeeks_spec {milestones : List Int} :
     ⦃⌜PastaLean.pyLen milestones > (0 : Int)⌝⦄ numberOfWeeks milestones ⦃⇓result =>
       ⌜result =
           if PastaLean.pyMax milestones ≤ PastaLean.pySum milestones -ₚ PastaLean.pyMax milestones +ₚ (1 : Int) then
@@ -49,11 +49,11 @@ def numberOfWeeks'rn := fun (milestones : List Int) ↦
       let __unpack_pair_1 := __unpack_value_1
       let mut mx := Prod.fst __unpack_pair_1
       let mut s := Prod.snd __unpack_pair_1
-      let mut rest := s -ₚ mx
+      let mut rest : Int := s -ₚ mx
       -- Bridge facts so the Ensures clause (in terms of sum/max) can be rewritten to locals
       let _ := Libraries.passta.pyPassAssert (mx == PastaLean.pyMax milestones)
       let _ := Libraries.passta.pyPassAssert (s == PastaLean.pySum milestones)
-      let __py_ret_1 := if decide (mx > rest +ₚ (1 : Int)) then rest *ₚ (2 : Int) +ₚ (1 : Int) else s
+      let __py_ret_1 := if mx > rest +ₚ (1 : Int) then rest *ₚ (2 : Int) +ₚ (1 : Int) else s
       return __py_ret_1)
 
 end PastaBench.leetcode.MaximumNumberOfWeeksForWhichYouCanWork

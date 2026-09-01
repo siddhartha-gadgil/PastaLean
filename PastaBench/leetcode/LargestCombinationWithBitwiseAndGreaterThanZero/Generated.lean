@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.LargestCombinationWithBitwiseAndGreaterThanZero
 def largestCombination := fun (candidates : List Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange (PastaLean.pyBitLength (PastaLean.pyMax candidates)))do
+    for i in (PastaLean.pyRange (PastaLean.pyBitLength (PastaLean.pyMax candidates))) do
       ans :=
         PastaLean.pyMax
           [ans,
@@ -29,18 +29,18 @@ def largestCombination := fun (candidates : List Int) ↦
               ((PastaLean.pyIter candidates).map fun x => PastaLean.pyBitAnd (PastaLean.pyShiftRight x i) (1 : Int))]
     return ans : Id _)
 
-theorem largestCombination_spec :
+theorem largestCombination_spec {candidates : List Int} :
     ⦃⌜PastaLean.pyLen candidates > (0 : Int)⌝⦄ largestCombination candidates ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [largestCombination, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
+  mvcgen [largestCombination, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def largestCombination'rn := fun (candidates : List Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen candidates > (0 : Int)))
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyBitLength (PastaLean.pyMax candidates)))do
+      for i in (PastaLean.pyRange (PastaLean.pyBitLength (PastaLean.pyMax candidates))) do
         ans :=
           PastaLean.pyMax
             [ans,

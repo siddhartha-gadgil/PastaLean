@@ -47,55 +47,57 @@ theorem sumOfDigits_spec :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧ PastaLean.pyMin nums ≥ (0 : Int)⌝⦄ sumOfDigits nums ⦃⇓__py_r => ⌜True⌝⦄ :=
   by
   mvcgen [sumOfDigits]
-  ·
-    exact
-      PastaLean.pyWhile_correct (I := fun s =>
-        let x := (s).1;
-        let s := (s).2;
-        x ≥ (0 : Int) ∧ s ≥ (0 : Int))
-        (Q := fun s =>
-        let x := (s).1;
-        let s := (s).2;
-        True)
-        (fun s =>
+  all_goals
+    try
+      exact
+        PastaLean.pyWhile_correct (I := fun s =>
           let x := (s).1;
           let s := (s).2;
-          (x : Int).toNat)
-        (fun s =>
+          x ≥ (0 : Int) ∧ s ≥ (0 : Int))
+          (Q := fun s =>
           let x := (s).1;
           let s := (s).2;
-          PastaLean.pyTruthy x)
-        (fun s =>
-          let x := (s).1;
-          let s := (s).2;
-          let s := s +ₚ x %ₚ (10 : Int);
-          let x := PastaLean.pyFloorDiv x (10 : Int);
-          (x, s))
-        (PastaLean.pyMin nums, (0 : Int))
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
+          True)
+          (fun s =>
+            let x := (s).1;
+            let s := (s).2;
+            (x : Int).toNat)
+          (fun s =>
+            let x := (s).1;
+            let s := (s).2;
+            PastaLean.pyTruthy x)
+          (fun s =>
+            let x := (s).1;
+            let s := (s).2;
+            let s := s +ₚ x %ₚ (10 : Int);
+            let x := PastaLean.pyFloorDiv x (10 : Int);
+            (x, s))
+          (PastaLean.pyMin nums, (0 : Int))
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+  all_goals sorry
 
 def sumOfDigits'rn := fun (nums : List Int) ↦
   Id.run

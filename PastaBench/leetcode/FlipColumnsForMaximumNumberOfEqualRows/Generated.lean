@@ -21,21 +21,21 @@ namespace PastaBench.leetcode.FlipColumnsForMaximumNumberOfEqualRows
 def maxEqualRowsAfterFlips := fun (matrix : List (List Int)) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict (List Int) Int := Libraries.collections.pyCounterEmpty
-    for row in (PastaLean.pyIter matrix)do
+    for row in (PastaLean.pyIter matrix) do
       let mut t : List Int :=
-        if row⦋(0 : Int)⦌ == (0 : Int) then PastaLean.pyList row
+        if row⦋(0 : Int)⦌ = (0 : Int) then PastaLean.pyList row
         else PastaLean.pyList ((PastaLean.pyIter row).map fun x => PastaLean.pyBitXor x (1 : Int))
       cnt := PastaLean.pySetItem cnt t (cnt⦋t⦌ +ₚ (1 : Int))
     let __py_ret_1 := PastaLean.pyMax (PastaLean.pyAnys cnt)
     return __py_ret_1 : Id _)
 
-theorem maxEqualRowsAfterFlips_spec :
+theorem maxEqualRowsAfterFlips_spec {matrix : List (List Int)} :
     ⦃⌜PastaLean.pyLen matrix > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter matrix).map fun row => decide (PastaLean.pyLen row > (0 : Int)))⌝⦄
       maxEqualRowsAfterFlips matrix ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maxEqualRowsAfterFlips, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
+  mvcgen [maxEqualRowsAfterFlips, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxEqualRowsAfterFlips'rn := fun (matrix : List (List Int)) ↦
   Id.run
@@ -45,7 +45,7 @@ def maxEqualRowsAfterFlips'rn := fun (matrix : List (List Int)) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter matrix).map fun row => decide (PastaLean.pyLen row > (0 : Int))))
       let mut cnt : Libraries.collections.PyDefaultDict (List Int) Int := Libraries.collections.pyCounterEmpty
-      for row in (PastaLean.pyIter matrix)do
+      for row in (PastaLean.pyIter matrix) do
         let mut t : List Int :=
           if row⦋(0 : Int)⦌ == (0 : Int) then PastaLean.pyList row
           else PastaLean.pyList ((PastaLean.pyIter row).map fun x => PastaLean.pyBitXor x (1 : Int))

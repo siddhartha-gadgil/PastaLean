@@ -24,7 +24,7 @@ def numSubarrayProductLessThanK := fun (nums : List Int) ↦ fun (k : Int) ↦
     let mut ans := __chain_1
     let mut l := __chain_1
     let mut p : Int := (1 : Int)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let r := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ r))
@@ -36,9 +36,7 @@ def numSubarrayProductLessThanK := fun (nums : List Int) ↦ fun (k : Int) ↦
               ((PastaLean.pyRange r).flatMap fun i =>
                 (List.filter
                       (fun j =>
-                        decide
-                          (Libraries.math.pyMathProd (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) <
-                            k))
+                        Libraries.math.pyMathProd (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) < k)
                       (PastaLean.pyRange r i)).map
                   fun j => (1 : Int)))
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
@@ -61,16 +59,14 @@ def numSubarrayProductLessThanK := fun (nums : List Int) ↦ fun (k : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem numSubarrayProductLessThanK_spec :
+theorem numSubarrayProductLessThanK_spec {nums : List Int} {k : Int} :
     ⦃⌜k > (0 : Int)⌝⦄ numSubarrayProductLessThanK nums k ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen nums)).flatMap fun i =>
               (List.filter
                     (fun j =>
-                      decide
-                        (Libraries.math.pyMathProd (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) <
-                          k))
+                      Libraries.math.pyMathProd (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) < k)
                     (PastaLean.pyRange (PastaLean.pyLen nums) i)).map
                 fun j => (1 : Int))⌝⦄ :=
   by
@@ -85,7 +81,7 @@ def numSubarrayProductLessThanK'rn := fun (nums : List Int) ↦ fun (k : Int) �
       let mut ans := __chain_1
       let mut l := __chain_1
       let mut p : Int := (1 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let r := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ r))
@@ -97,10 +93,8 @@ def numSubarrayProductLessThanK'rn := fun (nums : List Int) ↦ fun (k : Int) �
                 ((PastaLean.pyRange r).flatMap fun i =>
                   (List.filter
                         (fun j =>
-                          decide
-                            (Libraries.math.pyMathProd
-                                (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) <
-                              k))
+                          Libraries.math.pyMathProd (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none) <
+                            k)
                         (PastaLean.pyRange r i)).map
                     fun j => (1 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))

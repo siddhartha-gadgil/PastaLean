@@ -18,14 +18,14 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.CheckIfBinaryStringHasAtMostOneSegmentOfOnes
 
-def checkOnesSegment := fun (s : String) ↦ !(PastaLean.pyStrContainsSubstr s "01")
+def checkOnesSegment := fun (s : String) ↦ !PastaLean.pyStrContainsSubstr s "01"
 
 attribute [simp] checkOnesSegment
 
 @[taste_ingr]
 theorem checkOnesSegment_spec :
-    ∀ (s : String), (!(PastaLean.pyStrContainsSubstr s "01")) = !(PastaLean.pyStrContainsSubstr s "01") := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
+    ∀ (s : String), (!PastaLean.pyStrContainsSubstr s "01") = !PastaLean.pyStrContainsSubstr s "01" := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
 
-def checkOnesSegment'rn := fun (s : String) ↦ !(PastaLean.pyStrContainsSubstr s "01")
+def checkOnesSegment'rn := fun (s : String) ↦ !PastaLean.pyStrContainsSubstr s "01"
 
 end PastaBench.leetcode.CheckIfBinaryStringHasAtMostOneSegmentOfOnes

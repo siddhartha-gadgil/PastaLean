@@ -36,7 +36,7 @@ def peakIndexInMountainArray := fun (arr : List Int) ↦
               decide (left ≤ k) && decide (k ≤ right) && decide (arr⦋k⦌ > arr⦋k -ₚ (1 : Int)⦌) &&
                 decide (arr⦋k⦌ > arr⦋k +ₚ (1 : Int)⦌)))
       let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
       if h_1 : arr⦋mid⦌ > arr⦋mid +ₚ (1 : Int)⦌ then 
         right := mid
       else
@@ -47,17 +47,19 @@ def peakIndexInMountainArray := fun (arr : List Int) ↦
     return left : Id _)
 
 @[spec]
-theorem peakIndexInMountainArray_spec :
+theorem peakIndexInMountainArray_spec {arr : List Int} :
     ⦃⌜PastaLean.pyLen arr ≥ (3 : Int) ∧
           PastaLean.pyStdAny
             ((PastaLean.pyRange (PastaLean.pyLen arr)).map fun p =>
-              decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int)) &&
-                  PastaLean.pyTruthy
-                    (PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))) &&
-                PastaLean.pyTruthy
-                  (PastaLean.pyAll
+              if PastaLean.pyTruthy (decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int))) then
+                if
+                    PastaLean.pyTruthy
+                      (PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))) then
+                  PastaLean.pyAll
                     ((PastaLean.pyRange (PastaLean.pyLen arr -ₚ (1 : Int)) p).map fun i =>
-                      decide (arr⦋i⦌ > arr⦋i +ₚ (1 : Int)⦌))))⌝⦄
+                      decide (arr⦋i⦌ > arr⦋i +ₚ (1 : Int)⦌))
+                else PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))
+              else decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int)))⌝⦄
       peakIndexInMountainArray arr ⦃⇓left =>
       ⌜(((0 : Int) < left ∧ left < PastaLean.pyLen arr -ₚ (1 : Int)) ∧ arr⦋left⦌ > arr⦋left -ₚ (1 : Int)⦌) ∧
           arr⦋left⦌ > arr⦋left +ₚ (1 : Int)⦌⌝⦄ :=
@@ -74,13 +76,15 @@ def peakIndexInMountainArray'rn := fun (arr : List Int) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyStdAny
             ((PastaLean.pyRange (PastaLean.pyLen arr)).map fun p =>
-              decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int)) &&
-                  PastaLean.pyTruthy
-                    (PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))) &&
-                PastaLean.pyTruthy
-                  (PastaLean.pyAll
+              if PastaLean.pyTruthy (decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int))) then
+                if
+                    PastaLean.pyTruthy
+                      (PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))) then
+                  PastaLean.pyAll
                     ((PastaLean.pyRange (PastaLean.pyLen arr -ₚ (1 : Int)) p).map fun i =>
-                      decide (arr⦋i⦌ > arr⦋i +ₚ (1 : Int)⦌)))))
+                      decide (arr⦋i⦌ > arr⦋i +ₚ (1 : Int)⦌))
+                else PastaLean.pyAll ((PastaLean.pyRange p).map fun i => decide (arr⦋i⦌ < arr⦋i +ₚ (1 : Int)⦌))
+              else decide ((0 : Int) < p) && decide (p < PastaLean.pyLen arr -ₚ (1 : Int))))
       let __unpack_value_1 := ((1 : Int), PastaLean.pyLen arr -ₚ (2 : Int))
       let __unpack_pair_1 := __unpack_value_1
       let mut left := Prod.fst __unpack_pair_1
@@ -97,7 +101,7 @@ def peakIndexInMountainArray'rn := fun (arr : List Int) ↦
                 decide (left ≤ k) && decide (k ≤ right) && decide (arr⦋k⦌ > arr⦋k -ₚ (1 : Int)⦌) &&
                   decide (arr⦋k⦌ > arr⦋k +ₚ (1 : Int)⦌)))
         let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
         if h_1 : arr⦋mid⦌ > arr⦋mid +ₚ (1 : Int)⦌ then 
           right := mid
         else

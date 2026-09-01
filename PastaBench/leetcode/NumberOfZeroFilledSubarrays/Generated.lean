@@ -23,7 +23,7 @@ def zeroFilledSubarray := fun (nums : List Int) ↦
     let mut __chain_1 := (0 : Int)
     let mut ans := __chain_1
     let mut cnt := __chain_1
-    for v in (PastaLean.pyIter nums)do
+    for v in (PastaLean.pyIter nums) do
       let _ := Libraries.passta.pyPassInvariant (decide (cnt ≥ (0 : Int)))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
       cnt := if PastaLean.pyTruthy v then (0 : Int) else cnt +ₚ (1 : Int)
@@ -31,10 +31,10 @@ def zeroFilledSubarray := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem zeroFilledSubarray_spec : ⦃⌜True⌝⦄ zeroFilledSubarray nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem zeroFilledSubarray_spec {nums : List Int} : ⦃⌜True⌝⦄ zeroFilledSubarray nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [zeroFilledSubarray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, cnt, ans⟩ => ⌜cnt ≥ (0 : Int) ∧ ans ≥ (0 : Int)⌝
+  mvcgen [zeroFilledSubarray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, cnt⟩ => ⌜cnt ≥ (0 : Int) ∧ ans ≥ (0 : Int)⌝
   simp_all (config := { zetaDelta := true }) [taste_ingr]; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals
 
 def zeroFilledSubarray'rn := fun (nums : List Int) ↦
@@ -43,7 +43,7 @@ def zeroFilledSubarray'rn := fun (nums : List Int) ↦
       let mut __chain_1 := (0 : Int)
       let mut ans := __chain_1
       let mut cnt := __chain_1
-      for v in (PastaLean.pyIter nums)do
+      for v in (PastaLean.pyIter nums) do
         let _ := Libraries.passta.pyPassInvariant (decide (cnt ≥ (0 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         cnt := if PastaLean.pyTruthy v then (0 : Int) else cnt +ₚ (1 : Int)

@@ -20,16 +20,17 @@ namespace PastaBench.leetcode.MinimumNumberOfCoinsForFruitsIi
 
 def minimumCoins := fun (prices : List Int) ↦
   (do
+    let mut prices := prices
     let mut n : Int := PastaLean.pyLen prices
     let mut q : List Int := Libraries.collections.pyDequeEmpty
-    for i in (PastaLean.pyRange (0 : Int) n (-(1 : Int)))do
+    for i in (PastaLean.pyRange (0 : Int) n (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       -- Remove indices out of the allowed jump range
       while (PastaLean.pyTruthy q = true ∧ q⦋(0 : Int)⦌ > i *ₚ (2 : Int) +ₚ (1 : Int)) do
         q := PastaLean.pyPopLeftRest q
       if h_1 : i ≤ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) (2 : Int) then 
-        let _ := Libraries.passta.pyPassAssert q
+        let _ := Libraries.passta.pyPassAssert (PastaLean.pyTruthy q)
         prices :=
           PastaLean.pySetItem prices (i -ₚ (1 : Int)) (prices⦋i -ₚ (1 : Int)⦌ +ₚ prices⦋q⦋(0 : Int)⦌ -ₚ (1 : Int)⦌)
       else
@@ -41,13 +42,20 @@ def minimumCoins := fun (prices : List Int) ↦
     let __py_ret_1 := prices⦋(0 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem minimumCoins_spec : ⦃⌜PastaLean.pyLen prices > (0 : Int)⌝⦄ minimumCoins prices ⦃⇓_ => ⌜True⌝⦄ :=
+theorem minimumCoins_spec {prices : List Int} :
+    ⦃⌜PastaLean.pyLen prices > (0 : Int)⌝⦄ minimumCoins prices ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [minimumCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [minimumCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, prices, q⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (1 : Int) ≤ i ∧ i ≤ n⌝
-  sorry
+      (1 : Int) ≤ i⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; pyany_cases <;> grind +locals; sorry; pyany_cases <;> grind +locals; sorry
 
 def minimumCoins'rn := fun (prices : List Int) ↦
   Id.run
@@ -56,14 +64,14 @@ def minimumCoins'rn := fun (prices : List Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen prices > (0 : Int)))
       let mut n : Int := PastaLean.pyLen prices
       let mut q : List Int := Libraries.collections.pyDequeEmpty
-      for i in (PastaLean.pyRange (0 : Int) n (-(1 : Int)))do
+      for i in (PastaLean.pyRange (0 : Int) n (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         -- Remove indices out of the allowed jump range
         while (PastaLean.pyTruthy q && decide (q⦋(0 : Int)⦌ > i *ₚ (2 : Int) +ₚ (1 : Int))) do
           q := PastaLean.pyPopLeftRest q
         if h_1 : i ≤ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) (2 : Int) then 
-          let _ := Libraries.passta.pyPassAssert q
+          let _ := Libraries.passta.pyPassAssert (PastaLean.pyTruthy q)
           prices :=
             PastaLean.pySetItem prices (i -ₚ (1 : Int)) (prices⦋i -ₚ (1 : Int)⦌ +ₚ prices⦋q⦋(0 : Int)⦌ -ₚ (1 : Int)⦌)
         else

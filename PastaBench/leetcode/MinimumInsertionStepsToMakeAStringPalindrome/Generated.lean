@@ -18,31 +18,30 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.MinimumInsertionStepsToMakeAStringPalindrome
 
-private def _minInsertions_dfs := fun (i : Int) ↦ fun (j : Int) ↦ fun (s : String) ↦
-  (do
-    let _ := Libraries.passta.pyPassDecreases (j -ₚ i)
-    if h_1 : i ≥ j then 
-      return (0 : Int)
-    else
-      let _ := ()
-    if h_2 : s⦋i⦌ = s⦋j⦌ then 
-      let __py_ret_1 := _minInsertions_dfs (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) s
-      return __py_ret_1
-    else
-      let _ := ()
-    let __py_ret_1 :=
-      (1 : Int) +ₚ PastaLean.pyMin [_minInsertions_dfs (i +ₚ (1 : Int)) j s, _minInsertions_dfs i (j -ₚ (1 : Int)) s]
-    return __py_ret_1 : Id _)
+private partial def _minInsertions'dfs : Int → Int → String → Int := fun (i : Int) ↦ fun (j : Int) ↦ fun (s : String) ↦
+  Id.run
+    (do
+      -- dfs is called only when 0 <= i, j < len(s) and i <= j+1
+      let _ := Libraries.passta.pyPassRequires (decide ((0 : Int) ≤ i))
+      let _ := Libraries.passta.pyPassRequires (decide (j < PastaLean.pyLen s))
+      let _ := Libraries.passta.pyPassRequires (decide (i ≤ j +ₚ (1 : Int)))
+      -- For substring s[i..j], the needed insertions is between 0 and its length.
+      -- Termination measure: the gap j - i strictly decreases on recursion when i < j.
+      let _ := Libraries.passta.pyPassDecreases (j -ₚ i)
+      if h_1 : i ≥ j then 
+        return (0 : Int)
+      else
+        let _ := ()
+      if h_2 : s⦋i⦌ = s⦋j⦌ then 
+        let __py_ret_1 := _minInsertions'dfs (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) s
+        return __py_ret_1
+      else
+        let _ := ()
+      let __py_ret_1 :=
+        (1 : Int) +ₚ PastaLean.pyMin [_minInsertions'dfs (i +ₚ (1 : Int)) j s, _minInsertions'dfs i (j -ₚ (1 : Int)) s]
+      return __py_ret_1)
 
-@[spec]
-theorem _minInsertions_dfs_spec :
-    ⦃⌜((0 : Int) ≤ i ∧ j < PastaLean.pyLen s) ∧ i ≤ j +ₚ (1 : Int)⌝⦄ _minInsertions_dfs i j s ⦃⇓result =>
-      ⌜(0 : Int) ≤ result ∧ result ≤ j -ₚ i +ₚ (1 : Int)⌝⦄ :=
-  by
-  mvcgen [_minInsertions_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
-
-def minInsertions := fun (s : String) ↦ _minInsertions_dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s
+def minInsertions := fun (s : String) ↦ _minInsertions'dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s
 
 attribute [simp] minInsertions
 
@@ -50,11 +49,11 @@ attribute [simp] minInsertions
 theorem minInsertions_spec :
     ∀ (s : String),
       PastaLean.pyLen s ≥ (0 : Int) →
-        (0 : Int) ≤ _minInsertions_dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s ∧
-          _minInsertions_dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s ≤ PastaLean.pyLen s :=
-  by intros; sorry
+        (0 : Int) ≤ _minInsertions'dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s ∧
+          _minInsertions'dfs (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s ≤ PastaLean.pyLen s :=
+  by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _minInsertions_dfs'rn : Int → Int → String → Int := fun (i : Int) ↦ fun (j : Int) ↦
+private partial def _minInsertions'dfs'rn : Int → Int → String → Int := fun (i : Int) ↦ fun (j : Int) ↦
   fun (s : String) ↦
   Id.run
     (do
@@ -70,15 +69,15 @@ private partial def _minInsertions_dfs'rn : Int → Int → String → Int := fu
       else
         let _ := ()
       if h_2 : s⦋i⦌ == s⦋j⦌ then 
-        let __py_ret_1 := _minInsertions_dfs'rn (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) s
+        let __py_ret_1 := _minInsertions'dfs'rn (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) s
         return __py_ret_1
       else
         let _ := ()
       let __py_ret_1 :=
         (1 : Int) +ₚ
-          PastaLean.pyMin [_minInsertions_dfs'rn (i +ₚ (1 : Int)) j s, _minInsertions_dfs'rn i (j -ₚ (1 : Int)) s]
+          PastaLean.pyMin [_minInsertions'dfs'rn (i +ₚ (1 : Int)) j s, _minInsertions'dfs'rn i (j -ₚ (1 : Int)) s]
       return __py_ret_1)
 
-def minInsertions'rn := fun (s : String) ↦ _minInsertions_dfs'rn (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s
+def minInsertions'rn := fun (s : String) ↦ _minInsertions'dfs'rn (0 : Int) (PastaLean.pyLen s -ₚ (1 : Int)) s
 
 end PastaBench.leetcode.MinimumInsertionStepsToMakeAStringPalindrome

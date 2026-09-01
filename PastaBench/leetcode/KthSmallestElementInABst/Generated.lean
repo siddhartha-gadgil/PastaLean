@@ -40,13 +40,15 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
 
 def kthSmallest := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   (do
-    let mut stk := []
+    let mut root := root
+    let mut k := k
+    let mut stk : List (Option TreeNode) := []
     while (PastaLean.pyTruthy root = true ∨ PastaLean.pyTruthy stk = true) do
       if h_1 : PastaLean.pyTruthy root then 
         stk := PastaLean.pyAppend stk root
-        let mut root := ((root).getD default).left
+        root := ((root).getD default).left
       else
-        let mut root := PastaLean.pyPopValue stk
+        root := PastaLean.pyPopValue stk
         stk := PastaLean.pyPopRest stk
         k := k -ₚ (1 : Int)
         if h_2 : k = (0 : Int) then 
@@ -57,19 +59,20 @@ def kthSmallest := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
         root := ((root).getD default).right
     return default : Id _)
 
-theorem kthSmallest_spec : ⦃⌜Option.isSome root ∧ k ≥ (1 : Int)⌝⦄ kthSmallest root k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem kthSmallest_spec {root : Option TreeNode} {k : Int} :
+    ⦃⌜!PastaLean.pyIsNone root ∧ k ≥ (1 : Int)⌝⦄ kthSmallest root k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [kthSmallest, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def kthSmallest'rn := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut root := root
       let mut k := k
-      let _ := Libraries.passta.pyPassRequires (Option.isSome root)
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone root
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (1 : Int)))
-      let mut stk := []
+      let mut stk : List (Option TreeNode) := []
       while (PastaLean.pyTruthy root || PastaLean.pyTruthy stk) do
         if h_1 : PastaLean.pyTruthy root then 
           stk := PastaLean.pyAppend stk root

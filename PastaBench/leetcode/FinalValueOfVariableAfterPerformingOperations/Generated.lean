@@ -19,7 +19,7 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.FinalValueOfVariableAfterPerformingOperations
 
 def finalValueAfterOperations := fun (operations : List String) ↦
-  PastaLean.pySum ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ == "+" then (1 : Int) else -(1 : Int))
+  PastaLean.pySum ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ = "+" then (1 : Int) else -(1 : Int))
 
 attribute [simp] finalValueAfterOperations
 
@@ -28,9 +28,9 @@ theorem finalValueAfterOperations_spec :
     ∀ (operations : List String),
       PastaLean.pyAll ((PastaLean.pyIter operations).map fun s => decide (PastaLean.pyLen s ≥ (2 : Int))) →
         PastaLean.pySum
-            ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ == "+" then (1 : Int) else -(1 : Int)) =
+            ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ = "+" then (1 : Int) else -(1 : Int)) =
           PastaLean.pySum
-            ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ == "+" then (1 : Int) else -(1 : Int)) :=
+            ((PastaLean.pyIter operations).map fun s => if s⦋(1 : Int)⦌ = "+" then (1 : Int) else -(1 : Int)) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
 
 def finalValueAfterOperations'rn := fun (operations : List String) ↦

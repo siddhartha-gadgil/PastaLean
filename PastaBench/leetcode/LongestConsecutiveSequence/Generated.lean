@@ -23,7 +23,7 @@ def longestConsecutive := fun (nums : List Int) ↦
     let mut s : List Int := PastaLean.pySet nums
     let mut ans : Int := (0 : Int)
     let mut d : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyDefaultDictInt
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let mut y : Int := x
       while (PastaLean.pyContains s y) do
         s := PastaLean.pySetRemove s y
@@ -33,11 +33,10 @@ def longestConsecutive := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem longestConsecutive_spec : ⦃⌜True⌝⦄ longestConsecutive nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem longestConsecutive_spec {nums : List Int} : ⦃⌜True⌝⦄ longestConsecutive nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [longestConsecutive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  sorry
+  mvcgen [longestConsecutive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def longestConsecutive'rn := fun (nums : List Int) ↦
   Id.run
@@ -45,7 +44,7 @@ def longestConsecutive'rn := fun (nums : List Int) ↦
       let mut s : List Int := PastaLean.pySet nums
       let mut ans : Int := (0 : Int)
       let mut d : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyDefaultDictInt
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let mut y : Int := x
         while (PastaLean.pyContains s y) do
           s := PastaLean.pySetRemove s y

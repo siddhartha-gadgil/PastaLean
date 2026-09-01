@@ -22,7 +22,7 @@ def validSubarrays := fun (nums : List Int) ↦
   (do
     let mut right : List Int := PastaLean.pyListRepeat [PastaLean.pyLen nums] (PastaLean.pyLen nums)
     let mut stk : List Int := []
-    for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
       -- maintain that every index popped or peeked is in range
@@ -50,13 +50,15 @@ def validSubarrays := fun (nums : List Int) ↦
     return result : Id _)
 
 @[spec]
-theorem validSubarrays_spec : ⦃⌜True⌝⦄ validSubarrays nums ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
+theorem validSubarrays_spec {nums : List Int} : ⦃⌜True⌝⦄ validSubarrays nums ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [validSubarrays, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [validSubarrays, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, right, stk⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (0 : Int) ≤ i ∧ i < PastaLean.pyLen nums⌝
-  sorry
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def validSubarrays'rn := fun (nums : List Int) ↦
   Id.run
@@ -64,7 +66,7 @@ def validSubarrays'rn := fun (nums : List Int) ↦
       -- no precondition needed; empty list yields 0
       let mut right : List Int := PastaLean.pyListRepeat [PastaLean.pyLen nums] (PastaLean.pyLen nums)
       let mut stk : List Int := []
-      for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen nums -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
         -- maintain that every index popped or peeked is in range

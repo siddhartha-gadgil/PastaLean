@@ -33,7 +33,7 @@ def isArmstrong := fun (n : Int) ↦
     let __py_ret_1 := s == n
     return __py_ret_1 : Id _)
 
-theorem isArmstrong_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ isArmstrong n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem isArmstrong_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ isArmstrong n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [isArmstrong, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry

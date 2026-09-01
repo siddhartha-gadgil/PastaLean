@@ -36,14 +36,15 @@ def ListNode'rn.new (val : _ := (0 : Int)) (next : Option ListNode'rn := Option.
 
 def nextLargerNodes := fun (head : Option ListNode) ↦
   (do
+    let mut head := head
     let mut nums : List Int := []
     while (PastaLean.pyTruthy head) do
       nums := PastaLean.pyAppend nums ((head).getD default).val
-      let mut head := ((head).getD default).next
+      head := ((head).getD default).next
     let mut stk : List Int := []
     let mut n : Int := PastaLean.pyLen nums
     let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < n))
       let _ :=
@@ -61,13 +62,17 @@ def nextLargerNodes := fun (head : Option ListNode) ↦
         (PastaLean.pyAll ((PastaLean.pyIter ans).map fun a => a == (0 : Int) || PastaLean.pyContains nums a))
     return ans : Id _)
 
-theorem nextLargerNodes_spec : ⦃⌜True⌝⦄ nextLargerNodes head ⦃⇓_ => ⌜True⌝⦄ :=
+theorem nextLargerNodes_spec {head : Option ListNode} : ⦃⌜True⌝⦄ nextLargerNodes head ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [nextLargerNodes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [nextLargerNodes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · ⇓⟨cur, stk, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((0 : Int) ≤ i ∧ i < n) ∧ PastaLean.pyAll ((PastaLean.pyIter stk).map fun x => PastaLean.pyContains nums x)⌝
-  sorry
+      (0 : Int) ≤ i⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals
 
 def nextLargerNodes'rn := fun (head : Option ListNode) ↦
   Id.run
@@ -80,7 +85,7 @@ def nextLargerNodes'rn := fun (head : Option ListNode) ↦
       let mut stk : List Int := []
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let _ :=

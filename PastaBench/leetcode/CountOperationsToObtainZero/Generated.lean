@@ -20,6 +20,8 @@ namespace PastaBench.leetcode.CountOperationsToObtainZero
 
 def countOperations := fun (num1 : Int) ↦ fun (num2 : Int) ↦
   (do
+    let mut num1 := num1
+    let mut num2 := num2
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy num1 = true ∧ PastaLean.pyTruthy num2 = true) do
       let _ := Libraries.passta.pyPassInvariant (decide (num1 ≥ (0 : Int)))
@@ -34,10 +36,11 @@ def countOperations := fun (num1 : Int) ↦ fun (num2 : Int) ↦
       ans := ans +ₚ (1 : Int)
     return ans : Id _)
 
-theorem countOperations_spec : ⦃⌜num1 ≥ (0 : Int) ∧ num2 ≥ (0 : Int)⌝⦄ countOperations num1 num2 ⦃⇓_ => ⌜True⌝⦄ :=
+theorem countOperations_spec {num1 : Int} {num2 : Int} :
+    ⦃⌜num1 ≥ (0 : Int) ∧ num2 ≥ (0 : Int)⌝⦄ countOperations num1 num2 ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [countOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countOperations'rn := fun (num1 : Int) ↦ fun (num2 : Int) ↦
   Id.run

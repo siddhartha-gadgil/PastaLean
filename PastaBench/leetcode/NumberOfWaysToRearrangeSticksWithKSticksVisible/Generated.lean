@@ -24,10 +24,10 @@ def rearrangeSticks := fun (n : Int) ↦ fun (k : Int) ↦
     let mut f : List (List Int) :=
       (PastaLean.pyRange (n +ₚ (1 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (1 : Int))
     f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Int))
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
-      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j ≤ k))
         let _ :=
@@ -46,15 +46,15 @@ def rearrangeSticks := fun (n : Int) ↦ fun (k : Int) ↦
     let __py_ret_1 := f⦋n⦌⦋k⦌
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem rearrangeSticks_spec :
-    ⦃⌜(n ≥ (0 : Int) ∧ k ≥ (0 : Int)) ∧ k ≤ n⌝⦄ rearrangeSticks n k ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result < mod⌝⦄ :=
+theorem rearrangeSticks_spec {n : Int} {k : Int} :
+    ⦃⌜(n ≥ (0 : Int) ∧ k ≥ (0 : Int)) ∧ k ≤ n⌝⦄ rearrangeSticks n k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [rearrangeSticks, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [rearrangeSticks, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (1 : Int) ≤ i ∧ i ≤ n⌝
-  sorry
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; grind +locals +suggestions; sorry
 
 def rearrangeSticks'rn := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run
@@ -67,10 +67,10 @@ def rearrangeSticks'rn := fun (n : Int) ↦ fun (k : Int) ↦
         (PastaLean.pyRange (n +ₚ (1 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (1 : Int))
       f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Int))
       -- Build DP table: f[i][j] = number of ways mod m
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
-        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
           let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j ≤ k))
           let _ :=

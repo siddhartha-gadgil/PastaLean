@@ -21,25 +21,25 @@ namespace PastaBench.leetcode.FindChampionIi
 def findChampion := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   (do
     let mut indeg : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-    for _pair_1 in (PastaLean.pyIter edges)do
+    for _pair_1 in (PastaLean.pyIter edges) do
       let _ := PastaLean.pyListGetItem _pair_1 (0 : Int)
       let v := PastaLean.pyListGetItem _pair_1 (1 : Int)
       indeg := PastaLean.pySetItem indeg v (indeg⦋v⦌ +ₚ (1 : Int))
     let __py_ret_1 :=
-      if PastaLean.pyCount indeg (0 : Int) != (1 : Int) then -(1 : Int) else PastaLean.pyIndex indeg (0 : Int)
+      if PastaLean.pyCount indeg (0 : Int) ≠ (1 : Int) then -(1 : Int) else PastaLean.pyIndex indeg (0 : Int)
     return __py_ret_1 : Id _)
 
-theorem findChampion_spec :
+theorem findChampion_spec {n : Int} {edges : List (List Int)} :
     ⦃⌜n ≥ (0 : Int) ∧
           PastaLean.pyAll
             ((PastaLean.pyIter edges).map fun _pair_1 =>
-              let _ := Prod.fst _pair_1;
-              let v := Prod.snd _pair_1;
+              let _ := PastaLean.pyListGetItem _pair_1 (0 : Int);
+              let v := PastaLean.pyListGetItem _pair_1 (1 : Int);
               decide ((0 : Int) ≤ v) && decide (v < n))⌝⦄
       findChampion n edges ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [findChampion, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def findChampion'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   Id.run
@@ -49,11 +49,11 @@ def findChampion'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll
             ((PastaLean.pyIter edges).map fun _pair_1 =>
-              let _ := Prod.fst _pair_1;
-              let v := Prod.snd _pair_1;
+              let _ := PastaLean.pyListGetItem _pair_1 (0 : Int);
+              let v := PastaLean.pyListGetItem _pair_1 (1 : Int);
               decide ((0 : Int) ≤ v) && decide (v < n)))
       let mut indeg : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-      for _pair_2 in (PastaLean.pyIter edges)do
+      for _pair_2 in (PastaLean.pyIter edges) do
         let _ := PastaLean.pyListGetItem _pair_2 (0 : Int)
         let v := PastaLean.pyListGetItem _pair_2 (1 : Int)
         indeg := PastaLean.pySetItem indeg v (indeg⦋v⦌ +ₚ (1 : Int))

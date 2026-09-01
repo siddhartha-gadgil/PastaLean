@@ -22,9 +22,9 @@ def countSubarrays := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
     let mut pre : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let mut cur : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems pre))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems pre)) do
         let y := Prod.fst _pair_1
         let v := Prod.snd _pair_1
         cur := PastaLean.pySetItem cur (PastaLean.pyBitAnd x y) (cur⦋PastaLean.pyBitAnd x y⦌ +ₚ v)
@@ -36,7 +36,7 @@ def countSubarrays := fun (nums : List Int) ↦ fun (k : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem countSubarrays_spec :
+theorem countSubarrays_spec {nums : List Int} {k : Int} :
     ⦃⌜True⌝⦄ countSubarrays nums k ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
@@ -44,23 +44,22 @@ theorem countSubarrays_spec :
               (List.filter
                     (fun j =>
                       (Libraries.functools.pyReduce (PastaLean.pySlice nums (some i) (some (j +ₚ (1 : Int))) none)
-                          fun (a : _) ↦ fun (b : _) ↦ PastaLean.pyBitAnd a b) ==
+                          fun (a : _) ↦ fun (b : _) ↦ PastaLean.pyBitAnd a b) =
                         k)
                     (PastaLean.pyRange (PastaLean.pyLen nums) i)).map
                 fun j => (1 : Int))⌝⦄ :=
   by
-  mvcgen [countSubarrays, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, pre, ans⟩ => ⌜ans = (cur.prefix.map (fun x => cur⦋k⦌)).sum⌝
-  sorry
+  mvcgen [countSubarrays, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countSubarrays'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut ans : Int := (0 : Int)
       let mut pre : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let mut cur : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-        for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems pre))do
+        for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems pre)) do
           let y := Prod.fst _pair_1
           let v := Prod.snd _pair_1
           cur := PastaLean.pySetItem cur (PastaLean.pyBitAnd x y) (cur⦋PastaLean.pyBitAnd x y⦌ +ₚ v)

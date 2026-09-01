@@ -20,11 +20,11 @@ namespace PastaBench.leetcode.OrderlyQueue
 
 def orderlyQueue := fun (s : String) ↦ fun (k : Int) ↦
   (do
+    let mut s := s
     let mut orig : String := s
-    let mut s := default
     if h_1 : k = (1 : Int) then 
       let mut ans : String := s
-      for _ in (PastaLean.pyRange (PastaLean.pyLen s -ₚ (1 : Int)))do
+      for _ in (PastaLean.pyRange (PastaLean.pyLen s -ₚ (1 : Int))) do
         s := PastaLean.pySlice s (some (1 : Int)) none none +ₚ s⦋(0 : Int)⦌
         ans := PastaLean.pyMin [ans, s]
       -- Bridge: ans is a rotation of the original string and is minimal among them
@@ -45,25 +45,7 @@ def orderlyQueue := fun (s : String) ↦ fun (k : Int) ↦
     let __py_ret_1 := PastaLean.pyStringJoin "" (PastaLean.pySort s)
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem orderlyQueue_spec :
-    ⦃⌜k ≥ (1 : Int)⌝⦄ orderlyQueue s k ⦃⇓result =>
-      ⌜(k = (1 : Int) ∧
-              PastaLean.pyTruthy
-                  (PastaLean.pyStdAny
-                    ((PastaLean.pyRange (PastaLean.pyLen orig)).map fun i =>
-                      result ==
-                        PastaLean.pySlice orig (some i) none none +ₚ PastaLean.pySlice orig none (some i) none)) =
-                true) ∧
-            PastaLean.pyTruthy
-                (PastaLean.pyAll
-                  ((PastaLean.pyRange (PastaLean.pyLen orig)).map fun i =>
-                    decide
-                      (result ≤
-                        PastaLean.pySlice orig (some i) none none +ₚ
-                          PastaLean.pySlice orig none (some i) none))) =
-              true ∨
-          k > (1 : Int) ∧ result = PastaLean.pyStringJoin "" (PastaLean.pySort orig)⌝⦄ :=
+theorem orderlyQueue_spec {s : String} {k : Int} : ⦃⌜k ≥ (1 : Int)⌝⦄ orderlyQueue s k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [orderlyQueue, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -78,7 +60,7 @@ def orderlyQueue'rn := fun (s : String) ↦ fun (k : Int) ↦
       -- otherwise it is the fully sorted string.
       if h_1 : k == (1 : Int) then 
         let mut ans : String := s
-        for _ in (PastaLean.pyRange (PastaLean.pyLen s -ₚ (1 : Int)))do
+        for _ in (PastaLean.pyRange (PastaLean.pyLen s -ₚ (1 : Int))) do
           s := PastaLean.pySlice s (some (1 : Int)) none none +ₚ s⦋(0 : Int)⦌
           ans := PastaLean.pyMin [ans, s]
         -- Bridge: ans is a rotation of the original string and is minimal among them

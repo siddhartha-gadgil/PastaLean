@@ -23,7 +23,7 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
     let mut i : Int := (0 : Int)
-    for x in (PastaLean.pyIter hours)do
+    for x in (PastaLean.pyIter hours) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen hours))
       -- ans counts exactly the complete-day pairs among the first i entries
@@ -32,7 +32,7 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
           (ans ==
             PastaLean.pySum
               ((PastaLean.pyRange i).flatMap fun p =>
-                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) == (0 : Int))
+                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) = (0 : Int))
                       (PastaLean.pyRange i (p +ₚ (1 : Int)))).map
                   fun q => (1 : Int)))
       -- cnt[r] is the count of entries among the first i whose value mod 24 is r
@@ -42,38 +42,38 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
             ((PastaLean.pyRange (24 : Int)).map fun r =>
               cnt⦋r⦌ ==
                 PastaLean.pySum
-                  ((List.filter (fun j => hours⦋j⦌ %ₚ (24 : Int) == r) (PastaLean.pyRange i)).map fun j => (1 : Int))))
+                  ((List.filter (fun j => hours⦋j⦌ %ₚ (24 : Int) = r) (PastaLean.pyRange i)).map fun j => (1 : Int))))
       ans := ans +ₚ cnt⦋((24 : Int) -ₚ x %ₚ (24 : Int)) %ₚ (24 : Int)⦌
       cnt := PastaLean.pySetItem cnt (x %ₚ (24 : Int)) (cnt⦋x %ₚ (24 : Int)⦌ +ₚ (1 : Int))
       i := i +ₚ (1 : Int)
     return ans : Id _)
 
 @[spec]
-theorem countCompleteDayPairs_spec :
+theorem countCompleteDayPairs_spec {hours : List Int} :
     ⦃⌜True⌝⦄ countCompleteDayPairs hours ⦃⇓ans =>
       ⌜ans =
             PastaLean.pySum
               ((PastaLean.pyRange (PastaLean.pyLen hours)).flatMap fun i =>
-                (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) == (0 : Int))
+                (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) = (0 : Int))
                       (PastaLean.pyRange (PastaLean.pyLen hours) (i +ₚ (1 : Int)))).map
                   fun j => (1 : Int)) ∧
           ans = ans⌝⦄ :=
   by
-  mvcgen [countCompleteDayPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, i, ans⟩ =>
+  mvcgen [countCompleteDayPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, ans, i⟩ =>
     ⌜(((0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen hours) ∧
           ans =
             PastaLean.pySum
               ((PastaLean.pyRange i).flatMap fun p =>
-                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) == (0 : Int))
+                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) = (0 : Int))
                       (PastaLean.pyRange i (p +ₚ (1 : Int)))).map
                   fun q => (1 : Int))) ∧
         PastaLean.pyAll
           ((PastaLean.pyRange (24 : Int)).map fun r =>
             cnt⦋r⦌ ==
               PastaLean.pySum
-                ((List.filter (fun j => hours⦋j⦌ %ₚ (24 : Int) == r) (PastaLean.pyRange i)).map fun j => (1 : Int)))⌝
-  all_goals sorry
+                ((List.filter (fun j => hours⦋j⦌ %ₚ (24 : Int) = r) (PastaLean.pyRange i)).map fun j => (1 : Int)))⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countCompleteDayPairs'rn := fun (hours : List Int) ↦
   Id.run
@@ -82,7 +82,7 @@ def countCompleteDayPairs'rn := fun (hours : List Int) ↦
       let mut ans : Int := (0 : Int)
       -- ghost index to track how many have been processed
       let mut i : Int := (0 : Int)
-      for x in (PastaLean.pyIter hours)do
+      for x in (PastaLean.pyIter hours) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen hours))
         -- ans counts exactly the complete-day pairs among the first i entries

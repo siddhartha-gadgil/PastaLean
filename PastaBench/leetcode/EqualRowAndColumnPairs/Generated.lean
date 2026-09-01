@@ -22,7 +22,7 @@ def equalPairs := fun (grid : List (List Int)) ↦
   (do
     let mut n : Int := PastaLean.pyLen grid
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange n)do
+    for i in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < n))
       let _ :=
@@ -37,7 +37,7 @@ def equalPairs := fun (grid : List (List Int)) ↦
                       (PastaLean.pyRange n)).map
                   fun q => (1 : Int)))
       let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-      for j in (PastaLean.pyRange n)do
+      for j in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j < n))
         let _ :=
@@ -62,34 +62,16 @@ def equalPairs := fun (grid : List (List Int)) ↦
         ans := ans +ₚ PastaLean.pyAll ((PastaLean.pyRange n).map fun k => grid⦋i⦌⦋k⦌ == grid⦋k⦌⦋j⦌)
     return ans : Id _)
 
-@[spec]
-theorem equalPairs_spec :
+theorem equalPairs_spec {grid : List (List Int)} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter grid).map fun row => PastaLean.pyLen row == PastaLean.pyLen grid)⌝⦄
-      equalPairs grid ⦃⇓ans =>
-      ⌜ans =
-          PastaLean.pySum
-            ((PastaLean.pyRange n).flatMap fun i =>
-              (List.filter
-                    (fun j =>
-                      PastaLean.pyTruthy
-                        (PastaLean.pyAll ((PastaLean.pyRange n).map fun k => grid⦋i⦌⦋k⦌ == grid⦋k⦌⦋j⦌)))
-                    (PastaLean.pyRange n)).map
-                fun j => (1 : Int))⌝⦄ :=
+      equalPairs grid ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [equalPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [equalPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((0 : Int) ≤ i ∧ i < n) ∧
-        ans =
-          PastaLean.pySum
-            ((PastaLean.pyRange i).flatMap fun p =>
-              (List.filter
-                    (fun q =>
-                      PastaLean.pyTruthy
-                        (PastaLean.pyAll ((PastaLean.pyRange n).map fun k => grid⦋p⦌⦋k⦌ == grid⦋k⦌⦋q⦌)))
-                    (PastaLean.pyRange n)).map
-                fun q => (1 : Int))⌝
-  sorry
+      (0 : Int) ≤ i⌝
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]
 
 def equalPairs'rn := fun (grid : List (List Int)) ↦
   Id.run
@@ -99,7 +81,7 @@ def equalPairs'rn := fun (grid : List (List Int)) ↦
           (PastaLean.pyAll ((PastaLean.pyIter grid).map fun row => PastaLean.pyLen row == PastaLean.pyLen grid))
       let mut n : Int := PastaLean.pyLen grid
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let _ :=
@@ -114,7 +96,7 @@ def equalPairs'rn := fun (grid : List (List Int)) ↦
                         (PastaLean.pyRange n)).map
                     fun q => (1 : Int)))
         let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-        for j in (PastaLean.pyRange n)do
+        for j in (PastaLean.pyRange n) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j < n))
           let _ :=

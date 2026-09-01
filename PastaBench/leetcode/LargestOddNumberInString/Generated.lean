@@ -20,14 +20,14 @@ namespace PastaBench.leetcode.LargestOddNumberInString
 
 def largestOddNumber := fun (num : String) ↦
   (do
-    for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen num -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen num -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen num))
       let _ :=
         Libraries.passta.pyPassInvariant
           (PastaLean.pyAll
             ((PastaLean.pyIter (PastaLean.pySlice num (some (i +ₚ (1 : Int))) none none)).map fun ch =>
-              !(PastaLean.pyContains "13579" ch)))
+              !PastaLean.pyContains "13579" ch))
       let _ := Libraries.passta.pyPassDecreases i
       if h_1 : PastaLean.pyBitAnd (PastaLean.pyInt num⦋i⦌) (1 : Int) = (1 : Int) then 
         let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains "13579" num⦋i⦌)
@@ -37,21 +37,20 @@ def largestOddNumber := fun (num : String) ↦
         let _ := ()
     let _ :=
       Libraries.passta.pyPassAssert
-        (PastaLean.pyAll ((PastaLean.pyIter num).map fun ch => !(PastaLean.pyContains "13579" ch)))
+        (PastaLean.pyAll ((PastaLean.pyIter num).map fun ch => !PastaLean.pyContains "13579" ch))
     return "" : Id _)
 
 @[spec]
-theorem largestOddNumber_spec :
+theorem largestOddNumber_spec {num : String} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter num).map fun ch => PastaLean.pyContains Libraries.string.pyStringDigits ch)⌝⦄
       largestOddNumber num ⦃⇓result =>
       ⌜(PastaLean.pyStringStartswith num result ∧ (result = "" ∨ PastaLean.pyContains "13579" result⦋(-1 : Int)⦌)) ∧
           PastaLean.pyAll
             ((PastaLean.pyIter (PastaLean.pySlice num (some (PastaLean.pyLen result)) none none)).map fun ch =>
-              !(PastaLean.pyContains "13579" ch))⌝⦄ :=
+              !PastaLean.pyContains "13579" ch)⌝⦄ :=
   by
-  mvcgen [largestOddNumber, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
+  mvcgen [largestOddNumber, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def largestOddNumber'rn := fun (num : String) ↦
   Id.run
@@ -60,14 +59,14 @@ def largestOddNumber'rn := fun (num : String) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll
             ((PastaLean.pyIter num).map fun ch => PastaLean.pyContains Libraries.string.pyStringDigits ch))
-      for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen num -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (PastaLean.pyLen num -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen num))
         let _ :=
           Libraries.passta.pyPassInvariant
             (PastaLean.pyAll
               ((PastaLean.pyIter (PastaLean.pySlice num (some (i +ₚ (1 : Int))) none none)).map fun ch =>
-                !(PastaLean.pyContains "13579" ch)))
+                !PastaLean.pyContains "13579" ch))
         let _ := Libraries.passta.pyPassDecreases i
         if h_1 : PastaLean.pyBitAnd (PastaLean.pyInt num⦋i⦌) (1 : Int) == (1 : Int) then 
           let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains "13579" num⦋i⦌)
@@ -77,7 +76,7 @@ def largestOddNumber'rn := fun (num : String) ↦
           let _ := ()
       let _ :=
         Libraries.passta.pyPassAssert
-          (PastaLean.pyAll ((PastaLean.pyIter num).map fun ch => !(PastaLean.pyContains "13579" ch)))
+          (PastaLean.pyAll ((PastaLean.pyIter num).map fun ch => !PastaLean.pyContains "13579" ch))
       return "")
 
 end PastaBench.leetcode.LargestOddNumberInString

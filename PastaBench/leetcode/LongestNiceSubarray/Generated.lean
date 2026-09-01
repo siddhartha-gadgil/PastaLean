@@ -24,7 +24,7 @@ def longestNiceSubarray := fun (nums : List Int) ↦
     let mut ans := __chain_1
     let mut mask := __chain_1
     let mut l := __chain_1
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let r := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
@@ -32,14 +32,16 @@ def longestNiceSubarray := fun (nums : List Int) ↦
       let _ :=
         Libraries.passta.pyPassInvariant
           (mask ==
-            Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none) or_ (some (0 : Int)))
+            Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none)
+              Libraries.operator.pyOperatorOr (some (0 : Int)))
       while (PastaLean.pyTruthy (PastaLean.pyBitAnd mask x)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
         let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
         let _ :=
           Libraries.passta.pyPassInvariant
             (mask ==
-              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none) or_ (some (0 : Int)))
+              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none)
+                Libraries.operator.pyOperatorOr (some (0 : Int)))
         let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
         mask := PastaLean.pyBitXor mask nums⦋l⦌
         l := l +ₚ (1 : Int)
@@ -48,13 +50,13 @@ def longestNiceSubarray := fun (nums : List Int) ↦
       let _ :=
         Libraries.passta.pyPassAssert
           (mask ==
-            Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some (r +ₚ (1 : Int))) none) or_
-              (some (0 : Int)))
+            Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some (r +ₚ (1 : Int))) none)
+              Libraries.operator.pyOperatorOr (some (0 : Int)))
       ans := PastaLean.pyMax [ans, r -ₚ l +ₚ (1 : Int)]
     return ans : Id _)
 
 @[spec]
-theorem longestNiceSubarray_spec :
+theorem longestNiceSubarray_spec {nums : List Int} :
     ⦃⌜True⌝⦄ longestNiceSubarray nums ⦃⇓ans => ⌜(0 : Int) ≤ ans ∧ ans ≤ PastaLean.pyLen nums⌝⦄ :=
   by
   mvcgen [longestNiceSubarray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -67,7 +69,7 @@ def longestNiceSubarray'rn := fun (nums : List Int) ↦
       let mut ans := __chain_1
       let mut mask := __chain_1
       let mut l := __chain_1
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let r := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
@@ -75,14 +77,16 @@ def longestNiceSubarray'rn := fun (nums : List Int) ↦
         let _ :=
           Libraries.passta.pyPassInvariant
             (mask ==
-              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none) or_ (some (0 : Int)))
+              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none)
+                Libraries.operator.pyOperatorOr (some (0 : Int)))
         while (PastaLean.pyTruthy (PastaLean.pyBitAnd mask x)) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ l))
           let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
           let _ :=
             Libraries.passta.pyPassInvariant
               (mask ==
-                Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none) or_ (some (0 : Int)))
+                Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some r) none)
+                  Libraries.operator.pyOperatorOr (some (0 : Int)))
           let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
           mask := PastaLean.pyBitXor mask nums⦋l⦌
           l := l +ₚ (1 : Int)
@@ -91,8 +95,8 @@ def longestNiceSubarray'rn := fun (nums : List Int) ↦
         let _ :=
           Libraries.passta.pyPassAssert
             (mask ==
-              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some (r +ₚ (1 : Int))) none) or_
-                (some (0 : Int)))
+              Libraries.functools.pyReduce (PastaLean.pySlice nums (some l) (some (r +ₚ (1 : Int))) none)
+                Libraries.operator.pyOperatorOr (some (0 : Int)))
         ans := PastaLean.pyMax [ans, r -ₚ l +ₚ (1 : Int)]
       return ans)
 

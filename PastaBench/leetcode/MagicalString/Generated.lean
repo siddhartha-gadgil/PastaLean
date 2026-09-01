@@ -33,7 +33,7 @@ def magicalString := fun (n : Int) ↦
     let __py_ret_1 := PastaLean.pyCount (PastaLean.pySlice s none (some n) none) (1 : Int)
     return __py_ret_1 : Id _)
 
-theorem magicalString_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ magicalString n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem magicalString_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ magicalString n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [magicalString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry

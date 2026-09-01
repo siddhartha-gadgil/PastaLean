@@ -30,7 +30,10 @@ def removeAlmostEqualCharacters := fun (word : String) ↦
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       let _ := Libraries.passta.pyPassInvariant (decide ((2 : Int) *ₚ ans ≤ i))
       let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-      if h_1 : PastaLean.pyAbs (PastaLean.pyOrd word⦋i⦌ -ₚ PastaLean.pyOrd word⦋i -ₚ (1 : Int)⦌) < (2 : Int) then 
+      if h_1 :
+          Libraries.operator.pyOperatorAbs (PastaLean.pyOrd word⦋i⦌ -ₚ PastaLean.pyOrd word⦋i -ₚ (1 : Int)⦌) <
+            (2 : Int) then
+        
         ans := ans +ₚ (1 : Int)
         i := i +ₚ (2 : Int)
       else
@@ -40,7 +43,7 @@ def removeAlmostEqualCharacters := fun (word : String) ↦
     return ans : Id _)
 
 @[spec]
-theorem removeAlmostEqualCharacters_spec :
+theorem removeAlmostEqualCharacters_spec {word : String} :
     ⦃⌜True⌝⦄ removeAlmostEqualCharacters word ⦃⇓ans => ⌜ans ≥ (0 : Int) ∧ (2 : Int) *ₚ ans ≤ PastaLean.pyLen word⌝⦄ :=
   by
   mvcgen [removeAlmostEqualCharacters, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -59,7 +62,10 @@ def removeAlmostEqualCharacters'rn := fun (word : String) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         let _ := Libraries.passta.pyPassInvariant (decide ((2 : Int) *ₚ ans ≤ i))
         let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-        if h_1 : PastaLean.pyAbs (PastaLean.pyOrd word⦋i⦌ -ₚ PastaLean.pyOrd word⦋i -ₚ (1 : Int)⦌) < (2 : Int) then 
+        if h_1 :
+            Libraries.operator.pyOperatorAbs (PastaLean.pyOrd word⦋i⦌ -ₚ PastaLean.pyOrd word⦋i -ₚ (1 : Int)⦌) <
+              (2 : Int) then
+          
           ans := ans +ₚ (1 : Int)
           i := i +ₚ (2 : Int)
         else

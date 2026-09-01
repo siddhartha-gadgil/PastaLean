@@ -38,7 +38,7 @@ def sumOfThree := fun (num : Int) ↦
     return res : Id _)
 
 @[spec]
-theorem sumOfThree_spec :
+theorem sumOfThree_spec {num : Int} :
     ⦃⌜True⌝⦄ sumOfThree num ⦃⇓res =>
       ⌜num %ₚ (3 : Int) ≠ (0 : Int) ∧ res = [] ∨
           (((num %ₚ (3 : Int) = (0 : Int) ∧ PastaLean.pyLen res = (3 : Int)) ∧

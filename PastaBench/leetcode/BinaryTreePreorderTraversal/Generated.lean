@@ -38,42 +38,42 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _preorderTraversal_dfs := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _preorderTraversal'dfs := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return ans
       else
         let _ := ()
       ans := PastaLean.pyAppend ans ((root).getD default).val
-      ans := _preorderTraversal_dfs ((root).getD default).left ans
-      ans := _preorderTraversal_dfs ((root).getD default).right ans
+      ans := _preorderTraversal'dfs ((root).getD default).left ans
+      ans := _preorderTraversal'dfs ((root).getD default).right ans
       return ans)
 
 def preorderTraversal := fun (root : Option TreeNode) ↦
   let ans := []
-  let ans := _preorderTraversal_dfs root ans
+  let ans := _preorderTraversal'dfs root ans
   ans
 
 attribute [simp, taste_ingr] preorderTraversal
 
-private partial def _preorderTraversal_dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _preorderTraversal'dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return ans
       else
         let _ := ()
       ans := PastaLean.pyAppend ans ((root).getD default).val
-      ans := _preorderTraversal_dfs'rn ((root).getD default).left ans
-      ans := _preorderTraversal_dfs'rn ((root).getD default).right ans
+      ans := _preorderTraversal'dfs'rn ((root).getD default).left ans
+      ans := _preorderTraversal'dfs'rn ((root).getD default).right ans
       return ans)
 
 def preorderTraversal'rn := fun (root : Option TreeNode) ↦
   let ans := []
-  let ans := _preorderTraversal_dfs'rn root ans
+  let ans := _preorderTraversal'dfs'rn root ans
   ans
 
 end PastaBench.leetcode.BinaryTreePreorderTraversal

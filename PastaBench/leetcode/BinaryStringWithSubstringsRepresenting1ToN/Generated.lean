@@ -31,7 +31,7 @@ def queryString := fun (s : String) ↦ fun (n : Int) ↦
           PastaLean.pyContains s (PastaLean.pySlice (PastaLean.pyBin i) (some (2 : Int)) none none))
     return __py_ret_1 : Id _)
 
-theorem queryString_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ queryString s n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem queryString_spec {s : String} {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ queryString s n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [queryString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

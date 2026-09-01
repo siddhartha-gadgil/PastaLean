@@ -61,61 +61,63 @@ def gcd := fun (a : Int) ↦ fun (b : Int) ↦
 theorem gcd_spec : ⦃⌜a ≥ (0 : Int) ∧ b ≥ (0 : Int)⌝⦄ gcd a b ⦃⇓__py_r => ⌜__py_r ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [gcd]
-  ·
-    exact
-      PastaLean.pyWhile_correct (I := fun s =>
-        let x := (s).1;
-        let y := ((s).2).1;
-        let t := ((s).2).2;
-        x ≥ (0 : Int) ∧ y ≥ (0 : Int))
-        (Q := fun s =>
-        let x := (s).1;
-        let y := ((s).2).1;
-        let t := ((s).2).2;
-        x ≥ (0 : Int))
-        (fun s =>
+  all_goals
+    try
+      exact
+        PastaLean.pyWhile_correct (I := fun s =>
           let x := (s).1;
           let y := ((s).2).1;
           let t := ((s).2).2;
-          (y : Int).toNat)
-        (fun s =>
+          x ≥ (0 : Int) ∧ y ≥ (0 : Int))
+          (Q := fun s =>
           let x := (s).1;
           let y := ((s).2).1;
           let t := ((s).2).2;
-          y ≠ (0 : Int))
-        (fun s =>
-          let x := (s).1;
-          let y := ((s).2).1;
-          let t := ((s).2).2;
-          let t := x %ₚ y;
-          let x := y;
-          let y := t;
-          (x, (y, t)))
-        (a, (b, (0 : Int)))
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
+          x ≥ (0 : Int))
+          (fun s =>
+            let x := (s).1;
+            let y := ((s).2).1;
+            let t := ((s).2).2;
+            (y : Int).toNat)
+          (fun s =>
+            let x := (s).1;
+            let y := ((s).2).1;
+            let t := ((s).2).2;
+            y ≠ (0 : Int))
+          (fun s =>
+            let x := (s).1;
+            let y := ((s).2).1;
+            let t := ((s).2).2;
+            let t := x %ₚ y;
+            let x := y;
+            let y := t;
+            (x, (y, t)))
+          (a, (b, (0 : Int)))
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+  all_goals sorry
 
 def gcd'rn := fun (a : Int) ↦ fun (b : Int) ↦
   Id.run
@@ -153,8 +155,8 @@ def bisect_left := fun (a : List Int) ↦ fun (x : Int) ↦
             let hi := ((s).2).1;
             let mid := ((s).2).2;
             let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
-            let lo := if decide (a⦋mid⦌ < x) then mid +ₚ (1 : Int) else lo;
-            let hi := if decide (a⦋mid⦌ < x) then hi else mid;
+            let lo := if a⦋mid⦌ < x then mid +ₚ (1 : Int) else lo;
+            let hi := if a⦋mid⦌ < x then hi else mid;
             (lo, (hi, mid)))
           ((0 : Int), (PastaLean.pyLen a, (0 : Int)));
       let lo := (__py_sf).1;
@@ -167,61 +169,63 @@ def bisect_left := fun (a : List Int) ↦ fun (x : Int) ↦
 theorem bisect_left_spec : ⦃⌜PastaLean.pyLen a ≥ (0 : Int)⌝⦄ bisect_left a x ⦃⇓__py_r => ⌜__py_r ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [bisect_left]
-  ·
-    exact
-      PastaLean.pyWhile_correct (I := fun s =>
-        let lo := (s).1;
-        let hi := ((s).2).1;
-        let mid := ((s).2).2;
-        lo ≥ (0 : Int) ∧ lo ≤ hi)
-        (Q := fun s =>
-        let lo := (s).1;
-        let hi := ((s).2).1;
-        let mid := ((s).2).2;
-        lo ≥ (0 : Int))
-        (fun s =>
+  all_goals
+    try
+      exact
+        PastaLean.pyWhile_correct (I := fun s =>
           let lo := (s).1;
           let hi := ((s).2).1;
           let mid := ((s).2).2;
-          (hi -ₚ lo : Int).toNat)
-        (fun s =>
+          lo ≥ (0 : Int) ∧ lo ≤ hi)
+          (Q := fun s =>
           let lo := (s).1;
           let hi := ((s).2).1;
           let mid := ((s).2).2;
-          lo < hi)
-        (fun s =>
-          let lo := (s).1;
-          let hi := ((s).2).1;
-          let mid := ((s).2).2;
-          let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
-          let lo := if decide (a⦋mid⦌ < x) then mid +ₚ (1 : Int) else lo;
-          let hi := if decide (a⦋mid⦌ < x) then hi else mid;
-          (lo, (hi, mid)))
-        ((0 : Int), (PastaLean.pyLen a, (0 : Int)))
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
+          lo ≥ (0 : Int))
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            (hi -ₚ lo : Int).toNat)
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            lo < hi)
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
+            let lo := if a⦋mid⦌ < x then mid +ₚ (1 : Int) else lo;
+            let hi := if a⦋mid⦌ < x then hi else mid;
+            (lo, (hi, mid)))
+          ((0 : Int), (PastaLean.pyLen a, (0 : Int)))
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+  all_goals sorry
 
 def bisect_left'rn := fun (a : List Int) ↦ fun (x : Int) ↦
   Id.run
@@ -235,8 +239,8 @@ def bisect_left'rn := fun (a : List Int) ↦ fun (x : Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (lo ≤ hi))
         let _ := Libraries.passta.pyPassDecreases (hi -ₚ lo)
         mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int)
-        lo := if decide (a⦋mid⦌ < x) then mid +ₚ (1 : Int) else lo
-        hi := if decide (a⦋mid⦌ < x) then hi else mid
+        lo := if a⦋mid⦌ < x then mid +ₚ (1 : Int) else lo
+        hi := if a⦋mid⦌ < x then hi else mid
       return lo)
 
 def bisect_right := fun (a : List Int) ↦ fun (x : Int) ↦
@@ -258,8 +262,8 @@ def bisect_right := fun (a : List Int) ↦ fun (x : Int) ↦
             let hi := ((s).2).1;
             let mid := ((s).2).2;
             let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
-            let hi := if decide (x < a⦋mid⦌) then mid else hi;
-            let lo := if decide (x < a⦋mid⦌) then lo else mid +ₚ (1 : Int);
+            let hi := if x < a⦋mid⦌ then mid else hi;
+            let lo := if x < a⦋mid⦌ then lo else mid +ₚ (1 : Int);
             (lo, (hi, mid)))
           ((0 : Int), (PastaLean.pyLen a, (0 : Int)));
       let lo := (__py_sf).1;
@@ -272,61 +276,63 @@ def bisect_right := fun (a : List Int) ↦ fun (x : Int) ↦
 theorem bisect_right_spec : ⦃⌜PastaLean.pyLen a ≥ (0 : Int)⌝⦄ bisect_right a x ⦃⇓__py_r => ⌜__py_r ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [bisect_right]
-  ·
-    exact
-      PastaLean.pyWhile_correct (I := fun s =>
-        let lo := (s).1;
-        let hi := ((s).2).1;
-        let mid := ((s).2).2;
-        lo ≥ (0 : Int) ∧ lo ≤ hi)
-        (Q := fun s =>
-        let lo := (s).1;
-        let hi := ((s).2).1;
-        let mid := ((s).2).2;
-        lo ≥ (0 : Int))
-        (fun s =>
+  all_goals
+    try
+      exact
+        PastaLean.pyWhile_correct (I := fun s =>
           let lo := (s).1;
           let hi := ((s).2).1;
           let mid := ((s).2).2;
-          (hi -ₚ lo : Int).toNat)
-        (fun s =>
+          lo ≥ (0 : Int) ∧ lo ≤ hi)
+          (Q := fun s =>
           let lo := (s).1;
           let hi := ((s).2).1;
           let mid := ((s).2).2;
-          lo < hi)
-        (fun s =>
-          let lo := (s).1;
-          let hi := ((s).2).1;
-          let mid := ((s).2).2;
-          let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
-          let hi := if decide (x < a⦋mid⦌) then mid else hi;
-          let lo := if decide (x < a⦋mid⦌) then lo else mid +ₚ (1 : Int);
-          (lo, (hi, mid)))
-        ((0 : Int), (PastaLean.pyLen a, (0 : Int)))
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
-        (by
-          intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
-            first
-            | omega
-            | nlinarith
-            | positivity
-            | grind
-            | sorry)
+          lo ≥ (0 : Int))
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            (hi -ₚ lo : Int).toNat)
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            lo < hi)
+          (fun s =>
+            let lo := (s).1;
+            let hi := ((s).2).1;
+            let mid := ((s).2).2;
+            let mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int);
+            let hi := if x < a⦋mid⦌ then mid else hi;
+            let lo := if x < a⦋mid⦌ then lo else mid +ₚ (1 : Int);
+            (lo, (hi, mid)))
+          ((0 : Int), (PastaLean.pyLen a, (0 : Int)))
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+          (by
+            intros <;> (try simp_all (config := { zetaDelta := true })) <;> (try and_intros) <;>
+              first
+              | omega
+              | nlinarith
+              | positivity
+              | grind
+              | sorry)
+  all_goals sorry
 
 def bisect_right'rn := fun (a : List Int) ↦ fun (x : Int) ↦
   Id.run
@@ -340,8 +346,8 @@ def bisect_right'rn := fun (a : List Int) ↦ fun (x : Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (lo ≤ hi))
         let _ := Libraries.passta.pyPassDecreases (hi -ₚ lo)
         mid := PastaLean.pyFloorDiv (lo +ₚ hi) (2 : Int)
-        hi := if decide (x < a⦋mid⦌) then mid else hi
-        lo := if decide (x < a⦋mid⦌) then lo else mid +ₚ (1 : Int)
+        hi := if x < a⦋mid⦌ then mid else hi
+        lo := if x < a⦋mid⦌ then lo else mid +ₚ (1 : Int)
       return lo)
 
 def mean := fun (data : List Int) ↦ PastaLean.pySum data /ₚ PastaLean.pyLen data
@@ -358,9 +364,9 @@ theorem mean_spec :
 def mean'rn := fun (data : List Int) ↦ PastaLean.pyFloat (PastaLean.pySum data) /ₚ PastaLean.pyLen data
 
 def median := fun (data : List Int) ↦
-  let s := PastaLean.pySort data
-  let n := PastaLean.pyLen s
-  if n %ₚ (2 : Int) == (1 : Int) then s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
+  let s := (PastaLean.pySort data : List Int)
+  let n := (PastaLean.pyLen s : Int)
+  if n %ₚ (2 : Int) = (1 : Int) then PastaLean.pyRat s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
   else (s⦋PastaLean.pyFloorDiv n (2 : Int) -ₚ (1 : Int)⦌ +ₚ s⦋PastaLean.pyFloorDiv n (2 : Int)⦌) /ₚ (2 : Int)
 
 attribute [simp] median
@@ -372,7 +378,7 @@ theorem median_spec :
       let n := PastaLean.pyLen s
       PastaLean.pyLen data > (0 : Int) →
         if PastaLean.pyLen data %ₚ (2 : Int) = (0 : Int) then
-          (if n %ₚ (2 : Int) = (1 : Int) then s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
+          (if n %ₚ (2 : Int) = (1 : Int) then PastaLean.pyRat s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
               else
                 (s⦋PastaLean.pyFloorDiv n (2 : Int) -ₚ (1 : Int)⦌ +ₚ s⦋PastaLean.pyFloorDiv n (2 : Int)⦌) /ₚ
                   (2 : Int)) *ₚ
@@ -381,13 +387,14 @@ theorem median_spec :
               (PastaLean.pySlice (PastaLean.pySort data)
                 (some (PastaLean.pyFloorDiv (PastaLean.pyLen data) (2 : Int) -ₚ (1 : Int)))
                 (some (PastaLean.pyFloorDiv (PastaLean.pyLen data) (2 : Int) +ₚ (1 : Int))) none)
-        else (PastaLean.pySort data)⦋PastaLean.pyFloorDiv (PastaLean.pyLen data) (2 : Int)⦌ :=
-  by intros; sorry
+        else
+          PastaLean.pyTruthy (PastaLean.pySort data)⦋PastaLean.pyFloorDiv (PastaLean.pyLen data) (2 : Int)⦌ = true :=
+  by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def median'rn := fun (data : List Int) ↦
-  let s := PastaLean.pySort data
-  let n := PastaLean.pyLen s
-  if n %ₚ (2 : Int) == (1 : Int) then s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
+  let s := (PastaLean.pySort data : List Int)
+  let n := (PastaLean.pyLen s : Int)
+  if n %ₚ (2 : Int) == (1 : Int) then PastaLean.pyFloat s⦋PastaLean.pyFloorDiv n (2 : Int)⦌
   else
     PastaLean.pyFloat (s⦋PastaLean.pyFloorDiv n (2 : Int) -ₚ (1 : Int)⦌ +ₚ s⦋PastaLean.pyFloorDiv n (2 : Int)⦌) /ₚ
       (2 : Int)

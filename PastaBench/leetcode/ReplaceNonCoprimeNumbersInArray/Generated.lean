@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.ReplaceNonCoprimeNumbersInArray
 def replaceNonCoprimes := fun (nums : List Int) ↦
   (do
     let mut stk : List Int := []
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ PastaLean.pyLen stk))
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen stk ≤ PastaLean.pyLen nums))
       let _ :=
@@ -58,25 +58,27 @@ def replaceNonCoprimes := fun (nums : List Int) ↦
     return stk : Id _)
 
 @[spec]
-theorem replaceNonCoprimes_spec :
+theorem replaceNonCoprimes_spec {nums : List Int} :
     ⦃⌜True⌝⦄ replaceNonCoprimes nums ⦃⇓stk =>
       ⌜PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen stk -ₚ (1 : Int))).map fun i =>
             Libraries.math.pyMathGcd stk⦋i⦌ stk⦋i +ₚ (1 : Int)⦌ == (1 : Int))⌝⦄ :=
   by
-  mvcgen [replaceNonCoprimes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [replaceNonCoprimes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, stk⟩ =>
     ⌜((0 : Int) ≤ PastaLean.pyLen stk ∧ PastaLean.pyLen stk ≤ PastaLean.pyLen nums) ∧
         PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen stk -ₚ (1 : Int))).map fun i =>
             Libraries.math.pyMathGcd stk⦋i⦌ stk⦋i +ₚ (1 : Int)⦌ == (1 : Int))⌝
-  sorry
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; sorry; pyany_cases <;> grind +locals
 
 def replaceNonCoprimes'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut stk : List Int := []
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ PastaLean.pyLen stk))
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen stk ≤ PastaLean.pyLen nums))
         let _ :=

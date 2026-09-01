@@ -28,7 +28,7 @@ def canArrange := fun (arr : List Int) ↦ fun (k : Int) ↦
       else cnt⦋(0 : Int)⦌ %ₚ (2 : Int) == (0 : Int)
     return __py_ret_1 : Id _)
 
-theorem canArrange_spec : ⦃⌜k > (0 : Int)⌝⦄ canArrange arr k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem canArrange_spec {arr : List Int} {k : Int} : ⦃⌜k > (0 : Int)⌝⦄ canArrange arr k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [canArrange, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

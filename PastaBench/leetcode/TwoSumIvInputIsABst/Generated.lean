@@ -38,11 +38,11 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _findTarget_dfs := fun (node : Option TreeNode) ↦ fun (k : Int) ↦ fun vis ↦
+private partial def _findTarget'dfs := fun (node : Option TreeNode) ↦ fun (k : Int) ↦ fun vis ↦
   Id.run
     (do
       let mut vis := vis
-      if h_1 : Option.isNone node then 
+      if h_1 : PastaLean.pyIsNone node then 
         let __py_ret_1 := (Bool.false, vis)
         return __py_ret_1
       else
@@ -56,32 +56,32 @@ private partial def _findTarget_dfs := fun (node : Option TreeNode) ↦ fun (k :
         let _ := ()
       vis := PastaLean.pySetAdd vis ((node).getD default).val
       -- Recurse left or right looking for a match
-      let __unpack_value_1 := _findTarget_dfs ((node).getD default).left k vis
+      let __unpack_value_1 := _findTarget'dfs ((node).getD default).left k vis
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       vis := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _findTarget_dfs ((node).getD default).right k vis
+      let __unpack_value_2 := _findTarget'dfs ((node).getD default).right k vis
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       vis := Prod.snd __unpack_pair_2
-      let __py_ret_1 := (PastaLean.pyTruthy __thread_t1 || PastaLean.pyTruthy __thread_t2, vis)
+      let __py_ret_1 := (if PastaLean.pyTruthy __thread_t1 then __thread_t1 else __thread_t2, vis)
       return __py_ret_1)
 
 def findTarget := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   -- No precondition on root (it may be None) and k can be any int.
   let vis := PastaLean.pySetFromList []
-  let __unpack_pair_1 := _findTarget_dfs root k vis
+  let __unpack_pair_1 := _findTarget'dfs root k vis
   let __thread_t3 := Prod.fst __unpack_pair_1
   let vis := Prod.snd __unpack_pair_1
   __thread_t3
 
 attribute [simp, taste_ingr] findTarget
 
-private partial def _findTarget_dfs'rn := fun (node : Option TreeNode) ↦ fun (k : Int) ↦ fun vis ↦
+private partial def _findTarget'dfs'rn := fun (node : Option TreeNode) ↦ fun (k : Int) ↦ fun vis ↦
   Id.run
     (do
       let mut vis := vis
-      if h_1 : Option.isNone node then 
+      if h_1 : PastaLean.pyIsNone node then 
         let __py_ret_1 := (Bool.false, vis)
         return __py_ret_1
       else
@@ -95,21 +95,21 @@ private partial def _findTarget_dfs'rn := fun (node : Option TreeNode) ↦ fun (
         let _ := ()
       vis := PastaLean.pySetAdd vis ((node).getD default).val
       -- Recurse left or right looking for a match
-      let __unpack_value_1 := _findTarget_dfs'rn ((node).getD default).left k vis
+      let __unpack_value_1 := _findTarget'dfs'rn ((node).getD default).left k vis
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       vis := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _findTarget_dfs'rn ((node).getD default).right k vis
+      let __unpack_value_2 := _findTarget'dfs'rn ((node).getD default).right k vis
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       vis := Prod.snd __unpack_pair_2
-      let __py_ret_1 := (PastaLean.pyTruthy __thread_t1 || PastaLean.pyTruthy __thread_t2, vis)
+      let __py_ret_1 := (if PastaLean.pyTruthy __thread_t1 then __thread_t1 else __thread_t2, vis)
       return __py_ret_1)
 
 def findTarget'rn := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   -- No precondition on root (it may be None) and k can be any int.
   let vis := PastaLean.pySetFromList []
-  let __unpack_pair_1 := _findTarget_dfs'rn root k vis
+  let __unpack_pair_1 := _findTarget'dfs'rn root k vis
   let __thread_t3 := Prod.fst __unpack_pair_1
   let vis := Prod.snd __unpack_pair_1
   __thread_t3

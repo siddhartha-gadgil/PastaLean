@@ -27,7 +27,7 @@ def constrainedSubsetSum := fun (nums : List Int) ↦ fun (k : Int) ↦
     let mut n : Int := PastaLean.pyLen nums
     let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] n
     let mut ans := -inf
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
@@ -42,7 +42,7 @@ def constrainedSubsetSum := fun (nums : List Int) ↦ fun (k : Int) ↦
       q := PastaLean.pyAppend q i
     return ans : Id _)
 
-theorem constrainedSubsetSum_spec :
+theorem constrainedSubsetSum_spec {nums : List Int} {k : Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧ k ≥ (1 : Int)⌝⦄ constrainedSubsetSum nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [constrainedSubsetSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -57,7 +57,7 @@ def constrainedSubsetSum'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let mut n : Int := PastaLean.pyLen nums
       let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut ans := -inf
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))

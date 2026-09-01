@@ -25,17 +25,20 @@ def isReachableAtTime := fun (sx : Int) ↦ fun (sy : Int) ↦ fun (fx : Int) �
       return __py_ret_1
     else
       let _ := ()
-    let mut dx : Int := PastaLean.pyAbs (sx -ₚ fx)
-    let mut dy : Int := PastaLean.pyAbs (sy -ₚ fy)
+    let mut dx : Int := Libraries.operator.pyOperatorAbs (sx -ₚ fx)
+    let mut dy : Int := Libraries.operator.pyOperatorAbs (sy -ₚ fy)
     let __py_ret_1 := decide (PastaLean.pyMax [dx, dy] ≤ t)
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem isReachableAtTime_spec :
+theorem isReachableAtTime_spec {sx : Int} {sy : Int} {fx : Int} {fy : Int} {t : Int} :
     ⦃⌜True⌝⦄ isReachableAtTime sx sy fx fy t ⦃⇓result =>
       ⌜result =
           ((sx = fx ∧ sy = fy) ∧ t ≠ (1 : Int) ∨
-            (sx ≠ fx ∨ sy ≠ fy) ∧ PastaLean.pyMax [PastaLean.pyAbs (sx -ₚ fx), PastaLean.pyAbs (sy -ₚ fy)] ≤ t)⌝⦄ :=
+            (sx ≠ fx ∨ sy ≠ fy) ∧
+              PastaLean.pyMax
+                  [Libraries.operator.pyOperatorAbs (sx -ₚ fx), Libraries.operator.pyOperatorAbs (sy -ₚ fy)] ≤
+                t)⌝⦄ :=
   by
   mvcgen [isReachableAtTime, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; pyany_cases <;> grind +locals
@@ -43,8 +46,8 @@ theorem isReachableAtTime_spec :
 def isReachableAtTime'rn := fun (sx : Int) ↦ fun (sy : Int) ↦ fun (fx : Int) ↦ fun (fy : Int) ↦ fun (t : Int) ↦
   if sx == fx && sy == fy then t != (1 : Int)
   else
-    let dx := PastaLean.pyAbs (sx -ₚ fx)
-    let dy := PastaLean.pyAbs (sy -ₚ fy)
+    let dx := (Libraries.operator.pyOperatorAbs (sx -ₚ fx) : Int)
+    let dy := (Libraries.operator.pyOperatorAbs (sy -ₚ fy) : Int)
     decide (PastaLean.pyMax [dx, dy] ≤ t)
 
 end PastaBench.leetcode.DetermineIfACellIsReachableAtAGivenTime

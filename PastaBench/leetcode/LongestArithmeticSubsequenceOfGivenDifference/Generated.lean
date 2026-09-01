@@ -21,23 +21,23 @@ namespace PastaBench.leetcode.LongestArithmeticSubsequenceOfGivenDifference
 def longestSubsequence := fun (arr : List Int) ↦ fun (difference : Int) ↦
   (do
     let mut f : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyDefaultDictInt
-    for x in (PastaLean.pyIter arr)do
+    for x in (PastaLean.pyIter arr) do
       f := PastaLean.pySetItem f x (f⦋x -ₚ difference⦌ +ₚ (1 : Int))
     let __py_ret_1 := PastaLean.pyMax (PastaLean.pyAnys f)
     return __py_ret_1 : Id _)
 
-theorem longestSubsequence_spec :
+theorem longestSubsequence_spec {arr : List Int} {difference : Int} :
     ⦃⌜PastaLean.pyLen arr > (0 : Int)⌝⦄ longestSubsequence arr difference ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [longestSubsequence, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
+  mvcgen [longestSubsequence, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def longestSubsequence'rn := fun (arr : List Int) ↦ fun (difference : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen arr > (0 : Int)))
       let mut f : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyDefaultDictInt
-      for x in (PastaLean.pyIter arr)do
+      for x in (PastaLean.pyIter arr) do
         f := PastaLean.pySetItem f x (f⦋x -ₚ difference⦌ +ₚ (1 : Int))
       let __py_ret_1 := PastaLean.pyMax (PastaLean.pyAnys f)
       return __py_ret_1)

@@ -20,6 +20,8 @@ namespace PastaBench.leetcode.IncrementalMemoryLeak
 
 def memLeak := fun (memory1 : Int) ↦ fun (memory2 : Int) ↦
   (do
+    let mut memory1 := memory1
+    let mut memory2 := memory2
     let mut i : Int := (1 : Int)
     while (i ≤ PastaLean.pyMax [memory1, memory2]) do
       let _ := Libraries.passta.pyPassInvariant (decide (memory1 ≥ (0 : Int)))
@@ -36,13 +38,13 @@ def memLeak := fun (memory1 : Int) ↦ fun (memory2 : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem memLeak_spec :
+theorem memLeak_spec {memory1 : Int} {memory2 : Int} :
     ⦃⌜memory1 ≥ (0 : Int) ∧ memory2 ≥ (0 : Int)⌝⦄ memLeak memory1 memory2 ⦃⇓result =>
       ⌜(result⦋(1 : Int)⦌ ≥ (0 : Int) ∧ result⦋(2 : Int)⦌ ≥ (0 : Int)) ∧
           PastaLean.pyMax [result⦋(1 : Int)⦌, result⦋(2 : Int)⦌] < result⦋(0 : Int)⦌⌝⦄ :=
   by
   mvcgen [memLeak, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def memLeak'rn := fun (memory1 : Int) ↦ fun (memory2 : Int) ↦
   Id.run

@@ -40,20 +40,21 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
 
 def averageOfLevels := fun (root : Option TreeNode) ↦
   (do
-    let mut q := Libraries.collections.pyDeque [root]
-    let mut ans := []
+    let mut root := root
+    let mut q : List (Option TreeNode) := Libraries.collections.pyDeque [root]
+    let mut ans := ([] : List Rat)
     while (PastaLean.pyTruthy q) do
       let __unpack_value_1 := ((0 : Int), PastaLean.pyLen q)
       let __unpack_pair_1 := __unpack_value_1
       let mut s := Prod.fst __unpack_pair_1
       let mut n := Prod.snd __unpack_pair_1
       let _ := Libraries.passta.pyPassAssert (decide (n > (0 : Int)))
-      for __py_us in (PastaLean.pyRange n)do
+      for __py_us in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ __py_us))
         let _ := Libraries.passta.pyPassInvariant (decide (__py_us < n))
-        let mut root := PastaLean.pyPopLeftValue q
+        root := PastaLean.pyPopLeftValue q
         q := PastaLean.pyPopLeftRest q
-        let _ := Libraries.passta.pyPassAssert (Option.isSome root)
+        let _ := Libraries.passta.pyPassAssert !PastaLean.pyIsNone root
         s := s +ₚ ((root).getD default).val
         if h_1 : PastaLean.pyTruthy ((root).getD default).left then 
           q := PastaLean.pyAppend q ((root).getD default).left
@@ -67,31 +68,31 @@ def averageOfLevels := fun (root : Option TreeNode) ↦
     return ans : Id _)
 
 @[spec]
-theorem averageOfLevels_spec :
-    ⦃⌜Option.isSome root⌝⦄ averageOfLevels root ⦃⇓ans => ⌜PastaLean.pyLen ans ≥ (1 : Int)⌝⦄ :=
+theorem averageOfLevels_spec {root : Option TreeNode} :
+    ⦃⌜!PastaLean.pyIsNone root⌝⦄ averageOfLevels root ⦃⇓ans => ⌜PastaLean.pyLen ans ≥ (1 : Int)⌝⦄ :=
   by
   mvcgen [averageOfLevels, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def averageOfLevels'rn := fun (root : Option TreeNode) ↦
   Id.run
     (do
       let mut root := root
-      let _ := Libraries.passta.pyPassRequires (Option.isSome root)
-      let mut q := Libraries.collections.pyDeque [root]
-      let mut ans := []
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone root
+      let mut q : List (Option TreeNode) := Libraries.collections.pyDeque [root]
+      let mut ans := ([] : List Float)
       while (PastaLean.pyTruthy q) do
         let __unpack_value_1 := ((0 : Int), PastaLean.pyLen q)
         let __unpack_pair_1 := __unpack_value_1
         let mut s := Prod.fst __unpack_pair_1
         let mut n := Prod.snd __unpack_pair_1
         let _ := Libraries.passta.pyPassAssert (decide (n > (0 : Int)))
-        for __py_us in (PastaLean.pyRange n)do
+        for __py_us in (PastaLean.pyRange n) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ __py_us))
           let _ := Libraries.passta.pyPassInvariant (decide (__py_us < n))
           root := PastaLean.pyPopLeftValue q
           q := PastaLean.pyPopLeftRest q
-          let _ := Libraries.passta.pyPassAssert (Option.isSome root)
+          let _ := Libraries.passta.pyPassAssert !PastaLean.pyIsNone root
           s := s +ₚ ((root).getD default).val
           if h_1 : PastaLean.pyTruthy ((root).getD default).left then 
             q := PastaLean.pyAppend q ((root).getD default).left

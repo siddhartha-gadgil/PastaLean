@@ -22,7 +22,7 @@ def countBadPairs := fun (nums : List Int) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
@@ -35,7 +35,7 @@ def countBadPairs := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem countBadPairs_spec : ⦃⌜True⌝⦄ countBadPairs nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem countBadPairs_spec {nums : List Int} : ⦃⌜True⌝⦄ countBadPairs nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [countBadPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -45,7 +45,7 @@ def countBadPairs'rn := fun (nums : List Int) ↦
     (do
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
       let mut ans : Int := (0 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))

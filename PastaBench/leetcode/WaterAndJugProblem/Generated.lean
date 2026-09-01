@@ -35,7 +35,7 @@ def canMeasureWater := fun (x : Int) ↦ fun (y : Int) ↦ fun (target : Int) �
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem canMeasureWater_spec :
+theorem canMeasureWater_spec {x : Int} {y : Int} {target : Int} :
     ⦃⌜(x ≥ (0 : Int) ∧ y ≥ (0 : Int)) ∧ target ≥ (0 : Int)⌝⦄ canMeasureWater x y target ⦃⇓result =>
       ⌜result = (target = (0 : Int) ∨ x +ₚ y ≥ target ∧ target %ₚ Libraries.math.pyMathGcd x y = (0 : Int))⌝⦄ :=
   by

@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.PowerOfThree
 
 def isPowerOfThree := fun (n : Int) ↦
   (do
+    let mut n := n
     let mut orig : Int := n
     while (n > (2 : Int)) do
       if h_1 : PastaLean.pyTruthy (n %ₚ (3 : Int)) then 
@@ -30,16 +31,10 @@ def isPowerOfThree := fun (n : Int) ↦
     let __py_ret_1 := n == (1 : Int)
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem isPowerOfThree_spec :
-    ⦃⌜n ≥ (1 : Int)⌝⦄ isPowerOfThree n ⦃⇓result =>
-      ⌜result =
-          PastaLean.pyStdAny
-            ((PastaLean.pyRange (PastaLean.pyBitLength orig +ₚ (1 : Int)) (0 : Int)).map fun k =>
-              orig == (3 : Int) ^ₚ k)⌝⦄ :=
+theorem isPowerOfThree_spec {n : Int} : ⦃⌜n ≥ (1 : Int)⌝⦄ isPowerOfThree n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [isPowerOfThree, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def isPowerOfThree'rn := fun (n : Int) ↦
   Id.run

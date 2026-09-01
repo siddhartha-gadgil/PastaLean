@@ -38,20 +38,20 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _equalToDescendants_dfs := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
+private partial def _equalToDescendants'dfs := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := ((0 : Int), ans)
         return __py_ret_1
       else
         let _ := ()
-      let __unpack_value_1 := _equalToDescendants_dfs ((root).getD default).left ans
+      let __unpack_value_1 := _equalToDescendants'dfs ((root).getD default).left ans
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       ans := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _equalToDescendants_dfs ((root).getD default).right ans
+      let __unpack_value_2 := _equalToDescendants'dfs ((root).getD default).right ans
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       ans := Prod.snd __unpack_pair_2
@@ -69,32 +69,33 @@ private partial def _equalToDescendants_dfs := fun (root : Option TreeNode) ↦ 
 def equalToDescendants := fun (root : Option TreeNode) ↦
   (do
     let mut ans : Int := (0 : Int)
-    let __unpack_value_1 := _equalToDescendants_dfs root ans
+    let __unpack_value_1 := _equalToDescendants'dfs root ans
     let __unpack_pair_1 := __unpack_value_1
     let mut __thread_t3 := Prod.fst __unpack_pair_1
     ans := Prod.snd __unpack_pair_1
     return ans : Id _)
 
 @[spec]
-theorem equalToDescendants_spec : ⦃⌜True⌝⦄ equalToDescendants root ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem equalToDescendants_spec {root : Option TreeNode} :
+    ⦃⌜True⌝⦄ equalToDescendants root ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [equalToDescendants, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _equalToDescendants_dfs'rn := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
+private partial def _equalToDescendants'dfs'rn := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := ((0 : Int), ans)
         return __py_ret_1
       else
         let _ := ()
-      let __unpack_value_1 := _equalToDescendants_dfs'rn ((root).getD default).left ans
+      let __unpack_value_1 := _equalToDescendants'dfs'rn ((root).getD default).left ans
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       ans := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _equalToDescendants_dfs'rn ((root).getD default).right ans
+      let __unpack_value_2 := _equalToDescendants'dfs'rn ((root).getD default).right ans
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       ans := Prod.snd __unpack_pair_2
@@ -111,7 +112,7 @@ private partial def _equalToDescendants_dfs'rn := fun (root : Option TreeNode) �
 
 def equalToDescendants'rn := fun (root : Option TreeNode) ↦
   let ans := (0 : Int)
-  let __unpack_pair_1 := _equalToDescendants_dfs'rn root ans
+  let __unpack_pair_1 := _equalToDescendants'dfs'rn root ans
   let __thread_t3 := Prod.fst __unpack_pair_1
   let ans := Prod.snd __unpack_pair_1
   ans

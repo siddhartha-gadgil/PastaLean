@@ -18,8 +18,9 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.CountNicePairsInAnArray
 
-private def _countNicePairs_rev := fun (x : Int) ↦
+private def _countNicePairs'rev := fun (x : Int) ↦
   (do
+    let mut x := x
     let mut y : Int := (0 : Int)
     while (PastaLean.pyTruthy x) do
       let _ := Libraries.passta.pyPassInvariant (decide (x ≥ (0 : Int)))
@@ -29,14 +30,15 @@ private def _countNicePairs_rev := fun (x : Int) ↦
       x := PastaLean.pyFloorDiv x (10 : Int)
     return y : Id _)
 
-theorem _countNicePairs_rev_spec : ⦃⌜x ≥ (0 : Int)⌝⦄ _countNicePairs_rev x ⦃⇓_ => ⌜True⌝⦄ :=
+theorem _countNicePairs'rev_spec {x : Int} : ⦃⌜x ≥ (0 : Int)⌝⦄ _countNicePairs'rev x ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [_countNicePairs_rev, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  mvcgen [_countNicePairs'rev, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countNicePairs := fun (nums : List Int) ↦
   (do
-    let mut cnt := Libraries.collections.pyCounter ((PastaLean.pyIter nums).map fun x => x -ₚ _countNicePairs_rev x)
+    let mut cnt :=
+      Libraries.collections.pyCounter ((PastaLean.pyIter nums).map fun x => x -ₚ Id.run (_countNicePairs'rev x))
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
     let __py_ret_1 :=
       PastaLean.pySum
@@ -45,13 +47,13 @@ def countNicePairs := fun (nums : List Int) ↦
         mod
     return __py_ret_1 : Id _)
 
-theorem countNicePairs_spec :
+theorem countNicePairs_spec {nums : List Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter nums).map fun n => decide (n ≥ (0 : Int)))⌝⦄ countNicePairs nums ⦃⇓_ =>
       ⌜True⌝⦄ :=
   by
   mvcgen [countNicePairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
-private def _countNicePairs_rev'rn := fun (x : Int) ↦
+private def _countNicePairs'rev'rn := fun (x : Int) ↦
   Id.run
     (do
       let mut x := x
@@ -71,7 +73,7 @@ def countNicePairs'rn := fun (nums : List Int) ↦
       let _ :=
         Libraries.passta.pyPassRequires (PastaLean.pyAll ((PastaLean.pyIter nums).map fun n => decide (n ≥ (0 : Int))))
       let mut cnt :=
-        Libraries.collections.pyCounter ((PastaLean.pyIter nums).map fun x => x -ₚ _countNicePairs_rev'rn x)
+        Libraries.collections.pyCounter ((PastaLean.pyIter nums).map fun x => x -ₚ _countNicePairs'rev'rn x)
       let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
       let __py_ret_1 :=
         PastaLean.pySum

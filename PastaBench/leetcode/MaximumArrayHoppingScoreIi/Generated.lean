@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.MaximumArrayHoppingScoreIi
 def maxScore := fun (nums : List Int) ↦
   (do
     let mut stk : List Int := []
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       while (PastaLean.pyTruthy stk = true ∧ nums⦋stk⦋(-1 : Int)⦌⦌ ≤ x) do
@@ -30,24 +30,28 @@ def maxScore := fun (nums : List Int) ↦
     let mut __chain_1 := (0 : Int)
     let mut ans := __chain_1
     let mut i := __chain_1
-    for j in (PastaLean.pyIter stk)do
+    for j in (PastaLean.pyIter stk) do
       ans := ans +ₚ nums⦋j⦌ *ₚ (j -ₚ i)
       i := j
     return ans : Id _)
 
 @[spec]
-theorem maxScore_spec : ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ maxScore nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem maxScore_spec {nums : List Int} :
+    ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ maxScore nums ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [maxScore, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, i, ans⟩ => ⌜ans = (cur.prefix.map (fun j => nums⦋j⦌ *ₚ (j -ₚ i))).sum⌝
-  sorry
+  mvcgen [maxScore, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓_ => ⌜True⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · ⇓⟨cur, ans, i⟩ => ⌜ans = (cur.prefix.map (fun j => nums⦋j⦌ *ₚ (j -ₚ i))).sum⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxScore'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen nums > (0 : Int)))
       let mut stk : List Int := []
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         while (PastaLean.pyTruthy stk && decide (nums⦋stk⦋(-1 : Int)⦌⦌ ≤ x)) do
@@ -56,7 +60,7 @@ def maxScore'rn := fun (nums : List Int) ↦
       let mut __chain_1 := (0 : Int)
       let mut ans := __chain_1
       let mut i := __chain_1
-      for j in (PastaLean.pyIter stk)do
+      for j in (PastaLean.pyIter stk) do
         ans := ans +ₚ nums⦋j⦌ *ₚ (j -ₚ i)
         i := j
       return ans)

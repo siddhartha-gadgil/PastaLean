@@ -30,11 +30,11 @@ def sumOfTheDigitsOfHarshadNumber := fun (x : Int) ↦
       let _ := Libraries.passta.pyPassDecreases y
       s := s +ₚ y %ₚ (10 : Int)
       y := PastaLean.pyFloorDiv y (10 : Int)
-    let __py_ret_1 := if x %ₚ s == (0 : Int) then s else -(1 : Int)
+    let __py_ret_1 := if x %ₚ s = (0 : Int) then s else -(1 : Int)
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem sumOfTheDigitsOfHarshadNumber_spec :
+theorem sumOfTheDigitsOfHarshadNumber_spec {x : Int} :
     ⦃⌜x > (0 : Int)⌝⦄ sumOfTheDigitsOfHarshadNumber x ⦃⇓result => ⌜result = -(1 : Int) ∨ x %ₚ result = (0 : Int)⌝⦄ :=
   by
   mvcgen [sumOfTheDigitsOfHarshadNumber, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]

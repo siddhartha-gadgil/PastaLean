@@ -29,7 +29,7 @@ attribute [simp] findArray
 @[taste_ingr]
 theorem findArray_spec :
     ∀ (pref : List Int),
-      PastaLean.pyAll ((PastaLean.pyIter pref).map fun x => isinstance x int) →
+      PastaLean.pyAll ((PastaLean.pyIter pref).map fun x => PastaLean.pyIsInstance x "int") →
         PastaLean.pyLen
               ((PastaLean.pyIter (Libraries.itertools.pyPairwise ([(0 : Int)] +ₚ pref))).map fun _pair_1 =>
                 let a := Prod.fst _pair_1;
@@ -46,10 +46,10 @@ theorem findArray_spec :
                           let b := Prod.snd _pair_2;
                           PastaLean.pyBitXor a b)
                         none (some (i +ₚ (1 : Int))) none)
-                      xor (some (0 : Int)) ==
+                      Libraries.operator.pyOperatorXor (some (0 : Int)) ==
                     pref⦋i⦌)) =
             true :=
-  by intros; sorry
+  by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def findArray'rn := fun (pref : List Int) ↦
   (PastaLean.pyIter (Libraries.itertools.pyPairwise ([(0 : Int)] +ₚ pref))).map fun _pair_1 =>

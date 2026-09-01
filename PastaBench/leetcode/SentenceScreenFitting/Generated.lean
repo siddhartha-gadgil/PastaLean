@@ -23,7 +23,7 @@ def wordsTyping := fun (sentence : List String) ↦ fun (rows : Int) ↦ fun (co
     let mut s : String := PastaLean.pyStringJoin " " sentence +ₚ " "
     let mut m : Int := PastaLean.pyLen s
     let mut cur : Int := (0 : Int)
-    for _ in (PastaLean.pyRange rows)do
+    for _ in (PastaLean.pyRange rows) do
       cur := cur +ₚ cols
       if h_1 : s⦋cur %ₚ m⦌ = " " then 
         cur := cur +ₚ (1 : Int)
@@ -34,14 +34,13 @@ def wordsTyping := fun (sentence : List String) ↦ fun (rows : Int) ↦ fun (co
     let __py_ret_1 := PastaLean.pyFloorDiv cur m
     return __py_ret_1 : Id _)
 
-theorem wordsTyping_spec :
+theorem wordsTyping_spec {sentence : List String} {rows : Int} {cols : Int} :
     ⦃⌜((rows ≥ (0 : Int) ∧ cols ≥ (0 : Int)) ∧ PastaLean.pyLen sentence > (0 : Int)) ∧
           PastaLean.pyAll ((PastaLean.pyIter sentence).map fun w => decide (PastaLean.pyLen w ≤ cols))⌝⦄
       wordsTyping sentence rows cols ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [wordsTyping, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, cur⟩ => ⌜True⌝
-  sorry
+  mvcgen [wordsTyping, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def wordsTyping'rn := fun (sentence : List String) ↦ fun (rows : Int) ↦ fun (cols : Int) ↦
   Id.run
@@ -55,7 +54,7 @@ def wordsTyping'rn := fun (sentence : List String) ↦ fun (rows : Int) ↦ fun 
       let mut s : String := PastaLean.pyStringJoin " " sentence +ₚ " "
       let mut m : Int := PastaLean.pyLen s
       let mut cur : Int := (0 : Int)
-      for _ in (PastaLean.pyRange rows)do
+      for _ in (PastaLean.pyRange rows) do
         cur := cur +ₚ cols
         if h_1 : s⦋cur %ₚ m⦌ == " " then 
           cur := cur +ₚ (1 : Int)

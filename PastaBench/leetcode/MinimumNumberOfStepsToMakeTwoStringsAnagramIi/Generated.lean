@@ -21,30 +21,32 @@ namespace PastaBench.leetcode.MinimumNumberOfStepsToMakeTwoStringsAnagramIi
 def minSteps := fun (s : String) ↦ fun (t : String) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
-    for c in (PastaLean.pyIter t)do
+    for c in (PastaLean.pyIter t) do
       cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
-    let __py_ret_1 := PastaLean.pySum ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun v => PastaLean.pyAbs v)
+    let __py_ret_1 :=
+      PastaLean.pySum ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun v => Libraries.operator.pyOperatorAbs v)
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem minSteps_spec :
+theorem minSteps_spec {s : String} {t : String} :
     ⦃⌜True⌝⦄ minSteps s t ⦃⇓result =>
       ⌜result =
           PastaLean.pySum
             ((PastaLean.pyIter (PastaLean.pyBitOr (PastaLean.pySet s) (PastaLean.pySet t))).map fun c =>
-              PastaLean.pyAbs ((Libraries.collections.pyCounter s)⦋c⦌ -ₚ (Libraries.collections.pyCounter t)⦋c⦌))⌝⦄ :=
+              Libraries.operator.pyOperatorAbs
+                ((Libraries.collections.pyCounter s)⦋c⦌ -ₚ (Libraries.collections.pyCounter t)⦋c⦌))⌝⦄ :=
   by
-  mvcgen [minSteps, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [minSteps, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def minSteps'rn := fun (s : String) ↦ fun (t : String) ↦
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
-      for c in (PastaLean.pyIter t)do
+      for c in (PastaLean.pyIter t) do
         cnt := PastaLean.pySetItem cnt c (cnt⦋c⦌ -ₚ (1 : Int))
-      let __py_ret_1 := PastaLean.pySum ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun v => PastaLean.pyAbs v)
+      let __py_ret_1 :=
+        PastaLean.pySum ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun v => Libraries.operator.pyOperatorAbs v)
       return __py_ret_1)
 
 end PastaBench.leetcode.MinimumNumberOfStepsToMakeTwoStringsAnagramIi

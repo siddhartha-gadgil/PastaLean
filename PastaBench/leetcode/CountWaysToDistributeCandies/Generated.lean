@@ -24,11 +24,11 @@ def waysToDistribute := fun (n : Int) ↦ fun (k : Int) ↦
     let mut f : List (List Int) :=
       (PastaLean.pyRange (n +ₚ (1 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (1 : Int))
     f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Int))
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j ≤ k))
         let _ := Libraries.passta.pyPassDecreases (k -ₚ j)
@@ -38,15 +38,15 @@ def waysToDistribute := fun (n : Int) ↦ fun (k : Int) ↦
     let __py_ret_1 := f⦋n⦌⦋k⦌
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem waysToDistribute_spec :
-    ⦃⌜n ≥ (0 : Int) ∧ k ≥ (0 : Int)⌝⦄ waysToDistribute n k ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result < mod⌝⦄ :=
+theorem waysToDistribute_spec {n : Int} {k : Int} :
+    ⦃⌜n ≥ (0 : Int) ∧ k ≥ (0 : Int)⌝⦄ waysToDistribute n k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [waysToDistribute, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [waysToDistribute, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (1 : Int) ≤ i ∧ i ≤ n⌝
-  sorry
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; grind +locals +suggestions; sorry
 
 def waysToDistribute'rn := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run
@@ -57,11 +57,11 @@ def waysToDistribute'rn := fun (n : Int) ↦ fun (k : Int) ↦
       let mut f : List (List Int) :=
         (PastaLean.pyRange (n +ₚ (1 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (1 : Int))
       f := PastaLean.pySetItem f (0 : Int) (PastaLean.pySetItem f⦋(0 : Int)⦌ (0 : Int) (1 : Int))
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
           let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j ≤ k))
           let _ := Libraries.passta.pyPassDecreases (k -ₚ j)

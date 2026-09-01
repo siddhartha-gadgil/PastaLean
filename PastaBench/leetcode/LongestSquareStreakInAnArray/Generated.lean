@@ -22,7 +22,7 @@ def longestSquareStreak := fun (nums : List Int) ↦
   (do
     let mut ans : Int := -(1 : Int)
     let mut s : List Int := PastaLean.pySet nums
-    for __py_loop_1 in (PastaLean.pyIter nums)do
+    for __py_loop_1 in (PastaLean.pyIter nums) do
       let mut v := __py_loop_1
       -- t counts how many times v can be squared while remaining in s
       let mut t : Int := (0 : Int)
@@ -38,11 +38,10 @@ def longestSquareStreak := fun (nums : List Int) ↦
         let _ := ()
     return ans : Id _)
 
-theorem longestSquareStreak_spec : ⦃⌜True⌝⦄ longestSquareStreak nums ⦃⇓_ => ⌜True⌝⦄ :=
+theorem longestSquareStreak_spec {nums : List Int} : ⦃⌜True⌝⦄ longestSquareStreak nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [longestSquareStreak, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜t ≥ (0 : Int)⌝
-  sorry
+  mvcgen [longestSquareStreak, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def longestSquareStreak'rn := fun (nums : List Int) ↦
   Id.run
@@ -52,7 +51,7 @@ def longestSquareStreak'rn := fun (nums : List Int) ↦
       -- or returns -1 if no streak of length > 1 exists.
       let mut ans : Int := -(1 : Int)
       let mut s : List Int := PastaLean.pySet nums
-      for __py_loop_1 in (PastaLean.pyIter nums)do
+      for __py_loop_1 in (PastaLean.pyIter nums) do
         let mut v := __py_loop_1
         -- t counts how many times v can be squared while remaining in s
         let mut t : Int := (0 : Int)

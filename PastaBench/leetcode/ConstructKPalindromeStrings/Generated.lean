@@ -30,7 +30,7 @@ def canConstruct := fun (s : String) ↦ fun (k : Int) ↦
     let __py_ret_1 := decide (odd ≤ k)
     return __py_ret_1 : Id _)
 
-theorem canConstruct_spec : ⦃⌜k ≥ (0 : Int)⌝⦄ canConstruct s k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem canConstruct_spec {s : String} {k : Int} : ⦃⌜k ≥ (0 : Int)⌝⦄ canConstruct s k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [canConstruct, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

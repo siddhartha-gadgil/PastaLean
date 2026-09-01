@@ -20,8 +20,10 @@ namespace PastaBench.leetcode.FirstMissingPositive
 
 def firstMissingPositive := fun (nums : List Int) ↦
   (do
+    let mut nums := nums
     let mut n : Int := PastaLean.pyLen nums
-    for i in (PastaLean.pyRange n)do
+    let mut j : Int := default
+    for i in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       -- For all processed indices j<i, if nums[j] is in [1..n] then it's at its correct spot
@@ -31,7 +33,7 @@ def firstMissingPositive := fun (nums : List Int) ↦
             ((PastaLean.pyRange i).map fun j =>
               !(decide ((1 : Int) ≤ nums⦋j⦌) && decide (nums⦋j⦌ ≤ n)) || nums⦋nums⦋j⦌ -ₚ (1 : Int)⦌ == nums⦋j⦌))
       while (((1 : Int) ≤ nums⦋i⦌ ∧ nums⦋i⦌ ≤ n) ∧ nums⦋i⦌ ≠ nums⦋nums⦋i⦌ -ₚ (1 : Int)⦌) do
-        let mut j : Int := nums⦋i⦌ -ₚ (1 : Int)
+        j := nums⦋i⦌ -ₚ (1 : Int)
         let __unpack_value_1 := (nums⦋j⦌, nums⦋i⦌)
         let __unpack_pair_1 := __unpack_value_1
         nums := PastaLean.pySetItem nums i (Prod.fst __unpack_pair_1)
@@ -41,7 +43,7 @@ def firstMissingPositive := fun (nums : List Int) ↦
         (PastaLean.pyAll
           ((PastaLean.pyRange n).map fun j =>
             !(decide ((1 : Int) ≤ nums⦋j⦌) && decide (nums⦋j⦌ ≤ n)) || nums⦋nums⦋j⦌ -ₚ (1 : Int)⦌ == nums⦋j⦌))
-    for i in (PastaLean.pyRange n)do
+    for i in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
       -- The placement property still holds globally
@@ -78,25 +80,16 @@ def firstMissingPositive := fun (nums : List Int) ↦
     let __py_ret_1 := n +ₚ (1 : Int)
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem firstMissingPositive_spec :
-    ⦃⌜True⌝⦄ firstMissingPositive nums ⦃⇓result =>
-      ⌜PastaLean.pyTruthy
-              (PastaLean.pyAll
-                ((PastaLean.pyRange result (1 : Int)).map fun k =>
-                  PastaLean.pyStdAny ((PastaLean.pyRange n).map fun j => nums⦋j⦌ == k))) =
-            true ∧
-          PastaLean.pyTruthy (PastaLean.pyAll ((PastaLean.pyRange n).map fun j => nums⦋j⦌ != result)) = true⌝⦄ :=
+theorem firstMissingPositive_spec {nums : List Int} : ⦃⌜True⌝⦄ firstMissingPositive nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [firstMissingPositive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [firstMissingPositive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, nums⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((0 : Int) ≤ i ∧ i ≤ n) ∧
-        PastaLean.pyAll
-          ((PastaLean.pyRange i).map fun j =>
-            !(decide ((1 : Int) ≤ nums⦋j⦌) && decide (nums⦋j⦌ ≤ n)) || nums⦋nums⦋j⦌ -ₚ (1 : Int)⦌ == nums⦋j⦌)⌝
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  sorry
+      (0 : Int) ≤ i⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  · Invariant.withEarlyReturnNewDo (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals
 
 def firstMissingPositive'rn := fun (nums : List Int) ↦
   Id.run
@@ -104,7 +97,8 @@ def firstMissingPositive'rn := fun (nums : List Int) ↦
       let mut nums := nums
       let mut n : Int := PastaLean.pyLen nums
       -- Place each value x in [1..n] into position x-1 if possible
-      for i in (PastaLean.pyRange n)do
+      let mut j : Int := default
+      for i in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         -- For all processed indices j<i, if nums[j] is in [1..n] then it's at its correct spot
@@ -114,7 +108,7 @@ def firstMissingPositive'rn := fun (nums : List Int) ↦
               ((PastaLean.pyRange i).map fun j =>
                 !(decide ((1 : Int) ≤ nums⦋j⦌) && decide (nums⦋j⦌ ≤ n)) || nums⦋nums⦋j⦌ -ₚ (1 : Int)⦌ == nums⦋j⦌))
         while (decide ((1 : Int) ≤ nums⦋i⦌) && decide (nums⦋i⦌ ≤ n) && nums⦋i⦌ != nums⦋nums⦋i⦌ -ₚ (1 : Int)⦌) do
-          let mut j : Int := nums⦋i⦌ -ₚ (1 : Int)
+          j := nums⦋i⦌ -ₚ (1 : Int)
           let __unpack_value_1 := (nums⦋j⦌, nums⦋i⦌)
           let __unpack_pair_1 := __unpack_value_1
           nums := PastaLean.pySetItem nums i (Prod.fst __unpack_pair_1)
@@ -126,7 +120,7 @@ def firstMissingPositive'rn := fun (nums : List Int) ↦
             ((PastaLean.pyRange n).map fun j =>
               !(decide ((1 : Int) ≤ nums⦋j⦌) && decide (nums⦋j⦌ ≤ n)) || nums⦋nums⦋j⦌ -ₚ (1 : Int)⦌ == nums⦋j⦌))
       -- Scan for the first position i where nums[i] != i+1
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ n))
         -- The placement property still holds globally

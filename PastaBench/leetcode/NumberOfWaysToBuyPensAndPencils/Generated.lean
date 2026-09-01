@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.NumberOfWaysToBuyPensAndPencils
 def waysToBuyPensPencils := fun (total : Int) ↦ fun (cost1 : Int) ↦ fun (cost2 : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for x in (PastaLean.pyRange (PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int)))do
+    for x in (PastaLean.pyRange (PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
       let _ := Libraries.passta.pyPassInvariant (decide (x ≤ PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int)))
       let _ :=
@@ -41,14 +41,14 @@ def waysToBuyPensPencils := fun (total : Int) ↦ fun (cost1 : Int) ↦ fun (cos
     return ans : Id _)
 
 @[spec]
-theorem waysToBuyPensPencils_spec :
+theorem waysToBuyPensPencils_spec {total : Int} {cost1 : Int} {cost2 : Int} :
     ⦃⌜cost1 > (0 : Int) ∧ cost2 > (0 : Int)⌝⦄ waysToBuyPensPencils total cost1 cost2 ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int))).map fun x =>
               PastaLean.pyFloorDiv (total -ₚ x *ₚ cost1) cost2 +ₚ (1 : Int))⌝⦄ :=
   by
-  mvcgen [waysToBuyPensPencils, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [waysToBuyPensPencils, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let x := (cur.prefix.length : Int);
       ((0 : Int) ≤ x ∧ x ≤ PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int)) ∧
@@ -62,7 +62,7 @@ def waysToBuyPensPencils'rn := fun (total : Int) ↦ fun (cost1 : Int) ↦ fun (
     (do
       let _ := Libraries.passta.pyPassRequires (decide (cost1 > (0 : Int)) && decide (cost2 > (0 : Int)))
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyRange (PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int)))do
+      for x in (PastaLean.pyRange (PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
         let _ := Libraries.passta.pyPassInvariant (decide (x ≤ PastaLean.pyFloorDiv total cost1 +ₚ (1 : Int)))
         let _ :=

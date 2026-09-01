@@ -20,10 +20,11 @@ namespace PastaBench.leetcode.CircularPermutationInBinaryRepresentation
 
 def circularPermutation := fun (n : Int) ↦ fun (start : Int) ↦
   let g :=
-    (PastaLean.pyRange (PastaLean.pyShiftLeft (1 : Int) n)).map fun i =>
-      PastaLean.pyBitXor i (PastaLean.pyShiftRight i (1 : Int))
-  let j := PastaLean.pyIndex g start
-  let r := PastaLean.pySlice g (some j) none none +ₚ PastaLean.pySlice g none (some j) none
+    ((PastaLean.pyRange (PastaLean.pyShiftLeft (1 : Int) n)).map fun i =>
+        PastaLean.pyBitXor i (PastaLean.pyShiftRight i (1 : Int)) :
+      List Int)
+  let j := (PastaLean.pyIndex g start : Int)
+  let r := (PastaLean.pySlice g (some j) none none +ₚ PastaLean.pySlice g none (some j) none : List Int)
   r
 
 attribute [simp] circularPermutation
@@ -51,10 +52,11 @@ theorem circularPermutation_spec :
 
 def circularPermutation'rn := fun (n : Int) ↦ fun (start : Int) ↦
   let g :=
-    (PastaLean.pyRange (PastaLean.pyShiftLeft (1 : Int) n)).map fun i =>
-      PastaLean.pyBitXor i (PastaLean.pyShiftRight i (1 : Int))
-  let j := PastaLean.pyIndex g start
-  let r := PastaLean.pySlice g (some j) none none +ₚ PastaLean.pySlice g none (some j) none
+    ((PastaLean.pyRange (PastaLean.pyShiftLeft (1 : Int) n)).map fun i =>
+        PastaLean.pyBitXor i (PastaLean.pyShiftRight i (1 : Int)) :
+      List Int)
+  let j := (PastaLean.pyIndex g start : Int)
+  let r := (PastaLean.pySlice g (some j) none none +ₚ PastaLean.pySlice g none (some j) none : List Int)
   r
 
 end PastaBench.leetcode.CircularPermutationInBinaryRepresentation

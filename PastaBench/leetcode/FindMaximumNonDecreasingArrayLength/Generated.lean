@@ -24,7 +24,7 @@ def findMaximumLength := fun (nums : List Int) ↦
     let mut s : List Int := PastaLean.pyList (Libraries.itertools.pyAccumulate nums (some (0 : Int)))
     let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (1 : Int))
     let mut pre : List Int := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (2 : Int))
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
       -- Bounds for indexing into f, s, pre
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i ≤ n))
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ pre⦋i⦌) && decide (pre⦋i⦌ ≤ i))
@@ -37,13 +37,13 @@ def findMaximumLength := fun (nums : List Int) ↦
     let __py_ret_1 := f⦋n⦌
     return __py_ret_1 : Id _)
 
-theorem findMaximumLength_spec : ⦃⌜True⌝⦄ findMaximumLength nums ⦃⇓_ => ⌜True⌝⦄ :=
+theorem findMaximumLength_spec {nums : List Int} : ⦃⌜True⌝⦄ findMaximumLength nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [findMaximumLength, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [findMaximumLength, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f, pre⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((1 : Int) ≤ i ∧ i ≤ n) ∧ (0 : Int) ≤ pre⦋i⦌ ∧ pre⦋i⦌ ≤ i⌝
-  all_goals sorry
+      (0 : Int) ≤ pre⦋i⦌ ∧ pre⦋i⦌ ≤ i⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def findMaximumLength'rn := fun (nums : List Int) ↦
   Id.run
@@ -52,7 +52,7 @@ def findMaximumLength'rn := fun (nums : List Int) ↦
       let mut s : List Int := PastaLean.pyList (Libraries.itertools.pyAccumulate nums (some (0 : Int)))
       let mut f : List Int := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (1 : Int))
       let mut pre : List Int := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (2 : Int))
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         -- Bounds for indexing into f, s, pre
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i ≤ n))
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ pre⦋i⦌) && decide (pre⦋i⦌ ≤ i))

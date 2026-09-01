@@ -29,7 +29,7 @@ def findPeakElement := fun (nums : List Int) ↦
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ left))
       let _ := Libraries.passta.pyPassInvariant (decide (left ≤ right))
       let _ := Libraries.passta.pyPassInvariant (decide (right < PastaLean.pyLen nums))
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
       if h_1 : nums⦋mid⦌ > nums⦋mid +ₚ (1 : Int)⦌ then 
         right := mid
       else
@@ -42,7 +42,7 @@ def findPeakElement := fun (nums : List Int) ↦
     return left : Id _)
 
 @[spec]
-theorem findPeakElement_spec :
+theorem findPeakElement_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ findPeakElement nums ⦃⇓left =>
       ⌜((0 : Int) ≤ left ∧ left < PastaLean.pyLen nums) ∧
           (left = (0 : Int) ∨ nums⦋left⦌ > nums⦋left -ₚ (1 : Int)⦌) ∧
@@ -64,7 +64,7 @@ def findPeakElement'rn := fun (nums : List Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ left))
         let _ := Libraries.passta.pyPassInvariant (decide (left ≤ right))
         let _ := Libraries.passta.pyPassInvariant (decide (right < PastaLean.pyLen nums))
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right) (1 : Int)
         if h_1 : nums⦋mid⦌ > nums⦋mid +ₚ (1 : Int)⦌ then 
           right := mid
         else

@@ -20,21 +20,22 @@ namespace PastaBench.leetcode.MaximumConsecutiveFloorsWithoutSpecialFloors
 
 def maxConsecutive := fun (bottom : Int) ↦ fun (top : Int) ↦ fun (special : List Int) ↦
   (do
+    let mut special := special
     special := PastaLean.pySort special
     let mut ans : Int := PastaLean.pyMax [special⦋(0 : Int)⦌ -ₚ bottom, top -ₚ special⦋(-1 : Int)⦌]
-    for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise special))do
+    for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise special)) do
       let x := Prod.fst _pair_1
       let y := Prod.snd _pair_1
       ans := PastaLean.pyMax [ans, y -ₚ x -ₚ (1 : Int)]
     return ans : Id _)
 
-theorem maxConsecutive_spec :
+theorem maxConsecutive_spec {bottom : Int} {top : Int} {special : List Int} :
     ⦃⌜(bottom ≤ top ∧ PastaLean.pyLen special > (0 : Int)) ∧
           PastaLean.pyAll ((PastaLean.pyIter special).map fun s => decide (bottom ≤ s) && decide (s ≤ top))⌝⦄
       maxConsecutive bottom top special ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [maxConsecutive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxConsecutive'rn := fun (bottom : Int) ↦ fun (top : Int) ↦ fun (special : List Int) ↦
   Id.run
@@ -47,7 +48,7 @@ def maxConsecutive'rn := fun (bottom : Int) ↦ fun (top : Int) ↦ fun (special
           (PastaLean.pyAll ((PastaLean.pyIter special).map fun s => decide (bottom ≤ s) && decide (s ≤ top)))
       special := PastaLean.pySort special
       let mut ans : Int := PastaLean.pyMax [special⦋(0 : Int)⦌ -ₚ bottom, top -ₚ special⦋(-1 : Int)⦌]
-      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise special))do
+      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise special)) do
         let x := Prod.fst _pair_1
         let y := Prod.snd _pair_1
         ans := PastaLean.pyMax [ans, y -ₚ x -ₚ (1 : Int)]

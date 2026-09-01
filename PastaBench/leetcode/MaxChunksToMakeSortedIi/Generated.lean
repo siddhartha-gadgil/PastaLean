@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.MaxChunksToMakeSortedIi
 def maxChunksToSorted := fun (arr : List Int) ↦
   (do
     let mut stk : List Int := []
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate arr))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate arr)) do
       let i := Prod.fst _pair_1
       let v := Prod.snd _pair_1
       -- i indexes into arr
@@ -55,19 +55,20 @@ def maxChunksToSorted := fun (arr : List Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem maxChunksToSorted_spec :
-    ⦃⌜Option.isSome arr⌝⦄ maxChunksToSorted arr ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result ≤ PastaLean.pyLen arr⌝⦄ :=
+theorem maxChunksToSorted_spec {arr : List Int} :
+    ⦃⌜!PastaLean.pyIsNone arr⌝⦄ maxChunksToSorted arr ⦃⇓result =>
+      ⌜(0 : Int) ≤ result ∧ result ≤ PastaLean.pyLen arr⌝⦄ :=
   by
   mvcgen [maxChunksToSorted, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxChunksToSorted'rn := fun (arr : List Int) ↦
   Id.run
     (do
-      let _ := Libraries.passta.pyPassRequires (Option.isSome arr)
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone arr
       -- The number of chunks is between 0 and the length of the array.
       let mut stk : List Int := []
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate arr))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate arr)) do
         let i := Prod.fst _pair_1
         let v := Prod.snd _pair_1
         -- i indexes into arr

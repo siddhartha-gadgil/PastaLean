@@ -19,18 +19,22 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.FurthestPointFromOrigin
 
 def furthestDistanceFromOrigin := fun (moves : String) ↦
-  PastaLean.pyAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ PastaLean.pyCount moves "_"
+  Libraries.operator.pyOperatorAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ
+    PastaLean.pyCount moves "_"
 
 attribute [simp] furthestDistanceFromOrigin
 
 @[taste_ingr]
 theorem furthestDistanceFromOrigin_spec :
     ∀ (moves : String),
-      PastaLean.pyAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ PastaLean.pyCount moves "_" =
-        PastaLean.pyAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ PastaLean.pyCount moves "_" :=
+      Libraries.operator.pyOperatorAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ
+          PastaLean.pyCount moves "_" =
+        Libraries.operator.pyOperatorAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ
+          PastaLean.pyCount moves "_" :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]
 
 def furthestDistanceFromOrigin'rn := fun (moves : String) ↦
-  PastaLean.pyAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ PastaLean.pyCount moves "_"
+  Libraries.operator.pyOperatorAbs (PastaLean.pyCount moves "L" -ₚ PastaLean.pyCount moves "R") +ₚ
+    PastaLean.pyCount moves "_"
 
 end PastaBench.leetcode.FurthestPointFromOrigin

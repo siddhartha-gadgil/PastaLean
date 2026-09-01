@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.CheckIfNumberIsASumOfPowersOfThree
 
 def checkPowersOfThree := fun (n : Int) ↦
   (do
+    let mut n := n
     while (PastaLean.pyTruthy n) do
       if h_1 : n %ₚ (3 : Int) > (1 : Int) then 
         return Bool.false
@@ -28,10 +29,10 @@ def checkPowersOfThree := fun (n : Int) ↦
       n := PastaLean.pyFloorDiv n (3 : Int)
     return Bool.true : Id _)
 
-theorem checkPowersOfThree_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ checkPowersOfThree n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem checkPowersOfThree_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ checkPowersOfThree n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [checkPowersOfThree, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def checkPowersOfThree'rn := fun (n : Int) ↦
   Id.run

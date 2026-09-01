@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.TimeNeededToBuyTickets
 def timeRequiredToBuy := fun (tickets : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate tickets))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate tickets)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
@@ -31,26 +31,26 @@ def timeRequiredToBuy := fun (tickets : List Int) ↦ fun (k : Int) ↦
           (ans ==
             PastaLean.pySum
               ((PastaLean.pyRange i).map fun j =>
-                PastaLean.pyMin [tickets⦋j⦌, if decide (j ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
+                PastaLean.pyMin [tickets⦋j⦌, if j ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
       let _ := Libraries.passta.pyPassDecreases (PastaLean.pyLen tickets -ₚ i)
       -- Bridge the enumerate to indexing
       let _ := Libraries.passta.pyPassAssert (x == tickets⦋i⦌)
-      ans := ans +ₚ PastaLean.pyMin [x, if decide (i ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]
+      ans := ans +ₚ PastaLean.pyMin [x, if i ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]
     let _ :=
       Libraries.passta.pyPassAssert
         (ans ==
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen tickets)).map fun i =>
-              PastaLean.pyMin [tickets⦋i⦌, if decide (i ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
+              PastaLean.pyMin [tickets⦋i⦌, if i ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
     return ans : Id _)
 
 @[spec]
-theorem timeRequiredToBuy_spec :
+theorem timeRequiredToBuy_spec {tickets : List Int} {k : Int} :
     ⦃⌜(0 : Int) ≤ k ∧ k < PastaLean.pyLen tickets⌝⦄ timeRequiredToBuy tickets k ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen tickets)).map fun i =>
-              PastaLean.pyMin [tickets⦋i⦌, if decide (i ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)])⌝⦄ :=
+              PastaLean.pyMin [tickets⦋i⦌, if i ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)])⌝⦄ :=
   by
   mvcgen [timeRequiredToBuy, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -63,7 +63,7 @@ def timeRequiredToBuy'rn := fun (tickets : List Int) ↦ fun (k : Int) ↦
       -- The total time is the sum, over all people i, of the rounds they take:
       -- min(tickets[i], tickets[k]) for i ≤ k, otherwise min(tickets[i], tickets[k] - 1).
       let mut ans : Int := (0 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate tickets))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate tickets)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
@@ -73,18 +73,18 @@ def timeRequiredToBuy'rn := fun (tickets : List Int) ↦ fun (k : Int) ↦
             (ans ==
               PastaLean.pySum
                 ((PastaLean.pyRange i).map fun j =>
-                  PastaLean.pyMin [tickets⦋j⦌, if decide (j ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
+                  PastaLean.pyMin [tickets⦋j⦌, if j ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
         let _ := Libraries.passta.pyPassDecreases (PastaLean.pyLen tickets -ₚ i)
         -- Bridge the enumerate to indexing
         let _ := Libraries.passta.pyPassAssert (x == tickets⦋i⦌)
-        ans := ans +ₚ PastaLean.pyMin [x, if decide (i ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]
+        ans := ans +ₚ PastaLean.pyMin [x, if i ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]
       -- Bridge to the postcondition
       let _ :=
         Libraries.passta.pyPassAssert
           (ans ==
             PastaLean.pySum
               ((PastaLean.pyRange (PastaLean.pyLen tickets)).map fun i =>
-                PastaLean.pyMin [tickets⦋i⦌, if decide (i ≤ k) then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
+                PastaLean.pyMin [tickets⦋i⦌, if i ≤ k then tickets⦋k⦌ else tickets⦋k⦌ -ₚ (1 : Int)]))
       return ans)
 
 end PastaBench.leetcode.TimeNeededToBuyTickets

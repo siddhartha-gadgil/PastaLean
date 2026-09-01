@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.CycleLengthQueriesInATree
 def cycleLengthQueries := fun (n : Int) ↦ fun (queries : List (List Int)) ↦
   (do
     let mut ans : List Int := []
-    for _pair_1 in (PastaLean.pyIter queries)do
+    for _pair_1 in (PastaLean.pyIter queries) do
       let mut a := PastaLean.pyListGetItem _pair_1 (0 : Int)
       let mut b := PastaLean.pyListGetItem _pair_1 (1 : Int)
       let mut t : Int := (1 : Int)
@@ -39,7 +39,7 @@ def cycleLengthQueries := fun (n : Int) ↦ fun (queries : List (List Int)) ↦
     return ans : Id _)
 
 @[spec]
-theorem cycleLengthQueries_spec :
+theorem cycleLengthQueries_spec {n : Int} {queries : List (List Int)} :
     ⦃⌜True⌝⦄ cycleLengthQueries n queries ⦃⇓ans =>
       ⌜PastaLean.pyLen ans = PastaLean.pyLen queries ∧
           PastaLean.pyAll ((PastaLean.pyIter ans).map fun t => decide (t ≥ (1 : Int)))⌝⦄ :=
@@ -51,7 +51,7 @@ def cycleLengthQueries'rn := fun (n : Int) ↦ fun (queries : List (List Int)) �
   Id.run
     (do
       let mut ans : List Int := []
-      for _pair_1 in (PastaLean.pyIter queries)do
+      for _pair_1 in (PastaLean.pyIter queries) do
         let mut a := PastaLean.pyListGetItem _pair_1 (0 : Int)
         let mut b := PastaLean.pyListGetItem _pair_1 (1 : Int)
         let mut t : Int := (1 : Int)

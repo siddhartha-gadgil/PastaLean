@@ -44,7 +44,7 @@ def maxValue := fun (n : String) ↦ fun (x : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem maxValue_spec :
+theorem maxValue_spec {n : String} {x : Int} :
     ⦃⌜(0 : Int) ≤ x ∧ x ≤ (9 : Int)⌝⦄ maxValue n x ⦃⇓result =>
       ⌜PastaLean.pyLen result = PastaLean.pyLen n +ₚ (1 : Int)⌝⦄ :=
   by

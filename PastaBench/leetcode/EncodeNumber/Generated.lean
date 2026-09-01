@@ -23,7 +23,7 @@ def encode := fun (num : Int) ↦
     let __py_ret_1 := PastaLean.pySlice (PastaLean.pyBin (num +ₚ (1 : Int))) (some (3 : Int)) none none
     return __py_ret_1 : Id _)
 
-theorem encode_spec : ⦃⌜num ≥ (0 : Int)⌝⦄ encode num ⦃⇓_ => ⌜True⌝⦄ :=
+theorem encode_spec {num : Int} : ⦃⌜num ≥ (0 : Int)⌝⦄ encode num ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [encode, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

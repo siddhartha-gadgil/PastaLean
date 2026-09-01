@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.FindTheKthSmallestSumOfAMatrixWithSortedRows
 def kthSmallest := fun (mat : List (List Int)) ↦ fun (k : Int) ↦
   (do
     let mut pre : List Int := [(0 : Int)]
-    for cur in (PastaLean.pyIter mat)do
+    for cur in (PastaLean.pyIter mat) do
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen pre ≥ (1 : Int)))
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen pre ≤ k))
       pre :=
@@ -34,13 +34,13 @@ def kthSmallest := fun (mat : List (List Int)) ↦ fun (k : Int) ↦
     let __py_ret_1 := pre⦋(-1 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem kthSmallest_spec :
+theorem kthSmallest_spec {mat : List (List Int)} {k : Int} :
     ⦃⌜(k ≥ (1 : Int) ∧ PastaLean.pyLen mat ≥ (1 : Int)) ∧
           PastaLean.pyAll ((PastaLean.pyIter mat).map fun row => decide (PastaLean.pyLen row ≥ (1 : Int)))⌝⦄
       kthSmallest mat k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [kthSmallest, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, pre⟩ => ⌜PastaLean.pyLen pre ≥ (1 : Int) ∧ PastaLean.pyLen pre ≤ k⌝
+  mvcgen [kthSmallest, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur', pre⟩ => ⌜PastaLean.pyLen pre ≥ (1 : Int) ∧ PastaLean.pyLen pre ≤ k⌝
   simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; aesop
 
 def kthSmallest'rn := fun (mat : List (List Int)) ↦ fun (k : Int) ↦
@@ -52,7 +52,7 @@ def kthSmallest'rn := fun (mat : List (List Int)) ↦ fun (k : Int) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter mat).map fun row => decide (PastaLean.pyLen row ≥ (1 : Int))))
       let mut pre : List Int := [(0 : Int)]
-      for cur in (PastaLean.pyIter mat)do
+      for cur in (PastaLean.pyIter mat) do
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen pre ≥ (1 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen pre ≤ k))
         pre :=

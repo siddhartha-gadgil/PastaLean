@@ -38,7 +38,7 @@ def maximumScore := fun (a : Int) ↦ fun (b : Int) ↦ fun (c : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem maximumScore_spec :
+theorem maximumScore_spec {a : Int} {b : Int} {c : Int} :
     ⦃⌜(a ≥ (0 : Int) ∧ b ≥ (0 : Int)) ∧ c ≥ (0 : Int)⌝⦄ maximumScore a b c ⦃⇓ans =>
       ⌜ans ≥ (0 : Int) ∧ (2 : Int) *ₚ ans ≤ a +ₚ b +ₚ c⌝⦄ :=
   by

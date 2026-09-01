@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.DecodeXoredArray
 def decode := fun (encoded : List Int) ↦ fun (first : Int) ↦
   (do
     let mut ans : List Int := [first]
-    for x in (PastaLean.pyIter encoded)do
+    for x in (PastaLean.pyIter encoded) do
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen ans ≤ PastaLean.pyLen encoded +ₚ (1 : Int)))
       let _ :=
         Libraries.passta.pyPassInvariant
@@ -38,26 +38,26 @@ def decode := fun (encoded : List Int) ↦ fun (first : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem decode_spec :
+theorem decode_spec {encoded : List Int} {first : Int} :
     ⦃⌜True⌝⦄ decode encoded first ⦃⇓ans =>
       ⌜PastaLean.pyLen ans = PastaLean.pyLen encoded +ₚ (1 : Int) ∧
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen encoded)).map fun i =>
               PastaLean.pyBitXor ans⦋i⦌ ans⦋i +ₚ (1 : Int)⦌ == encoded⦋i⦌)⌝⦄ :=
   by
-  mvcgen [decode, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [decode, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans⟩ =>
     ⌜PastaLean.pyLen ans ≤ PastaLean.pyLen encoded +ₚ (1 : Int) ∧
         PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen ans -ₚ (1 : Int))).map fun j =>
             PastaLean.pyBitXor ans⦋j⦌ ans⦋j +ₚ (1 : Int)⦌ == encoded⦋j⦌)⌝
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def decode'rn := fun (encoded : List Int) ↦ fun (first : Int) ↦
   Id.run
     (do
       let mut ans : List Int := [first]
-      for x in (PastaLean.pyIter encoded)do
+      for x in (PastaLean.pyIter encoded) do
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen ans ≤ PastaLean.pyLen encoded +ₚ (1 : Int)))
         let _ :=
           Libraries.passta.pyPassInvariant

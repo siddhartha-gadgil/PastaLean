@@ -29,7 +29,7 @@ def singleNonDuplicate := fun (nums : List Int) ↦
       let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
       let _ := Libraries.passta.pyPassInvariant (decide (r < PastaLean.pyLen nums))
       let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-      let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
       let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ mid) && decide (mid < PastaLean.pyLen nums))
       let _ :=
         Libraries.passta.pyPassAssert
@@ -44,7 +44,7 @@ def singleNonDuplicate := fun (nums : List Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem singleNonDuplicate_spec :
+theorem singleNonDuplicate_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ singleNonDuplicate nums ⦃⇓result => ⌜PastaLean.pyContains nums result⌝⦄ :=
   by
   mvcgen [singleNonDuplicate, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -63,7 +63,7 @@ def singleNonDuplicate'rn := fun (nums : List Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
         let _ := Libraries.passta.pyPassInvariant (decide (r < PastaLean.pyLen nums))
         let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-        let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
         let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ mid) && decide (mid < PastaLean.pyLen nums))
         let _ :=
           Libraries.passta.pyPassAssert

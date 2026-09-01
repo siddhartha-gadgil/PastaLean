@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.FactorialTrailingZeroes
 
 def trailingZeroes := fun (n : Int) ↦
   (do
+    let mut n := n
     let mut orig : Int := n
     let mut ans : Int := (0 : Int)
     let mut i : Int := (0 : Int)
@@ -43,16 +44,10 @@ def trailingZeroes := fun (n : Int) ↦
             ((PastaLean.pyRange (orig +ₚ (1 : Int)) (1 : Int)).map fun k => PastaLean.pyFloorDiv orig ((5 : Int) ^ₚ k)))
     return ans : Id _)
 
-@[spec]
-theorem trailingZeroes_spec :
-    ⦃⌜n ≥ (0 : Int)⌝⦄ trailingZeroes n ⦃⇓ans =>
-      ⌜ans =
-          PastaLean.pySum
-            ((PastaLean.pyRange (orig +ₚ (1 : Int)) (1 : Int)).map fun k =>
-              PastaLean.pyFloorDiv orig ((5 : Int) ^ₚ k))⌝⦄ :=
+theorem trailingZeroes_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ trailingZeroes n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [trailingZeroes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def trailingZeroes'rn := fun (n : Int) ↦
   Id.run

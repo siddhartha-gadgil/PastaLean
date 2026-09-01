@@ -23,7 +23,7 @@ def maxSubArray := fun (nums : List Int) ↦
     let mut __chain_1 := nums⦋(0 : Int)⦌
     let mut ans := __chain_1
     let mut f := __chain_1
-    for x in (PastaLean.pyIter (PastaLean.pySlice nums (some (1 : Int)) none none))do
+    for x in (PastaLean.pyIter (PastaLean.pySlice nums (some (1 : Int)) none none)) do
       -- f is the max subarray sum ending at this position so far,
       -- ans is the max subarray sum anywhere in the prefix processed so far.
       let _ := Libraries.passta.pyPassInvariant Bool.true
@@ -32,7 +32,7 @@ def maxSubArray := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem maxSubArray_spec :
+theorem maxSubArray_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ maxSubArray nums ⦃⇓ans =>
       ⌜ans =
           PastaLean.pyMax
@@ -40,8 +40,8 @@ theorem maxSubArray_spec :
               (PastaLean.pyRange (PastaLean.pyLen nums +ₚ (1 : Int)) (i +ₚ (1 : Int))).map fun j =>
                 PastaLean.pySum (PastaLean.pySlice nums (some i) (some j) none))⌝⦄ :=
   by
-  mvcgen [maxSubArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, f, ans⟩ => ⌜Bool.true⌝
+  mvcgen [maxSubArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, f⟩ => ⌜Bool.true⌝
   simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def maxSubArray'rn := fun (nums : List Int) ↦
@@ -52,7 +52,7 @@ def maxSubArray'rn := fun (nums : List Int) ↦
       let mut __chain_1 := nums⦋(0 : Int)⦌
       let mut ans := __chain_1
       let mut f := __chain_1
-      for x in (PastaLean.pyIter (PastaLean.pySlice nums (some (1 : Int)) none none))do
+      for x in (PastaLean.pyIter (PastaLean.pySlice nums (some (1 : Int)) none none)) do
         -- f is the max subarray sum ending at this position so far,
         -- ans is the max subarray sum anywhere in the prefix processed so far.
         let _ := Libraries.passta.pyPassInvariant Bool.true

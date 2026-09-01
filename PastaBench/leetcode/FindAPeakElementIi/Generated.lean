@@ -29,7 +29,7 @@ def findPeakGrid := fun (mat : List (List Int)) ↦
       let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
       let _ := Libraries.passta.pyPassInvariant (decide (r < PastaLean.pyLen mat))
       let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-      let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
       let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ mid) && decide (mid < PastaLean.pyLen mat))
       let mut j : Int := PastaLean.pyIndex mat⦋mid⦌ (PastaLean.pyMax mat⦋mid⦌)
       let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ j) && decide (j < PastaLean.pyLen mat⦋mid⦌))
@@ -40,7 +40,7 @@ def findPeakGrid := fun (mat : List (List Int)) ↦
     let __py_ret_1 := [l, PastaLean.pyIndex mat⦋l⦌ (PastaLean.pyMax mat⦋l⦌)]
     return __py_ret_1 : Id _)
 
-theorem findPeakGrid_spec :
+theorem findPeakGrid_spec {mat : List (List Int)} :
     ⦃⌜PastaLean.pyLen mat > (0 : Int) ∧
           PastaLean.pyTruthy
               (PastaLean.pyAll
@@ -58,12 +58,12 @@ def findPeakGrid'rn := fun (mat : List (List Int)) ↦
     (do
       let _ :=
         Libraries.passta.pyPassRequires
-          (decide (PastaLean.pyLen mat > (0 : Int)) &&
-            PastaLean.pyTruthy
-              (PastaLean.pyAll
-                ((PastaLean.pyIter mat).map fun row =>
-                  PastaLean.pyLen row == PastaLean.pyLen mat⦋(0 : Int)⦌ &&
-                    decide (PastaLean.pyLen mat⦋(0 : Int)⦌ > (0 : Int)))))
+          (if PastaLean.pyTruthy (decide (PastaLean.pyLen mat > (0 : Int))) then
+            PastaLean.pyAll
+              ((PastaLean.pyIter mat).map fun row =>
+                PastaLean.pyLen row == PastaLean.pyLen mat⦋(0 : Int)⦌ &&
+                  decide (PastaLean.pyLen mat⦋(0 : Int)⦌ > (0 : Int)))
+          else decide (PastaLean.pyLen mat > (0 : Int)))
       let __unpack_value_1 := ((0 : Int), PastaLean.pyLen mat -ₚ (1 : Int))
       let __unpack_pair_1 := __unpack_value_1
       let mut l := Prod.fst __unpack_pair_1
@@ -73,7 +73,7 @@ def findPeakGrid'rn := fun (mat : List (List Int)) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (l ≤ r))
         let _ := Libraries.passta.pyPassInvariant (decide (r < PastaLean.pyLen mat))
         let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-        let mut mid := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r) (1 : Int)
         let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ mid) && decide (mid < PastaLean.pyLen mat))
         let mut j : Int := PastaLean.pyIndex mat⦋mid⦌ (PastaLean.pyMax mat⦋mid⦌)
         let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ j) && decide (j < PastaLean.pyLen mat⦋mid⦌))

@@ -21,17 +21,17 @@ namespace PastaBench.leetcode.ExcelSheetColumnNumber
 def titleToNumber := fun (columnTitle : String) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for c in (PastaLean.pyIter (PastaLean.pyMap PastaLean.pyOrd columnTitle))do
+    for c in (PastaLean.pyIter (PastaLean.pyMap PastaLean.pyOrd columnTitle)) do
       let _ := Libraries.passta.pyPassAssert (decide (PastaLean.pyOrd "A" ≤ c) && decide (c ≤ PastaLean.pyOrd "Z"))
       ans := ans *ₚ (26 : Int) +ₚ c -ₚ PastaLean.pyOrd "A" +ₚ (1 : Int)
     return ans : Id _)
 
-theorem titleToNumber_spec :
+theorem titleToNumber_spec {columnTitle : String} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter columnTitle).map fun ch => decide ("A" ≤ ch) && decide (ch ≤ "Z"))⌝⦄
       titleToNumber columnTitle ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [titleToNumber, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
+  mvcgen [titleToNumber, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def titleToNumber'rn := fun (columnTitle : String) ↦
   Id.run
@@ -40,7 +40,7 @@ def titleToNumber'rn := fun (columnTitle : String) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter columnTitle).map fun ch => decide ("A" ≤ ch) && decide (ch ≤ "Z")))
       let mut ans : Int := (0 : Int)
-      for c in (PastaLean.pyIter (PastaLean.pyMap PastaLean.pyOrd columnTitle))do
+      for c in (PastaLean.pyIter (PastaLean.pyMap PastaLean.pyOrd columnTitle)) do
         let _ := Libraries.passta.pyPassAssert (decide (PastaLean.pyOrd "A" ≤ c) && decide (c ≤ PastaLean.pyOrd "Z"))
         ans := ans *ₚ (26 : Int) +ₚ c -ₚ PastaLean.pyOrd "A" +ₚ (1 : Int)
       return ans)

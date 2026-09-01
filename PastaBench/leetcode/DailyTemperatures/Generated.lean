@@ -23,7 +23,7 @@ def dailyTemperatures := fun (temperatures : List Int) ↦
     let mut n : Int := PastaLean.pyLen temperatures
     let mut stk : List Int := []
     let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < n))
       let _ := Libraries.passta.pyPassInvariant (PastaLean.pyLen ans == n)
@@ -41,15 +41,15 @@ def dailyTemperatures := fun (temperatures : List Int) ↦
       stk := PastaLean.pyAppend stk i
     return ans : Id _)
 
-@[spec]
-theorem dailyTemperatures_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ dailyTemperatures temperatures ⦃⇓ans => ⌜PastaLean.pyLen ans = n⌝⦄ :=
+theorem dailyTemperatures_spec {temperatures : List Int} : ⦃⌜True⌝⦄ dailyTemperatures temperatures ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [dailyTemperatures, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [dailyTemperatures, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, stk, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (((0 : Int) ≤ i ∧ i < n) ∧ PastaLean.pyLen ans = n) ∧
-        PastaLean.pyAll ((PastaLean.pyIter stk).map fun idx => decide ((0 : Int) ≤ idx) && decide (idx < n))⌝
-  sorry
+      (0 : Int) ≤ i⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals
 
 def dailyTemperatures'rn := fun (temperatures : List Int) ↦
   Id.run
@@ -59,7 +59,7 @@ def dailyTemperatures'rn := fun (temperatures : List Int) ↦
       let mut stk : List Int := []
       let mut ans : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       -- We maintain i in range and ans length fixed
-      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let _ := Libraries.passta.pyPassInvariant (PastaLean.pyLen ans == n)

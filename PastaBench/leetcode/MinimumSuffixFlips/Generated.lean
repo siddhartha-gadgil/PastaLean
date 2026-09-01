@@ -21,19 +21,19 @@ namespace PastaBench.leetcode.MinimumSuffixFlips
 def minFlips := fun (target : String) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for v in (PastaLean.pyIter target)do
+    for v in (PastaLean.pyIter target) do
       if h_1 : PastaLean.pyTruthy (PastaLean.pyBitXor (PastaLean.pyBitAnd ans (1 : Int)) (PastaLean.pyInt v)) then 
         ans := ans +ₚ (1 : Int)
       else
         let _ := ()
     return ans : Id _)
 
-theorem minFlips_spec :
+theorem minFlips_spec {target : String} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter target).map fun c => PastaLean.pyContains "01" c)⌝⦄ minFlips target ⦃⇓_ =>
       ⌜True⌝⦄ :=
   by
-  mvcgen [minFlips, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
+  mvcgen [minFlips, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def minFlips'rn := fun (target : String) ↦
   Id.run
@@ -42,7 +42,7 @@ def minFlips'rn := fun (target : String) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter target).map fun c => PastaLean.pyContains "01" c))
       let mut ans : Int := (0 : Int)
-      for v in (PastaLean.pyIter target)do
+      for v in (PastaLean.pyIter target) do
         if h_1 : PastaLean.pyTruthy (PastaLean.pyBitXor (PastaLean.pyBitAnd ans (1 : Int)) (PastaLean.pyInt v)) then 
           ans := ans +ₚ (1 : Int)
         else

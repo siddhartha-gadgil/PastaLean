@@ -18,16 +18,20 @@ set_option maxHeartbeats 0
 
 namespace PastaBench.leetcode.RegularExpressionMatching
 
-private partial def _isMatch_dfs := fun i ↦ fun j ↦ fun (s : String) ↦ fun (p : String) ↦ fun m ↦ fun n ↦
-  if decide (j ≥ n) then i == m
+private partial def _isMatch'dfs := fun (i : Int) ↦ fun (j : Int) ↦ fun (s : String) ↦ fun (p : String) ↦ fun m ↦
+  fun n ↦
+  if j ≥ n then i == m
   else
-    if decide (j +ₚ (1 : Int) < n) && p⦋j +ₚ (1 : Int)⦌ == "*" then
-      if PastaLean.pyTruthy (_isMatch_dfs i (j +ₚ (2 : Int)) s p m n) then _isMatch_dfs i (j +ₚ (2 : Int)) s p m n
+    if j +ₚ (1 : Int) < n ∧ p⦋j +ₚ (1 : Int)⦌ = "*" then
+      if PastaLean.pyTruthy (_isMatch'dfs i (j +ₚ (2 : Int)) s p m n) then _isMatch'dfs i (j +ₚ (2 : Int)) s p m n
       else
-        decide (i < m) && (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") && PastaLean.pyTruthy (_isMatch_dfs (i +ₚ (1 : Int)) j s p m n)
+        if PastaLean.pyTruthy (decide (i < m)) then
+          if PastaLean.pyTruthy (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") then _isMatch'dfs (i +ₚ (1 : Int)) j s p m n
+          else s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == "."
+        else decide (i < m)
     else
       if PastaLean.pyTruthy (decide (i < m)) then
-        if PastaLean.pyTruthy (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") then _isMatch_dfs (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) s p m n
+        if PastaLean.pyTruthy (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") then _isMatch'dfs (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) s p m n
         else s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == "."
       else decide (i < m)
 
@@ -35,22 +39,25 @@ def isMatch := fun (s : String) ↦ fun (p : String) ↦
   let __unpack_pair_1 := (PastaLean.pyLen s, PastaLean.pyLen p)
   let m := Prod.fst __unpack_pair_1
   let n := Prod.snd __unpack_pair_1
-  _isMatch_dfs (0 : Int) (0 : Int) s p m n
+  _isMatch'dfs (0 : Int) (0 : Int) s p m n
 
 attribute [simp, taste_ingr] isMatch
 
-private partial def _isMatch_dfs'rn := fun i ↦ fun j ↦ fun (s : String) ↦ fun (p : String) ↦ fun m ↦ fun n ↦
-  if decide (j ≥ n) then i == m
+private partial def _isMatch'dfs'rn := fun (i : Int) ↦ fun (j : Int) ↦ fun (s : String) ↦ fun (p : String) ↦ fun m ↦
+  fun n ↦
+  if j ≥ n then i == m
   else
     if decide (j +ₚ (1 : Int) < n) && p⦋j +ₚ (1 : Int)⦌ == "*" then
-      if PastaLean.pyTruthy (_isMatch_dfs'rn i (j +ₚ (2 : Int)) s p m n) then _isMatch_dfs'rn i (j +ₚ (2 : Int)) s p m n
+      if PastaLean.pyTruthy (_isMatch'dfs'rn i (j +ₚ (2 : Int)) s p m n) then _isMatch'dfs'rn i (j +ₚ (2 : Int)) s p m n
       else
-        decide (i < m) && (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") &&
-          PastaLean.pyTruthy (_isMatch_dfs'rn (i +ₚ (1 : Int)) j s p m n)
+        if PastaLean.pyTruthy (decide (i < m)) then
+          if PastaLean.pyTruthy (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") then _isMatch'dfs'rn (i +ₚ (1 : Int)) j s p m n
+          else s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == "."
+        else decide (i < m)
     else
       if PastaLean.pyTruthy (decide (i < m)) then
         if PastaLean.pyTruthy (s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == ".") then
-          _isMatch_dfs'rn (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) s p m n
+          _isMatch'dfs'rn (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) s p m n
         else s⦋i⦌ == p⦋j⦌ || p⦋j⦌ == "."
       else decide (i < m)
 
@@ -58,6 +65,6 @@ def isMatch'rn := fun (s : String) ↦ fun (p : String) ↦
   let __unpack_pair_1 := (PastaLean.pyLen s, PastaLean.pyLen p)
   let m := Prod.fst __unpack_pair_1
   let n := Prod.snd __unpack_pair_1
-  _isMatch_dfs'rn (0 : Int) (0 : Int) s p m n
+  _isMatch'dfs'rn (0 : Int) (0 : Int) s p m n
 
 end PastaBench.leetcode.RegularExpressionMatching

@@ -39,11 +39,11 @@ def findUnsortedSubarray := fun (nums : List Int) ↦
       let _ := Libraries.passta.pyPassDecreases (r -ₚ -(1 : Int))
       r := r -ₚ (1 : Int)
     let _ := Libraries.passta.pyPassAssert (decide (-(1 : Int) ≤ r) && decide (r < n))
-    let mut result := r -ₚ l +ₚ (1 : Int)
+    let mut result : Int := r -ₚ l +ₚ (1 : Int)
     return result : Id _)
 
 @[spec]
-theorem findUnsortedSubarray_spec :
+theorem findUnsortedSubarray_spec {nums : List Int} :
     ⦃⌜True⌝⦄ findUnsortedSubarray nums ⦃⇓result => ⌜result ≥ (0 : Int) ∧ result ≤ PastaLean.pyLen nums⌝⦄ :=
   by
   mvcgen [findUnsortedSubarray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
@@ -73,7 +73,7 @@ def findUnsortedSubarray'rn := fun (nums : List Int) ↦
         let _ := Libraries.passta.pyPassDecreases (r -ₚ -(1 : Int))
         r := r -ₚ (1 : Int)
       let _ := Libraries.passta.pyPassAssert (decide (-(1 : Int) ≤ r) && decide (r < n))
-      let mut result := r -ₚ l +ₚ (1 : Int)
+      let mut result : Int := r -ₚ l +ₚ (1 : Int)
       return result)
 
 end PastaBench.leetcode.ShortestUnsortedContinuousSubarray

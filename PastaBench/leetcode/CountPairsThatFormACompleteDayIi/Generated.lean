@@ -22,7 +22,7 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange (PastaLean.pyLen hours))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen hours)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen hours))
       let _ :=
@@ -30,7 +30,7 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
           (ans ==
             PastaLean.pySum
               ((PastaLean.pyRange i).flatMap fun p =>
-                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) == (0 : Int)) (PastaLean.pyRange p)).map
+                (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) = (0 : Int)) (PastaLean.pyRange p)).map
                   fun q => (1 : Int)))
       let mut x : Int := hours⦋i⦌
       ans := ans +ₚ cnt⦋((24 : Int) -ₚ x %ₚ (24 : Int)) %ₚ (24 : Int)⦌
@@ -40,29 +40,29 @@ def countCompleteDayPairs := fun (hours : List Int) ↦
         (ans ==
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen hours)).flatMap fun i =>
-              (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) == (0 : Int)) (PastaLean.pyRange i)).map
+              (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) = (0 : Int)) (PastaLean.pyRange i)).map
                 fun j => (1 : Int)))
     return ans : Id _)
 
 @[spec]
-theorem countCompleteDayPairs_spec :
+theorem countCompleteDayPairs_spec {hours : List Int} :
     ⦃⌜True⌝⦄ countCompleteDayPairs hours ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen hours)).flatMap fun i =>
-              (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) == (0 : Int)) (PastaLean.pyRange i)).map
+              (List.filter (fun j => (hours⦋i⦌ +ₚ hours⦋j⦌) %ₚ (24 : Int) = (0 : Int)) (PastaLean.pyRange i)).map
                 fun j => (1 : Int))⌝⦄ :=
   by
-  mvcgen [countCompleteDayPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ =>
+  mvcgen [countCompleteDayPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       ((0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen hours) ∧
         ans =
           PastaLean.pySum
             ((PastaLean.pyRange i).flatMap fun p =>
-              (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) == (0 : Int)) (PastaLean.pyRange p)).map
+              (List.filter (fun q => (hours⦋p⦌ +ₚ hours⦋q⦌) %ₚ (24 : Int) = (0 : Int)) (PastaLean.pyRange p)).map
                 fun q => (1 : Int))⌝
-  grind +locals +suggestions; sorry; sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; grind +locals +suggestions
 
 def countCompleteDayPairs'rn := fun (hours : List Int) ↦
   Id.run
@@ -72,7 +72,7 @@ def countCompleteDayPairs'rn := fun (hours : List Int) ↦
       let mut ans : Int := (0 : Int)
       -- Index-style invariant: after processing i elements, ans is exactly the number of valid pairs
       -- among the first i entries.
-      for i in (PastaLean.pyRange (PastaLean.pyLen hours))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen hours)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen hours))
         let _ :=

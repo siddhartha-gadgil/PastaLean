@@ -26,7 +26,7 @@ def verifyPreorder := fun (preorder : List Int) ↦
     (do
       let mut stk : List Int := []
       let mut last := -inf
-      for x in (PastaLean.pyIter preorder)do
+      for x in (PastaLean.pyIter preorder) do
         if h_1 : x < last then 
           return Bool.false
         else
@@ -45,7 +45,7 @@ def verifyPreorder'rn := fun (preorder : List Int) ↦
     (do
       let mut stk : List Int := []
       let mut last := -inf
-      for x in (PastaLean.pyIter preorder)do
+      for x in (PastaLean.pyIter preorder) do
         if h_1 : x < last then 
           return Bool.false
         else

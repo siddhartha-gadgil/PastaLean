@@ -22,31 +22,32 @@ def maximumNumberOfStringPairs := fun (words : List String) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
-    for w in (PastaLean.pyIter words)do
+    for w in (PastaLean.pyIter words) do
       ans := ans +ₚ cnt⦋PastaLean.pySlice w none none (some (-(1 : Int)))⦌
       cnt := PastaLean.pySetItem cnt w (cnt⦋w⦌ +ₚ (1 : Int))
     return ans : Id _)
 
 @[spec]
-theorem maximumNumberOfStringPairs_spec :
+theorem maximumNumberOfStringPairs_spec {words : List String} :
     ⦃⌜True⌝⦄ maximumNumberOfStringPairs words ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen words)).flatMap fun i =>
-              (List.filter (fun j => words⦋i⦌ == PastaLean.pySlice words⦋j⦌ none none (some (-(1 : Int))))
+              (List.filter (fun j => words⦋i⦌ = PastaLean.pySlice words⦋j⦌ none none (some (-(1 : Int))))
                     (PastaLean.pyRange (PastaLean.pyLen words) (i +ₚ (1 : Int)))).map
                 fun j => (1 : Int))⌝⦄ :=
   by
-  mvcgen [maximumNumberOfStringPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜ans = (cur.prefix.map (fun w => cnt⦋PastaLean.pySlice w none none (some (-(1 : Int)))⦌)).sum⌝
-  all_goals sorry
+  mvcgen [maximumNumberOfStringPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, ans⟩ =>
+    ⌜ans = (cur.prefix.map (fun w => cnt⦋PastaLean.pySlice w none none (some (-(1 : Int)))⦌)).sum⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximumNumberOfStringPairs'rn := fun (words : List String) ↦
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
       let mut ans : Int := (0 : Int)
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         ans := ans +ₚ cnt⦋PastaLean.pySlice w none none (some (-(1 : Int)))⦌
         cnt := PastaLean.pySetItem cnt w (cnt⦋w⦌ +ₚ (1 : Int))
       return ans)

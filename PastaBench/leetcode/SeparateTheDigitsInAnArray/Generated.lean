@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.SeparateTheDigitsInAnArray
 def separateDigits := fun (nums : List Int) ↦
   (do
     let mut ans : List Int := []
-    for __py_loop_1 in (PastaLean.pyIter nums)do
+    for __py_loop_1 in (PastaLean.pyIter nums) do
       let mut x := __py_loop_1
       let _ :=
         Libraries.passta.pyPassInvariant
@@ -44,13 +44,16 @@ def separateDigits := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem separateDigits_spec :
+theorem separateDigits_spec {nums : List Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter nums).map fun x => decide (x ≥ (0 : Int)))⌝⦄ separateDigits nums ⦃⇓ans =>
       ⌜PastaLean.pyAll ((PastaLean.pyIter ans).map fun d => decide ((0 : Int) ≤ d) && decide (d < (10 : Int)))⌝⦄ :=
   by
-  mvcgen [separateDigits, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜PastaLean.pyAll ((PastaLean.pyIter ans).map fun d => decide ((0 : Int) ≤ d) && decide (d < (10 : Int)))⌝
-  sorry
+  mvcgen [separateDigits, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans⟩ =>
+    ⌜PastaLean.pyAll ((PastaLean.pyIter ans).map fun d => decide ((0 : Int) ≤ d) && decide (d < (10 : Int)))⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def separateDigits'rn := fun (nums : List Int) ↦
   Id.run
@@ -58,7 +61,7 @@ def separateDigits'rn := fun (nums : List Int) ↦
       let _ :=
         Libraries.passta.pyPassRequires (PastaLean.pyAll ((PastaLean.pyIter nums).map fun x => decide (x ≥ (0 : Int))))
       let mut ans : List Int := []
-      for __py_loop_1 in (PastaLean.pyIter nums)do
+      for __py_loop_1 in (PastaLean.pyIter nums) do
         let mut x := __py_loop_1
         let _ :=
           Libraries.passta.pyPassInvariant

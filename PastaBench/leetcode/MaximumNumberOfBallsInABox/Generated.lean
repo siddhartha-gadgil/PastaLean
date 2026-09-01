@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.MaximumNumberOfBallsInABox
 def countBalls := fun (lowLimit : Int) ↦ fun (highLimit : Int) ↦
   (do
     let mut cnt : List Int := PastaLean.pyListRepeat [(0 : Int)] (50 : Int)
-    for __py_loop_1 in (PastaLean.pyRange (highLimit +ₚ (1 : Int)) lowLimit)do
+    for __py_loop_1 in (PastaLean.pyRange (highLimit +ₚ (1 : Int)) lowLimit) do
       let mut x := __py_loop_1
       let mut y : Int := (0 : Int)
       while (PastaLean.pyTruthy x) do
@@ -33,12 +33,11 @@ def countBalls := fun (lowLimit : Int) ↦ fun (highLimit : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem countBalls_spec :
+theorem countBalls_spec {lowLimit : Int} {highLimit : Int} :
     ⦃⌜lowLimit ≥ (1 : Int) ∧ highLimit ≥ lowLimit⌝⦄ countBalls lowLimit highLimit ⦃⇓result => ⌜result ≥ (1 : Int)⌝⦄ :=
   by
-  mvcgen [countBalls, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [countBalls, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countBalls'rn := fun (lowLimit : Int) ↦ fun (highLimit : Int) ↦
   Id.run
@@ -46,7 +45,7 @@ def countBalls'rn := fun (lowLimit : Int) ↦ fun (highLimit : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (lowLimit ≥ (1 : Int)))
       let _ := Libraries.passta.pyPassRequires (decide (highLimit ≥ lowLimit))
       let mut cnt : List Int := PastaLean.pyListRepeat [(0 : Int)] (50 : Int)
-      for __py_loop_1 in (PastaLean.pyRange (highLimit +ₚ (1 : Int)) lowLimit)do
+      for __py_loop_1 in (PastaLean.pyRange (highLimit +ₚ (1 : Int)) lowLimit) do
         let mut x := __py_loop_1
         let mut y : Int := (0 : Int)
         while (PastaLean.pyTruthy x) do

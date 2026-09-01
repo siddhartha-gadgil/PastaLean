@@ -42,46 +42,38 @@ private partial def _vals : Option TreeNode → List Int := fun (root : Option T
   /-
   Helper: in-order flattening of the tree's values.
   -/
-  if Option.isNone root then []
+  if PastaLean.pyIsNone root then []
   else _vals ((root).getD default).left +ₚ [((root).getD default).val] +ₚ _vals ((root).getD default).right
 
 private partial def _vals'rn : Option TreeNode → List Int := fun (root : Option TreeNode) ↦
   /-
   Helper: in-order flattening of the tree's values.
   -/
-  if Option.isNone root then []
+  if PastaLean.pyIsNone root then []
   else _vals'rn ((root).getD default).left +ₚ [((root).getD default).val] +ₚ _vals'rn ((root).getD default).right
 
-private def _rangeSumBST_dfs := fun (node : Option TreeNode) ↦ fun (low : Int) ↦ fun (high : Int) ↦
-  (do
-    if h_1 : Option.isNone node then 
-      return (0 : Int)
-    else
-      let _ := ()
-    let mut x : Int := ((node).getD default).val
-    let mut ans : Int := if decide (low ≤ x) && decide (x ≤ high) then x else (0 : Int)
-    if h_2 : x > low then 
-      ans := ans +ₚ _rangeSumBST_dfs ((node).getD default).left low high
-    else
-      let _ := ()
-    if h_3 : x < high then 
-      ans := ans +ₚ _rangeSumBST_dfs ((node).getD default).right low high
-    else
-      let _ := ()
-    return ans : Id _)
+private partial def _rangeSumBST'dfs : Option TreeNode → Int → Int → Int := fun (node : Option TreeNode) ↦
+  fun (low : Int) ↦ fun (high : Int) ↦
+  Id.run
+    (do
+      -- Point: dfs(node) = sum of filtered _vals(node).
+      if h_1 : PastaLean.pyIsNone node then 
+        return (0 : Int)
+      else
+        let _ := ()
+      let mut x : Int := ((node).getD default).val
+      let mut ans : Int := if low ≤ x ∧ x ≤ high then x else (0 : Int)
+      if h_2 : x > low then 
+        ans := ans +ₚ _rangeSumBST'dfs ((node).getD default).left low high
+      else
+        let _ := ()
+      if h_3 : x < high then 
+        ans := ans +ₚ _rangeSumBST'dfs ((node).getD default).right low high
+      else
+        let _ := ()
+      return ans)
 
-@[spec]
-theorem _rangeSumBST_dfs_spec :
-    ⦃⌜True⌝⦄ _rangeSumBST_dfs node low high ⦃⇓ans =>
-      ⌜ans =
-          PastaLean.pySum
-            ((List.filter (fun v => decide (low ≤ v) && decide (v ≤ high)) (PastaLean.pyIter (_vals node))).map
-              fun v => v)⌝⦄ :=
-  by
-  mvcgen [_rangeSumBST_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
-
-def rangeSumBST := fun (root : Option TreeNode) ↦ fun (low : Int) ↦ fun (high : Int) ↦ _rangeSumBST_dfs root low high
+def rangeSumBST := fun (root : Option TreeNode) ↦ fun (low : Int) ↦ fun (high : Int) ↦ _rangeSumBST'dfs root low high
 
 attribute [simp] rangeSumBST
 
@@ -90,34 +82,33 @@ theorem rangeSumBST_spec :
     ∀ (root : Option TreeNode),
       ∀ (low : Int),
         ∀ (high : Int),
-          _rangeSumBST_dfs root low high =
+          _rangeSumBST'dfs root low high =
             PastaLean.pySum
-              ((List.filter (fun v => decide (low ≤ v) && decide (v ≤ high)) (PastaLean.pyIter (_vals root))).map
-                fun v => v) :=
+              ((List.filter (fun v => low ≤ v ∧ v ≤ high) (PastaLean.pyIter (_vals root))).map fun v => v) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _rangeSumBST_dfs'rn : Option TreeNode → Int → Int → Int := fun (node : Option TreeNode) ↦
+private partial def _rangeSumBST'dfs'rn : Option TreeNode → Int → Int → Int := fun (node : Option TreeNode) ↦
   fun (low : Int) ↦ fun (high : Int) ↦
   Id.run
     (do
       -- Point: dfs(node) = sum of filtered _vals(node).
-      if h_1 : Option.isNone node then 
+      if h_1 : PastaLean.pyIsNone node then 
         return (0 : Int)
       else
         let _ := ()
       let mut x : Int := ((node).getD default).val
       let mut ans : Int := if decide (low ≤ x) && decide (x ≤ high) then x else (0 : Int)
       if h_2 : x > low then 
-        ans := ans +ₚ _rangeSumBST_dfs'rn ((node).getD default).left low high
+        ans := ans +ₚ _rangeSumBST'dfs'rn ((node).getD default).left low high
       else
         let _ := ()
       if h_3 : x < high then 
-        ans := ans +ₚ _rangeSumBST_dfs'rn ((node).getD default).right low high
+        ans := ans +ₚ _rangeSumBST'dfs'rn ((node).getD default).right low high
       else
         let _ := ()
       return ans)
 
 def rangeSumBST'rn := fun (root : Option TreeNode) ↦ fun (low : Int) ↦ fun (high : Int) ↦
-  _rangeSumBST_dfs'rn root low high
+  _rangeSumBST'dfs'rn root low high
 
 end PastaBench.leetcode.RangeSumOfBst

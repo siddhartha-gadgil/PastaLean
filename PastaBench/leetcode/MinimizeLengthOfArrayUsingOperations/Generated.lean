@@ -29,7 +29,7 @@ def minimumArrayLength := fun (nums : List Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem minimumArrayLength_spec :
+theorem minimumArrayLength_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧ PastaLean.pyMin nums ≠ (0 : Int)⌝⦄ minimumArrayLength nums ⦃⇓result =>
       ⌜PastaLean.pyTruthy (PastaLean.pyStdAny ((PastaLean.pyIter nums).map fun x => x %ₚ PastaLean.pyMin nums)) =
               true ∧

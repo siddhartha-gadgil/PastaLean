@@ -20,9 +20,10 @@ namespace PastaBench.leetcode.HIndex
 
 def hIndex := fun (citations : List Int) ↦
   (do
+    let mut citations := citations
     citations := PastaLean.pySortBy (fun x => x) Bool.true citations
     let mut n : Int := PastaLean.pyLen citations
-    for h in (PastaLean.pyRange (0 : Int) n (-(1 : Int)))do
+    for h in (PastaLean.pyRange (0 : Int) n (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ h))
       let _ := Libraries.passta.pyPassInvariant (decide (h ≤ n))
       let _ :=
@@ -42,7 +43,7 @@ def hIndex := fun (citations : List Int) ↦
     return (0 : Int) : Id _)
 
 @[spec]
-theorem hIndex_spec :
+theorem hIndex_spec {citations : List Int} :
     ⦃⌜True⌝⦄ hIndex citations ⦃⇓result =>
       ⌜((0 : Int) ≤ result ∧ result ≤ PastaLean.pyLen citations) ∧
           (result = (0 : Int) ∧
@@ -58,9 +59,8 @@ theorem hIndex_spec :
                       decide (citations⦋k -ₚ (1 : Int)⦌ < k))) =
                 true)⌝⦄ :=
   by
-  mvcgen [hIndex, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  sorry
+  mvcgen [hIndex, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def hIndex'rn := fun (citations : List Int) ↦
   Id.run
@@ -68,7 +68,7 @@ def hIndex'rn := fun (citations : List Int) ↦
       let mut citations := citations
       citations := PastaLean.pySortBy (fun x => x) Bool.true citations
       let mut n : Int := PastaLean.pyLen citations
-      for h in (PastaLean.pyRange (0 : Int) n (-(1 : Int)))do
+      for h in (PastaLean.pyRange (0 : Int) n (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ h))
         let _ := Libraries.passta.pyPassInvariant (decide (h ≤ n))
         let _ :=

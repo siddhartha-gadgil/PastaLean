@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.TeemoAttacking
 def findPoisonedDuration := fun (timeSeries : List Int) ↦ fun (duration : Int) ↦
   (do
     let mut ans : Int := duration
-    for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise timeSeries))do
+    for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise timeSeries)) do
       let a := Prod.fst _pair_1
       let b := Prod.snd _pair_1
       ans := ans +ₚ PastaLean.pyMin [duration, b -ₚ a]
@@ -35,7 +35,7 @@ def findPoisonedDuration := fun (timeSeries : List Int) ↦ fun (duration : Int)
     return ans : Id _)
 
 @[spec]
-theorem findPoisonedDuration_spec :
+theorem findPoisonedDuration_spec {timeSeries : List Int} {duration : Int} :
     ⦃⌜duration ≥ (0 : Int) ∧
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen timeSeries -ₚ (1 : Int))).map fun i =>
@@ -60,7 +60,7 @@ def findPoisonedDuration'rn := fun (timeSeries : List Int) ↦ fun (duration : I
             ((PastaLean.pyRange (PastaLean.pyLen timeSeries -ₚ (1 : Int))).map fun i =>
               decide (timeSeries⦋i⦌ < timeSeries⦋i +ₚ (1 : Int)⦌)))
       let mut ans : Int := duration
-      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise timeSeries))do
+      for _pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise timeSeries)) do
         let a := Prod.fst _pair_1
         let b := Prod.snd _pair_1
         ans := ans +ₚ PastaLean.pyMin [duration, b -ₚ a]

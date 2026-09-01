@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.SearchA2dMatrixIi
 def searchMatrix := fun (matrix : List (List Int)) ↦ fun (target : Int) ↦
   Id.run
     (do
-      for row in (PastaLean.pyIter matrix)do
+      for row in (PastaLean.pyIter matrix) do
         let mut j := Libraries.bisect.pyBisectLeft row target
         if h_1 : j < PastaLean.pyLen matrix⦋(0 : Int)⦌ ∧ row⦋j⦌ = target then 
           let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains row target)
@@ -35,7 +35,7 @@ attribute [simp, taste_ingr] searchMatrix
 def searchMatrix'rn := fun (matrix : List (List Int)) ↦ fun (target : Int) ↦
   Id.run
     (do
-      for row in (PastaLean.pyIter matrix)do
+      for row in (PastaLean.pyIter matrix) do
         let mut j := Libraries.bisect.pyBisectLeft row target
         if h_1 : decide (j < PastaLean.pyLen matrix⦋(0 : Int)⦌) && row⦋j⦌ == target then 
           let _ := Libraries.passta.pyPassAssert (PastaLean.pyContains row target)

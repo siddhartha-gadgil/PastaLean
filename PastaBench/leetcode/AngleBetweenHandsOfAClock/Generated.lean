@@ -20,8 +20,8 @@ namespace PastaBench.leetcode.AngleBetweenHandsOfAClock
 
 def angleClock := fun (hour : Int) ↦ fun (minutes : Int) ↦
   let h := (30 : Int) *ₚ hour +ₚ (0.5 : Rat) *ₚ minutes
-  let m := (6 : Int) *ₚ minutes
-  let diff := PastaLean.pyAbs (h -ₚ m)
+  let m := ((6 : Int) *ₚ minutes : Int)
+  let diff := Libraries.operator.pyOperatorAbs (h -ₚ m)
   PastaLean.pyMin [diff, (360 : Int) -ₚ diff]
 
 attribute [simp] angleClock
@@ -32,7 +32,7 @@ theorem angleClock_spec :
       ∀ (minutes : Int),
         let h := (30 : Int) *ₚ hour +ₚ (0.5 : Rat) *ₚ minutes
         let m := (6 : Int) *ₚ minutes
-        let diff := PastaLean.pyAbs (h -ₚ m)
+        let diff := Libraries.operator.pyOperatorAbs (h -ₚ m)
         (((0 : Int) ≤ hour ∧ hour ≤ (12 : Int)) ∧ (0 : Int) ≤ minutes) ∧ minutes < (60 : Int) →
           (0 : Int) ≤ PastaLean.pyMin [diff, (360 : Int) -ₚ diff] ∧
             PastaLean.pyMin [diff, (360 : Int) -ₚ diff] ≤ (180 : Int) :=
@@ -40,8 +40,8 @@ theorem angleClock_spec :
 
 def angleClock'rn := fun (hour : Int) ↦ fun (minutes : Int) ↦
   let h := (30 : Int) *ₚ hour +ₚ (0.5 : Float) *ₚ minutes
-  let m := (6 : Int) *ₚ minutes
-  let diff := PastaLean.pyAbs (h -ₚ m)
+  let m := ((6 : Int) *ₚ minutes : Int)
+  let diff := Libraries.operator.pyOperatorAbs (h -ₚ m)
   PastaLean.pyMin [diff, (360 : Int) -ₚ diff]
 
 end PastaBench.leetcode.AngleBetweenHandsOfAClock

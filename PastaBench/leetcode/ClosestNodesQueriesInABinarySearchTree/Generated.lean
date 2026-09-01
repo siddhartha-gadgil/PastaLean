@@ -38,34 +38,34 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _closestNodes_dfs := fun (root : Option TreeNode) ↦ fun nums ↦
+private partial def _closestNodes'dfs := fun (root : Option TreeNode) ↦ fun nums ↦
   Id.run
     (do
       let mut nums := nums
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return nums
       else
         let _ := ()
-      nums := _closestNodes_dfs ((root).getD default).left nums
+      nums := _closestNodes'dfs ((root).getD default).left nums
       nums := PastaLean.pyAppend nums ((root).getD default).val
-      nums := _closestNodes_dfs ((root).getD default).right nums
+      nums := _closestNodes'dfs ((root).getD default).right nums
       return nums)
 
 def closestNodes := fun (root : Option TreeNode) ↦ fun (queries : List Int) ↦
   (do
     let mut nums := []
-    nums := _closestNodes_dfs root nums
+    nums := _closestNodes'dfs root nums
     let _ :=
       Libraries.passta.pyPassAssert
         (PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen nums -ₚ (1 : Int))).map fun i =>
             decide (nums⦋i⦌ ≤ nums⦋i +ₚ (1 : Int)⦌)))
     let mut ans : List (List Int) := []
-    for x in (PastaLean.pyIter queries)do
+    for x in (PastaLean.pyIter queries) do
       let mut i : Int := Libraries.bisect.pyBisectLeft nums (x +ₚ (1 : Int)) -ₚ (1 : Int)
       let mut j := Libraries.bisect.pyBisectLeft nums x
-      let mut mi : Int := if decide ((0 : Int) ≤ i) && decide (i < PastaLean.pyLen nums) then nums⦋i⦌ else -(1 : Int)
-      let mut mx : Int := if decide ((0 : Int) ≤ j) && decide (j < PastaLean.pyLen nums) then nums⦋j⦌ else -(1 : Int)
+      let mut mi : Int := if (0 : Int) ≤ i ∧ i < PastaLean.pyLen nums then nums⦋i⦌ else -(1 : Int)
+      let mut mx : Int := if (0 : Int) ≤ j ∧ j < PastaLean.pyLen nums then nums⦋j⦌ else -(1 : Int)
       ans := PastaLean.pyAppend ans [mi, mx]
       -- Each returned endpoint is either -1 or comes from the tree's values
       let _ :=
@@ -75,31 +75,30 @@ def closestNodes := fun (root : Option TreeNode) ↦ fun (queries : List Int) �
     return ans : Id _)
 
 @[spec]
-theorem closestNodes_spec :
+theorem closestNodes_spec {root : Option TreeNode} {queries : List Int} :
     ⦃⌜True⌝⦄ closestNodes root queries ⦃⇓ans => ⌜PastaLean.pyLen ans = PastaLean.pyLen queries⌝⦄ :=
   by
-  mvcgen [closestNodes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [closestNodes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
-private partial def _closestNodes_dfs'rn := fun (root : Option TreeNode) ↦ fun nums ↦
+private partial def _closestNodes'dfs'rn := fun (root : Option TreeNode) ↦ fun nums ↦
   Id.run
     (do
       let mut nums := nums
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return nums
       else
         let _ := ()
-      nums := _closestNodes_dfs'rn ((root).getD default).left nums
+      nums := _closestNodes'dfs'rn ((root).getD default).left nums
       nums := PastaLean.pyAppend nums ((root).getD default).val
-      nums := _closestNodes_dfs'rn ((root).getD default).right nums
+      nums := _closestNodes'dfs'rn ((root).getD default).right nums
       return nums)
 
 def closestNodes'rn := fun (root : Option TreeNode) ↦ fun (queries : List Int) ↦
   Id.run
     (do
       let mut nums := []
-      nums := _closestNodes_dfs'rn root nums
+      nums := _closestNodes'dfs'rn root nums
       -- The inorder traversal yields a sorted list of node values
       let _ :=
         Libraries.passta.pyPassAssert
@@ -107,7 +106,7 @@ def closestNodes'rn := fun (root : Option TreeNode) ↦ fun (queries : List Int)
             ((PastaLean.pyRange (PastaLean.pyLen nums -ₚ (1 : Int))).map fun i =>
               decide (nums⦋i⦌ ≤ nums⦋i +ₚ (1 : Int)⦌)))
       let mut ans : List (List Int) := []
-      for x in (PastaLean.pyIter queries)do
+      for x in (PastaLean.pyIter queries) do
         let mut i : Int := Libraries.bisect.pyBisectLeft nums (x +ₚ (1 : Int)) -ₚ (1 : Int)
         let mut j := Libraries.bisect.pyBisectLeft nums x
         let mut mi : Int :=

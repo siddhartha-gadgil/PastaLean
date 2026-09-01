@@ -38,42 +38,42 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _postorderTraversal_dfs := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _postorderTraversal'dfs := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return ans
       else
         let _ := ()
-      ans := _postorderTraversal_dfs ((root).getD default).left ans
-      ans := _postorderTraversal_dfs ((root).getD default).right ans
+      ans := _postorderTraversal'dfs ((root).getD default).left ans
+      ans := _postorderTraversal'dfs ((root).getD default).right ans
       ans := PastaLean.pyAppend ans ((root).getD default).val
       return ans)
 
 def postorderTraversal := fun (root : Option TreeNode) ↦
   let ans := []
-  let ans := _postorderTraversal_dfs root ans
+  let ans := _postorderTraversal'dfs root ans
   ans
 
 attribute [simp, taste_ingr] postorderTraversal
 
-private partial def _postorderTraversal_dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _postorderTraversal'dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return ans
       else
         let _ := ()
-      ans := _postorderTraversal_dfs'rn ((root).getD default).left ans
-      ans := _postorderTraversal_dfs'rn ((root).getD default).right ans
+      ans := _postorderTraversal'dfs'rn ((root).getD default).left ans
+      ans := _postorderTraversal'dfs'rn ((root).getD default).right ans
       ans := PastaLean.pyAppend ans ((root).getD default).val
       return ans)
 
 def postorderTraversal'rn := fun (root : Option TreeNode) ↦
   let ans := []
-  let ans := _postorderTraversal_dfs'rn root ans
+  let ans := _postorderTraversal'dfs'rn root ans
   ans
 
 end PastaBench.leetcode.BinaryTreePostorderTraversal

@@ -22,19 +22,19 @@ def maxTotalReward := fun (rewardValues : List Int) ↦
   (do
     let mut nums : List Int := PastaLean.pySort (PastaLean.pySet rewardValues)
     let mut f : Int := (1 : Int)
-    for v in (PastaLean.pyIter nums)do
+    for v in (PastaLean.pyIter nums) do
       f :=
         PastaLean.pyBitOr f
           (PastaLean.pyShiftLeft (PastaLean.pyBitAnd f (PastaLean.pyShiftLeft (1 : Int) v -ₚ (1 : Int))) v)
     let __py_ret_1 := PastaLean.pyBitLength f -ₚ (1 : Int)
     return __py_ret_1 : Id _)
 
-theorem maxTotalReward_spec :
+theorem maxTotalReward_spec {rewardValues : List Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter rewardValues).map fun v => decide (v ≥ (0 : Int)))⌝⦄
       maxTotalReward rewardValues ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maxTotalReward, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, f⟩ => ⌜True⌝
+  mvcgen [maxTotalReward, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxTotalReward'rn := fun (rewardValues : List Int) ↦
   Id.run
@@ -44,7 +44,7 @@ def maxTotalReward'rn := fun (rewardValues : List Int) ↦
           (PastaLean.pyAll ((PastaLean.pyIter rewardValues).map fun v => decide (v ≥ (0 : Int))))
       let mut nums : List Int := PastaLean.pySort (PastaLean.pySet rewardValues)
       let mut f : Int := (1 : Int)
-      for v in (PastaLean.pyIter nums)do
+      for v in (PastaLean.pyIter nums) do
         f :=
           PastaLean.pyBitOr f
             (PastaLean.pyShiftLeft (PastaLean.pyBitAnd f (PastaLean.pyShiftLeft (1 : Int) v -ₚ (1 : Int))) v)

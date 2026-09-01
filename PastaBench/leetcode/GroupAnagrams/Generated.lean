@@ -21,14 +21,14 @@ namespace PastaBench.leetcode.GroupAnagrams
 def groupAnagrams := fun (strs : List String) ↦
   (do
     let mut d : Libraries.collections.PyDefaultDict String (List String) := Libraries.collections.pyDefaultDictList
-    for s in (PastaLean.pyIter strs)do
+    for s in (PastaLean.pyIter strs) do
       let mut k : String := PastaLean.pyStringJoin "" (PastaLean.pySort s)
       d := PastaLean.pySetItem d k (PastaLean.pyAppend d⦋k⦌ s)
     let __py_ret_1 := PastaLean.pyList (PastaLean.pyAnys d)
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem groupAnagrams_spec :
+theorem groupAnagrams_spec {strs : List String} :
     ⦃⌜True⌝⦄ groupAnagrams strs ⦃⇓result =>
       ⌜PastaLean.pySort ((PastaLean.pyIter result).flatMap fun g => (PastaLean.pyIter g).map fun s => s) =
             PastaLean.pySort strs ∧
@@ -36,15 +36,14 @@ theorem groupAnagrams_spec :
             ((PastaLean.pyIter result).flatMap fun g =>
               (PastaLean.pyIter g).map fun s => PastaLean.pySort s == PastaLean.pySort g⦋(0 : Int)⦌)⌝⦄ :=
   by
-  mvcgen [groupAnagrams, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [groupAnagrams, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def groupAnagrams'rn := fun (strs : List String) ↦
   Id.run
     (do
       let mut d : Libraries.collections.PyDefaultDict String (List String) := Libraries.collections.pyDefaultDictList
-      for s in (PastaLean.pyIter strs)do
+      for s in (PastaLean.pyIter strs) do
         let mut k : String := PastaLean.pyStringJoin "" (PastaLean.pySort s)
         d := PastaLean.pySetItem d k (PastaLean.pyAppend d⦋k⦌ s)
       let __py_ret_1 := PastaLean.pyList (PastaLean.pyAnys d)

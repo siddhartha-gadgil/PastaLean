@@ -20,19 +20,20 @@ namespace PastaBench.leetcode.SortIntegersByThePowerValue
 
 def f := fun (x : Int) ↦
   (do
+    let mut x := x
     let mut ans : Int := (0 : Int)
     while (x ≠ (1 : Int)) do
       if h_1 : x %ₚ (2 : Int) = (0 : Int) then 
         x := PastaLean.pyFloorDiv x (2 : Int)
       else
-        let mut x : Int := (3 : Int) *ₚ x +ₚ (1 : Int)
+        x := (3 : Int) *ₚ x +ₚ (1 : Int)
       ans := ans +ₚ (1 : Int)
     return ans : Id _)
 
-theorem f_spec : ⦃⌜x ≥ (1 : Int)⌝⦄ f x ⦃⇓_ => ⌜True⌝⦄ :=
+theorem f_spec {x : Int} : ⦃⌜x ≥ (1 : Int)⌝⦄ f x ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [f, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def f'rn := fun (x : Int) ↦
   Id.run
@@ -49,7 +50,7 @@ def f'rn := fun (x : Int) ↦
       return ans)
 
 def getKth := fun (lo : Int) ↦ fun (hi : Int) ↦ fun (k : Int) ↦
-  (PastaLean.pySortBy f false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌
+  (PastaLean.pySortBy (fun _a0 => Id.run (f _a0)) false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌
 
 attribute [simp] getKth
 
@@ -61,11 +62,15 @@ theorem getKth_spec :
           lo ≤ hi →
             (1 : Int) ≤ k →
               k ≤ hi -ₚ lo +ₚ (1 : Int) →
-                lo ≤ (PastaLean.pySortBy f false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌ ∧
-                  (PastaLean.pySortBy f false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌ ≤ hi :=
-  by sorry
+                lo ≤
+                    (PastaLean.pySortBy (fun _a0 => Id.run (f _a0)) false
+                        (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌ ∧
+                  (PastaLean.pySortBy (fun _a0 => Id.run (f _a0)) false
+                        (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌ ≤
+                    hi :=
+  by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def getKth'rn := fun (lo : Int) ↦ fun (hi : Int) ↦ fun (k : Int) ↦
-  (PastaLean.pySortBy f false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌
+  (PastaLean.pySortBy (fun _a0 => Id.run (f _a0)) false (PastaLean.pyRange (hi +ₚ (1 : Int)) lo))⦋k -ₚ (1 : Int)⦌
 
 end PastaBench.leetcode.SortIntegersByThePowerValue

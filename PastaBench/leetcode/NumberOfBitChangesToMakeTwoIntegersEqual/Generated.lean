@@ -19,7 +19,7 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.NumberOfBitChangesToMakeTwoIntegersEqual
 
 def minChanges := fun (n : Int) ↦ fun (k : Int) ↦
-  if PastaLean.pyBitAnd n k != k then -(1 : Int) else PastaLean.pyBitCount (PastaLean.pyBitXor n k)
+  if PastaLean.pyBitAnd n k ≠ k then -(1 : Int) else PastaLean.pyBitCount (PastaLean.pyBitXor n k)
 
 attribute [simp] minChanges
 

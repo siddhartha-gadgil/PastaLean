@@ -22,7 +22,7 @@ def reachNumber := fun (target : Int) ↦
   Id.run
     (do
       let mut target := target
-      target := PastaLean.pyAbs target
+      target := Libraries.operator.pyOperatorAbs target
       let mut __chain_1 := (0 : Int)
       let mut s := __chain_1
       let mut k := __chain_1
@@ -46,7 +46,7 @@ def reachNumber'rn := fun (target : Int) ↦
   Id.run
     (do
       let mut target := target
-      target := PastaLean.pyAbs target
+      target := Libraries.operator.pyOperatorAbs target
       let mut __chain_1 := (0 : Int)
       let mut s := __chain_1
       let mut k := __chain_1

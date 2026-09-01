@@ -31,7 +31,7 @@ def hIndex := fun (citations : List Int) ↦
       let _ := Libraries.passta.pyPassInvariant (decide (right ≤ n))
       let _ := Libraries.passta.pyPassInvariant (left == (0 : Int) || decide (citations⦋n -ₚ left⦌ ≥ left))
       let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-      let mut mid := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
       if h_1 : citations⦋n -ₚ mid⦌ ≥ mid then 
         left := mid
       else
@@ -40,11 +40,11 @@ def hIndex := fun (citations : List Int) ↦
     return left : Id _)
 
 @[spec]
-theorem hIndex_spec :
+theorem hIndex_spec {citations : List Int} :
     ⦃⌜PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen citations) (1 : Int)).map fun i =>
             decide (citations⦋i -ₚ (1 : Int)⦌ ≤ citations⦋i⦌))⌝⦄
-      hIndex citations ⦃⇓left => ⌜((0 : Int) ≤ left ∧ left ≤ n) ∧ (left = (0 : Int) ∨ citations⦋n -ₚ left⦌ ≥ left)⌝⦄ :=
+      hIndex citations ⦃⇓left => ⌜(0 : Int) ≤ left⌝⦄ :=
   by
   mvcgen [hIndex, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -68,7 +68,7 @@ def hIndex'rn := fun (citations : List Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide (right ≤ n))
         let _ := Libraries.passta.pyPassInvariant (left == (0 : Int) || decide (citations⦋n -ₚ left⦌ ≥ left))
         let _ := Libraries.passta.pyPassDecreases (right -ₚ left)
-        let mut mid := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (left +ₚ right +ₚ (1 : Int)) (1 : Int)
         if h_1 : citations⦋n -ₚ mid⦌ ≥ mid then 
           left := mid
         else

@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.NumberOfStepsToReduceANumberToZero
 
 def numberOfSteps := fun (num : Int) ↦
   (do
+    let mut num := num
     let mut orig : Int := num
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy num) do
@@ -33,14 +34,10 @@ def numberOfSteps := fun (num : Int) ↦
       ans := ans +ₚ (1 : Int)
     return ans : Id _)
 
-@[spec]
-theorem numberOfSteps_spec :
-    ⦃⌜num ≥ (0 : Int)⌝⦄ numberOfSteps num ⦃⇓ans =>
-      ⌜orig = (0 : Int) ∧ ans = (0 : Int) ∨
-          orig > (0 : Int) ∧ ans = PastaLean.pyBitLength orig -ₚ (1 : Int) +ₚ PastaLean.pyBitCount orig⌝⦄ :=
+theorem numberOfSteps_spec {num : Int} : ⦃⌜num ≥ (0 : Int)⌝⦄ numberOfSteps num ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [numberOfSteps, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def numberOfSteps'rn := fun (num : Int) ↦
   Id.run

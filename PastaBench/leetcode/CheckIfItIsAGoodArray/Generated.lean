@@ -23,7 +23,7 @@ def isGoodArray := fun (nums : List Int) ↦
     let __py_ret_1 := Libraries.functools.pyReduce nums Libraries.math.pyMathGcd == (1 : Int)
     return __py_ret_1 : Id _)
 
-theorem isGoodArray_spec : ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ isGoodArray nums ⦃⇓_ => ⌜True⌝⦄ :=
+theorem isGoodArray_spec {nums : List Int} : ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ isGoodArray nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [isGoodArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 

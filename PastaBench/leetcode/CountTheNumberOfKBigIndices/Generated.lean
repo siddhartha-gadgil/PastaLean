@@ -27,16 +27,18 @@ def BinaryIndexedTree.new := fun n ↦
   ({ n := n, c := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (1 : Int)) } : BinaryIndexedTree)
 
 def BinaryIndexedTree.update := fun (self : BinaryIndexedTree) ↦ fun x ↦ fun delta ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    while (x ≤ self.n) do
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      while (x ≤ self.n) do
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
 attribute [simp, taste_ingr] BinaryIndexedTree.update
 
-def BinaryIndexedTree.query := fun (self : BinaryIndexedTree) ↦ fun (x : PyAny) ↦
+def BinaryIndexedTree.query := fun (self : BinaryIndexedTree) ↦ fun x ↦
   Id.run
     (do
       let mut x := x
@@ -57,14 +59,16 @@ def BinaryIndexedTree'rn.new := fun n ↦
   ({ n := n, c := PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (1 : Int)) } : BinaryIndexedTree'rn)
 
 def BinaryIndexedTree'rn.update := fun (self : BinaryIndexedTree'rn) ↦ fun x ↦ fun delta ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    while (x ≤ self.n) do
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      while (x ≤ self.n) do
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ delta) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
-def BinaryIndexedTree'rn.query := fun (self : BinaryIndexedTree'rn) ↦ fun (x : PyAny) ↦
+def BinaryIndexedTree'rn.query := fun (self : BinaryIndexedTree'rn) ↦ fun x ↦
   Id.run
     (do
       let mut x := x
@@ -79,54 +83,29 @@ def kBigIndices := fun (nums : List Int) ↦ fun (k : Int) ↦
     let mut n : Int := PastaLean.pyLen nums
     let mut tree1 := BinaryIndexedTree.new n
     let mut tree2 := BinaryIndexedTree.new n
-    for v in (PastaLean.pyIter nums)do
-      let _ := BinaryIndexedTree.update tree2 v (1 : Int)
+    for v in (PastaLean.pyIter nums) do
+      tree2 := BinaryIndexedTree.update tree2 v (1 : Int)
     let mut ans : Int := (0 : Int)
-    for v in (PastaLean.pyIter nums)do
-      let _ := BinaryIndexedTree.update tree2 v (-(1 : Int))
+    for v in (PastaLean.pyIter nums) do
+      tree2 := BinaryIndexedTree.update tree2 v (-(1 : Int))
       ans :=
         ans +ₚ
           (decide (BinaryIndexedTree.query tree1 (v -ₚ (1 : Int)) ≥ k) &&
             decide (BinaryIndexedTree.query tree2 (v -ₚ (1 : Int)) ≥ k))
-      let _ := BinaryIndexedTree.update tree1 v (1 : Int)
+      tree1 := BinaryIndexedTree.update tree1 v (1 : Int)
     return ans : Id _)
 
-@[spec]
-theorem kBigIndices_spec :
-    ⦃⌜k ≥ (0 : Int) ∧
-          PastaLean.pyAll ((PastaLean.pyIter nums).map fun v => decide ((1 : Int) ≤ v) && decide (v ≤ n))⌝⦄
-      kBigIndices nums k ⦃⇓ans =>
-      ⌜ans =
-          PastaLean.pySum
-            ((List.filter
-                  (fun _pair_2 =>
-                    let i := Prod.fst _pair_2;
-                    let v := Prod.snd _pair_2;
-                    decide
-                        (PastaLean.pySum
-                            ((List.filter (fun j => decide (nums⦋j⦌ < v)) (PastaLean.pyRange i)).map fun j =>
-                              (1 : Int)) ≥
-                          k) &&
-                      decide
-                        (PastaLean.pySum
-                            ((List.filter (fun j => decide (nums⦋j⦌ < v)) (PastaLean.pyRange n (i +ₚ (1 : Int)))).map
-                              fun j => (1 : Int)) ≥
-                          k))
-                  (PastaLean.pyIter (PastaLean.pyEnumerate nums))).map
-              fun _pair_1 =>
-              let i := Prod.fst _pair_1;
-              let v := Prod.snd _pair_1;
-              (1 : Int))⌝⦄ :=
+theorem kBigIndices_spec {nums : List Int} {k : Int} : ⦃⌜k ≥ (0 : Int)⌝⦄ kBigIndices nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [kBigIndices, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  · ⇓⟨cur, ans⟩ =>
+  mvcgen [kBigIndices, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, tree2⟩ => ⌜True⌝
+  · ⇓⟨cur, tree1, tree2, ans⟩ =>
     ⌜ans =
         (cur.prefix.map
             (fun v =>
               decide (BinaryIndexedTree.query tree1 (v -ₚ (1 : Int)) ≥ k) &&
                 decide (BinaryIndexedTree.query tree2 (v -ₚ (1 : Int)) ≥ k))).sum⌝
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def kBigIndices'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -141,16 +120,16 @@ def kBigIndices'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       -- and at least k following nums[j]<nums[i].
       let mut tree1 := BinaryIndexedTree'rn.new n
       let mut tree2 := BinaryIndexedTree'rn.new n
-      for v in (PastaLean.pyIter nums)do
-        let _ := BinaryIndexedTree'rn.update tree2 v (1 : Int)
+      for v in (PastaLean.pyIter nums) do
+        tree2 := BinaryIndexedTree'rn.update tree2 v (1 : Int)
       let mut ans : Int := (0 : Int)
-      for v in (PastaLean.pyIter nums)do
-        let _ := BinaryIndexedTree'rn.update tree2 v (-(1 : Int))
+      for v in (PastaLean.pyIter nums) do
+        tree2 := BinaryIndexedTree'rn.update tree2 v (-(1 : Int))
         ans :=
           ans +ₚ
             (decide (BinaryIndexedTree'rn.query tree1 (v -ₚ (1 : Int)) ≥ k) &&
               decide (BinaryIndexedTree'rn.query tree2 (v -ₚ (1 : Int)) ≥ k))
-        let _ := BinaryIndexedTree'rn.update tree1 v (1 : Int)
+        tree1 := BinaryIndexedTree'rn.update tree1 v (1 : Int)
       return ans)
 
 end PastaBench.leetcode.CountTheNumberOfKBigIndices

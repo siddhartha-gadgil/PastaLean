@@ -28,7 +28,7 @@ noncomputable def constructRectangle := fun (area : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem constructRectangle_spec :
+theorem constructRectangle_spec {area : Int} :
     ⦃⌜area ≥ (1 : Int)⌝⦄ constructRectangle area ⦃⇓result => ⌜result⦋(0 : Int)⦌ *ₚ result⦋(1 : Int)⦌ = area⌝⦄ :=
   by
   mvcgen [constructRectangle, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]

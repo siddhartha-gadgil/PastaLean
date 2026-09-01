@@ -41,9 +41,9 @@ def numComponents := fun (head : Option ListNode) ↦ fun (nums : List Int) ↦
       let mut ans : Int := (0 : Int)
       let mut s : List Int := PastaLean.pySet nums
       while (PastaLean.pyTruthy head) do
-        while (PastaLean.pyTruthy head = true ∧ !(PastaLean.pyContains s ((head).getD default).val)) do
+        while (PastaLean.pyTruthy head = true ∧ !PastaLean.pyContains s ((head).getD default).val) do
           head := ((head).getD default).next
-        ans := ans +ₚ Option.isSome head
+        ans := ans +ₚ !PastaLean.pyIsNone head
         while (PastaLean.pyTruthy head = true ∧ PastaLean.pyContains s ((head).getD default).val) do
           head := ((head).getD default).next
       return ans)
@@ -57,9 +57,9 @@ def numComponents'rn := fun (head : Option ListNode) ↦ fun (nums : List Int) �
       let mut ans : Int := (0 : Int)
       let mut s : List Int := PastaLean.pySet nums
       while (PastaLean.pyTruthy head) do
-        while (PastaLean.pyTruthy head && !(PastaLean.pyContains s ((head).getD default).val)) do
+        while (PastaLean.pyTruthy head && !PastaLean.pyContains s ((head).getD default).val) do
           head := ((head).getD default).next
-        ans := ans +ₚ Option.isSome head
+        ans := ans +ₚ !PastaLean.pyIsNone head
         while (PastaLean.pyTruthy head && PastaLean.pyContains s ((head).getD default).val) do
           head := ((head).getD default).next
       return ans)

@@ -22,7 +22,7 @@ def prefixesDivBy5 := fun (nums : List Int) ↦
   (do
     let mut ans : List Bool := []
     let mut x : Int := (0 : Int)
-    for v in (PastaLean.pyIter nums)do
+    for v in (PastaLean.pyIter nums) do
       let _ := Libraries.passta.pyPassAssert (v == (0 : Int) || v == (1 : Int))
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
       let _ := Libraries.passta.pyPassInvariant (decide (x < (5 : Int)))
@@ -31,13 +31,13 @@ def prefixesDivBy5 := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem prefixesDivBy5_spec :
+theorem prefixesDivBy5_spec {nums : List Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter nums).map fun v => v == (0 : Int) || v == (1 : Int))⌝⦄
       prefixesDivBy5 nums ⦃⇓ans => ⌜PastaLean.pyLen ans = PastaLean.pyLen nums⌝⦄ :=
   by
-  mvcgen [prefixesDivBy5, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, x⟩ => ⌜(0 : Int) ≤ x ∧ x < (5 : Int)⌝
-  all_goals sorry
+  mvcgen [prefixesDivBy5, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, x⟩ => ⌜(0 : Int) ≤ x ∧ x < (5 : Int)⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def prefixesDivBy5'rn := fun (nums : List Int) ↦
   Id.run
@@ -47,7 +47,7 @@ def prefixesDivBy5'rn := fun (nums : List Int) ↦
           (PastaLean.pyAll ((PastaLean.pyIter nums).map fun v => v == (0 : Int) || v == (1 : Int)))
       let mut ans : List Bool := []
       let mut x : Int := (0 : Int)
-      for v in (PastaLean.pyIter nums)do
+      for v in (PastaLean.pyIter nums) do
         let _ := Libraries.passta.pyPassAssert (v == (0 : Int) || v == (1 : Int))
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
         let _ := Libraries.passta.pyPassInvariant (decide (x < (5 : Int)))

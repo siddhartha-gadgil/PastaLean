@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.BinaryNumberWithAlternatingBits
 
 def hasAlternatingBits := fun (n : Int) ↦
   (do
+    let mut n := n
     let mut prev : Int := -(1 : Int)
     while (PastaLean.pyTruthy n) do
       let _ := Libraries.passta.pyPassDecreases n
@@ -32,10 +33,10 @@ def hasAlternatingBits := fun (n : Int) ↦
       n := PastaLean.pyShiftRight n (1 : Int)
     return Bool.true : Id _)
 
-theorem hasAlternatingBits_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ hasAlternatingBits n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem hasAlternatingBits_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ hasAlternatingBits n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [hasAlternatingBits, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def hasAlternatingBits'rn := fun (n : Int) ↦
   Id.run

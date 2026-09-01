@@ -21,10 +21,10 @@ namespace PastaBench.leetcode.LastMomentBeforeAllAntsFallOutOfAPlank
 def getLastMoment := fun (n : Int) ↦ fun (left : List Int) ↦ fun (right : List Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for x in (PastaLean.pyIter left)do
+    for x in (PastaLean.pyIter left) do
       ans := PastaLean.pyMax [ans, x]
     let _ := Libraries.passta.pyPassAssert (ans == PastaLean.pyMax (left +ₚ [(0 : Int)]))
-    for x in (PastaLean.pyIter right)do
+    for x in (PastaLean.pyIter right) do
       ans := PastaLean.pyMax [ans, n -ₚ x]
     let _ :=
       Libraries.passta.pyPassAssert
@@ -32,14 +32,12 @@ def getLastMoment := fun (n : Int) ↦ fun (left : List Int) ↦ fun (right : Li
     return ans : Id _)
 
 @[spec]
-theorem getLastMoment_spec :
+theorem getLastMoment_spec {n : Int} {left : List Int} {right : List Int} :
     ⦃⌜n ≥ (0 : Int)⌝⦄ getLastMoment n left right ⦃⇓ans =>
       ⌜ans = PastaLean.pyMax (left +ₚ [(0 : Int)] +ₚ (PastaLean.pyIter right).map fun x => n -ₚ x)⌝⦄ :=
   by
-  mvcgen [getLastMoment, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [getLastMoment, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def getLastMoment'rn := fun (n : Int) ↦ fun (left : List Int) ↦ fun (right : List Int) ↦
   Id.run
@@ -47,11 +45,11 @@ def getLastMoment'rn := fun (n : Int) ↦ fun (left : List Int) ↦ fun (right :
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
       -- The result is the maximum of left distances and right distances to the ends.
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyIter left)do
+      for x in (PastaLean.pyIter left) do
         ans := PastaLean.pyMax [ans, x]
       -- After processing left, ans == max(left ∪ {0})
       let _ := Libraries.passta.pyPassAssert (ans == PastaLean.pyMax (left +ₚ [(0 : Int)]))
-      for x in (PastaLean.pyIter right)do
+      for x in (PastaLean.pyIter right) do
         ans := PastaLean.pyMax [ans, n -ₚ x]
       -- After processing right, ans == max(left ∪ {0} ∪ {n - x | x ∈ right})
       let _ :=

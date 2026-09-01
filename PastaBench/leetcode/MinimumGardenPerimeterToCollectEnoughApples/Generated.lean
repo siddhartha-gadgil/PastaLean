@@ -37,7 +37,8 @@ def minimumPerimeter := fun (neededApples : Int) ↦
     let __py_ret_1 := x *ₚ (8 : Int)
     return __py_ret_1 : Id _)
 
-theorem minimumPerimeter_spec : ⦃⌜neededApples ≥ (1 : Int)⌝⦄ minimumPerimeter neededApples ⦃⇓_ => ⌜True⌝⦄ :=
+theorem minimumPerimeter_spec {neededApples : Int} :
+    ⦃⌜neededApples ≥ (1 : Int)⌝⦄ minimumPerimeter neededApples ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minimumPerimeter, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry

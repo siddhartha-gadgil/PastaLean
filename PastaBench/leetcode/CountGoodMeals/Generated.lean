@@ -24,7 +24,7 @@ def countPairs := fun (deliciousness : List Int) ↦
     let mut mx : Int := PastaLean.pyShiftLeft (PastaLean.pyMax deliciousness) (1 : Int)
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
     let mut ans : Int := (0 : Int)
-    for d in (PastaLean.pyIter deliciousness)do
+    for d in (PastaLean.pyIter deliciousness) do
       let mut s : Int := (1 : Int)
       while (s ≤ mx) do
         ans := (ans +ₚ cnt⦋s -ₚ d⦌) %ₚ mod
@@ -32,11 +32,11 @@ def countPairs := fun (deliciousness : List Int) ↦
       cnt := PastaLean.pySetItem cnt d (cnt⦋d⦌ +ₚ (1 : Int))
     return ans : Id _)
 
-theorem countPairs_spec : ⦃⌜PastaLean.pyLen deliciousness > (0 : Int)⌝⦄ countPairs deliciousness ⦃⇓_ => ⌜True⌝⦄ :=
+theorem countPairs_spec {deliciousness : List Int} :
+    ⦃⌜PastaLean.pyLen deliciousness > (0 : Int)⌝⦄ countPairs deliciousness ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  sorry
+  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countPairs'rn := fun (deliciousness : List Int) ↦
   Id.run
@@ -46,7 +46,7 @@ def countPairs'rn := fun (deliciousness : List Int) ↦
       let mut mx : Int := PastaLean.pyShiftLeft (PastaLean.pyMax deliciousness) (1 : Int)
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
       let mut ans : Int := (0 : Int)
-      for d in (PastaLean.pyIter deliciousness)do
+      for d in (PastaLean.pyIter deliciousness) do
         let mut s : Int := (1 : Int)
         while (s ≤ mx) do
           ans := (ans +ₚ cnt⦋s -ₚ d⦌) %ₚ mod

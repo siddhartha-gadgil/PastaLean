@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.ConsecutiveNumbersSum
 
 def consecutiveNumbersSum := fun (n : Int) ↦
   (do
+    let mut n := n
     n := PastaLean.pyShiftLeft n (1 : Int)
     let __unpack_value_1 := ((0 : Int), (1 : Int))
     let __unpack_pair_1 := __unpack_value_1
@@ -38,10 +39,10 @@ def consecutiveNumbersSum := fun (n : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem consecutiveNumbersSum_spec : ⦃⌜n ≥ (1 : Int)⌝⦄ consecutiveNumbersSum n ⦃⇓ans => ⌜ans ≥ (1 : Int)⌝⦄ :=
+theorem consecutiveNumbersSum_spec {n : Int} : ⦃⌜n ≥ (1 : Int)⌝⦄ consecutiveNumbersSum n ⦃⇓ans => ⌜ans ≥ (1 : Int)⌝⦄ :=
   by
   mvcgen [consecutiveNumbersSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def consecutiveNumbersSum'rn := fun (n : Int) ↦
   Id.run

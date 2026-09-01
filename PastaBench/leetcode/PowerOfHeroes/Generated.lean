@@ -20,11 +20,12 @@ namespace PastaBench.leetcode.PowerOfHeroes
 
 def sumOfPower := fun (nums : List Int) ↦
   (do
+    let mut nums := nums
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
     nums := PastaLean.pySort nums
     let mut ans : Int := (0 : Int)
     let mut p : Int := (0 : Int)
-    for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int)))))do
+    for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int))))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ ans))
       let _ := Libraries.passta.pyPassInvariant (decide (ans < (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)))
       ans := (ans +ₚ x *ₚ x %ₚ mod *ₚ x) %ₚ mod
@@ -33,12 +34,12 @@ def sumOfPower := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem sumOfPower_spec :
+theorem sumOfPower_spec {nums : List Int} :
     ⦃⌜True⌝⦄ sumOfPower nums ⦃⇓ans => ⌜(0 : Int) ≤ ans ∧ ans < (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)⌝⦄ :=
   by
-  mvcgen [sumOfPower, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, p, ans⟩ => ⌜(0 : Int) ≤ ans ∧ ans < (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)⌝
-  sorry
+  mvcgen [sumOfPower, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, p⟩ => ⌜(0 : Int) ≤ ans ∧ ans < (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def sumOfPower'rn := fun (nums : List Int) ↦
   Id.run
@@ -48,7 +49,7 @@ def sumOfPower'rn := fun (nums : List Int) ↦
       nums := PastaLean.pySort nums
       let mut ans : Int := (0 : Int)
       let mut p : Int := (0 : Int)
-      for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int)))))do
+      for x in (PastaLean.pyIter (PastaLean.pySlice nums none none (some (-(1 : Int))))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ ans))
         let _ := Libraries.passta.pyPassInvariant (decide (ans < (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)))
         ans := (ans +ₚ x *ₚ x %ₚ mod *ₚ x) %ₚ mod

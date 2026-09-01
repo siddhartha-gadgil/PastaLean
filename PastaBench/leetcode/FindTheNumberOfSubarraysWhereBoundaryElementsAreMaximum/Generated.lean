@@ -23,7 +23,7 @@ def numberOfSubarrays := fun (nums : List Int) ↦
     (do
       let mut stk : List (List Int) := []
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         while (PastaLean.pyTruthy stk = true ∧ stk⦋(-1 : Int)⦌⦋(0 : Int)⦌ < x) do
           stk := PastaLean.pyPopRest stk
         if h_1 : ¬PastaLean.pyTruthy stk = true ∨ stk⦋(-1 : Int)⦌⦋(0 : Int)⦌ > x then 
@@ -42,7 +42,7 @@ def numberOfSubarrays'rn := fun (nums : List Int) ↦
     (do
       let mut stk : List (List Int) := []
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         while (PastaLean.pyTruthy stk && decide (stk⦋(-1 : Int)⦌⦋(0 : Int)⦌ < x)) do
           stk := PastaLean.pyPopRest stk
         if h_1 : !PastaLean.pyTruthy stk || decide (stk⦋(-1 : Int)⦌⦋(0 : Int)⦌ > x) then 

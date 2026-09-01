@@ -37,7 +37,7 @@ def maximumCandies := fun (candies : List Int) ↦ fun (k : Int) ↦
           (decide
             (PastaLean.pySum ((PastaLean.pyIter candies).map fun c => PastaLean.pyFloorDiv c (r +ₚ (1 : Int))) < k))
       let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-      let mut mid := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
+      let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
       if h_1 : PastaLean.pySum ((PastaLean.pyIter candies).map fun x => PastaLean.pyFloorDiv x mid) ≥ k then 
         l := mid
       else
@@ -53,7 +53,7 @@ def maximumCandies := fun (candies : List Int) ↦ fun (k : Int) ↦
     return l : Id _)
 
 @[spec]
-theorem maximumCandies_spec :
+theorem maximumCandies_spec {candies : List Int} {k : Int} :
     ⦃⌜(k > (0 : Int) ∧ PastaLean.pyLen candies > (0 : Int)) ∧
           PastaLean.pyAll ((PastaLean.pyIter candies).map fun c => decide (c ≥ (0 : Int)))⌝⦄
       maximumCandies candies k ⦃⇓l =>
@@ -90,7 +90,7 @@ def maximumCandies'rn := fun (candies : List Int) ↦ fun (k : Int) ↦
             (decide
               (PastaLean.pySum ((PastaLean.pyIter candies).map fun c => PastaLean.pyFloorDiv c (r +ₚ (1 : Int))) < k))
         let _ := Libraries.passta.pyPassDecreases (r -ₚ l)
-        let mut mid := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
+        let mut mid : Int := PastaLean.pyShiftRight (l +ₚ r +ₚ (1 : Int)) (1 : Int)
         if h_1 : PastaLean.pySum ((PastaLean.pyIter candies).map fun x => PastaLean.pyFloorDiv x mid) ≥ k then 
           l := mid
         else

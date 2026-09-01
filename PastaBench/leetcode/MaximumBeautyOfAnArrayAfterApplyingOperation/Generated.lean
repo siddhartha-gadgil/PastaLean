@@ -22,21 +22,20 @@ def maximumBeauty := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut m : Int := PastaLean.pyMax nums +ₚ (2 : Int) *ₚ k +ₚ (2 : Int)
     let mut d : List Int := PastaLean.pyListRepeat [(0 : Int)] m
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
       let _ := Libraries.passta.pyPassInvariant (decide (x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int) < m))
       d := PastaLean.pySetItem d x (d⦋x⦌ +ₚ (1 : Int))
       d := PastaLean.pySetItem d (x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int)) (d⦋x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int)⦌ -ₚ (1 : Int))
-    let __py_ret_1 := PastaLean.pyMax (accumulate d)
+    let __py_ret_1 := PastaLean.pyMax (Libraries.itertools.pyAccumulate d)
     return __py_ret_1 : Id _)
 
-theorem maximumBeauty_spec :
+theorem maximumBeauty_spec {nums : List Int} {k : Int} :
     ⦃⌜(PastaLean.pyLen nums > (0 : Int) ∧ k ≥ (0 : Int)) ∧ PastaLean.pyMin nums ≥ (0 : Int)⌝⦄
       maximumBeauty nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maximumBeauty, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜(0 : Int) ≤ x ∧ x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int) < m⌝
-  sorry
+  mvcgen [maximumBeauty, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximumBeauty'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -46,12 +45,12 @@ def maximumBeauty'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyMin nums ≥ (0 : Int)))
       let mut m : Int := PastaLean.pyMax nums +ₚ (2 : Int) *ₚ k +ₚ (2 : Int)
       let mut d : List Int := PastaLean.pyListRepeat [(0 : Int)] m
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ x))
         let _ := Libraries.passta.pyPassInvariant (decide (x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int) < m))
         d := PastaLean.pySetItem d x (d⦋x⦌ +ₚ (1 : Int))
         d := PastaLean.pySetItem d (x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int)) (d⦋x +ₚ (2 : Int) *ₚ k +ₚ (1 : Int)⦌ -ₚ (1 : Int))
-      let __py_ret_1 := PastaLean.pyMax (accumulate d)
+      let __py_ret_1 := PastaLean.pyMax (Libraries.itertools.pyAccumulate d)
       return __py_ret_1)
 
 end PastaBench.leetcode.MaximumBeautyOfAnArrayAfterApplyingOperation

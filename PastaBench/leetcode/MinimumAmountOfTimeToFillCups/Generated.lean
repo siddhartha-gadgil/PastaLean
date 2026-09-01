@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.MinimumAmountOfTimeToFillCups
 
 def fillCups := fun (amount : List Int) ↦
   (do
+    let mut amount := amount
     let _ := Libraries.passta.pyPassEnsures (PastaLean.pySum amount == (0 : Int))
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy (PastaLean.pySum amount)) do
@@ -33,13 +34,13 @@ def fillCups := fun (amount : List Int) ↦
     let _ := Libraries.passta.pyPassAssert (PastaLean.pySum amount == (0 : Int))
     return ans : Id _)
 
-theorem fillCups_spec :
+theorem fillCups_spec {amount : List Int} :
     ⦃⌜((PastaLean.pyLen amount = (3 : Int) ∧ amount⦋(0 : Int)⦌ ≥ (0 : Int)) ∧ amount⦋(1 : Int)⦌ ≥ (0 : Int)) ∧
           amount⦋(2 : Int)⦌ ≥ (0 : Int)⌝⦄
       fillCups amount ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [fillCups, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def fillCups'rn := fun (amount : List Int) ↦
   Id.run

@@ -43,7 +43,7 @@ def lengthOfLastWord := fun (s : String) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem lengthOfLastWord_spec :
+theorem lengthOfLastWord_spec {s : String} :
     ⦃⌜True⌝⦄ lengthOfLastWord s ⦃⇓result => ⌜result ≥ (0 : Int) ∧ result ≤ PastaLean.pyLen s⌝⦄ :=
   by
   mvcgen [lengthOfLastWord, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]

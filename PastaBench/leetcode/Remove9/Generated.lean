@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.Remove9
 
 def newInteger := fun (n : Int) ↦
   (do
+    let mut n := n
     let mut ans : List String := []
     while (PastaLean.pyTruthy n) do
       ans := PastaLean.pyAppend ans (PastaLean.pyStr (n %ₚ (9 : Int)))
@@ -27,10 +28,10 @@ def newInteger := fun (n : Int) ↦
     let __py_ret_1 := PastaLean.pyStringJoin "" (PastaLean.pyReversed ans)
     return __py_ret_1 : Id _)
 
-theorem newInteger_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ newInteger n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem newInteger_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ newInteger n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [newInteger, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def newInteger'rn := fun (n : Int) ↦
   Id.run

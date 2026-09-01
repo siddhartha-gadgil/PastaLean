@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.NumberOf1Bits
 
 def hammingWeight := fun (n : Int) ↦
   (do
+    let mut n := n
     let _ := Libraries.passta.pyPassDecreases n
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy n) do
@@ -27,10 +28,10 @@ def hammingWeight := fun (n : Int) ↦
       ans := ans +ₚ (1 : Int)
     return ans : Id _)
 
-theorem hammingWeight_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ hammingWeight n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem hammingWeight_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ hammingWeight n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [hammingWeight, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def hammingWeight'rn := fun (n : Int) ↦
   Id.run

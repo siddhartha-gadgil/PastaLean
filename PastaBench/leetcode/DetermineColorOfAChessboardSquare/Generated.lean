@@ -24,7 +24,7 @@ def squareIsWhite := fun (coordinates : String) ↦
       (PastaLean.pyOrd coordinates⦋(0 : Int)⦌ +ₚ PastaLean.pyOrd coordinates⦋(1 : Int)⦌) %ₚ (2 : Int) == (1 : Int)
     return __py_ret_1 : Id _)
 
-theorem squareIsWhite_spec :
+theorem squareIsWhite_spec {coordinates : String} :
     ⦃⌜(PastaLean.pyLen coordinates = (2 : Int) ∧ PastaLean.pyContains "abcdefgh" coordinates⦋(0 : Int)⦌) ∧
           PastaLean.pyContains "12345678" coordinates⦋(1 : Int)⦌⌝⦄
       squareIsWhite coordinates ⦃⇓_ => ⌜True⌝⦄ :=

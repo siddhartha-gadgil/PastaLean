@@ -21,14 +21,14 @@ namespace PastaBench.leetcode.MaximumLinearStockScore
 def maxScore := fun (prices : List Int) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate prices))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate prices)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
       cnt := PastaLean.pySetItem cnt (x -ₚ i) (cnt⦋x -ₚ i⦌ +ₚ x)
     let __py_ret_1 := PastaLean.pyMax (PastaLean.pyAnys cnt)
     return __py_ret_1 : Id _)
 
-theorem maxScore_spec : ⦃⌜PastaLean.pyLen prices > (0 : Int)⌝⦄ maxScore prices ⦃⇓_ => ⌜True⌝⦄ :=
+theorem maxScore_spec {prices : List Int} : ⦃⌜PastaLean.pyLen prices > (0 : Int)⌝⦄ maxScore prices ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [maxScore, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
@@ -38,7 +38,7 @@ def maxScore'rn := fun (prices : List Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen prices > (0 : Int)))
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate prices))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate prices)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         cnt := PastaLean.pySetItem cnt (x -ₚ i) (cnt⦋x -ₚ i⦌ +ₚ x)

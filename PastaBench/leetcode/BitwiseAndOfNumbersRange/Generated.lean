@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.BitwiseAndOfNumbersRange
 
 def rangeBitwiseAnd := fun (left : Int) ↦ fun (right : Int) ↦
   (do
+    let mut right := right
     while (left < right) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ left))
       let _ := Libraries.passta.pyPassInvariant (decide (left ≤ right))
@@ -31,11 +32,11 @@ def rangeBitwiseAnd := fun (left : Int) ↦ fun (right : Int) ↦
     return right : Id _)
 
 @[spec]
-theorem rangeBitwiseAnd_spec :
+theorem rangeBitwiseAnd_spec {left : Int} {right : Int} :
     ⦃⌜(0 : Int) ≤ left ∧ left ≤ right⌝⦄ rangeBitwiseAnd left right ⦃⇓right => ⌜(0 : Int) ≤ right ∧ right ≤ left⌝⦄ :=
   by
   mvcgen [rangeBitwiseAnd, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  all_goals sorry
 
 def rangeBitwiseAnd'rn := fun (left : Int) ↦ fun (right : Int) ↦
   Id.run

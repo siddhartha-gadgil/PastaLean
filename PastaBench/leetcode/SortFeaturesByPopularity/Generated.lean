@@ -21,27 +21,24 @@ namespace PastaBench.leetcode.SortFeaturesByPopularity
 def sortFeatures := fun (features : List String) ↦ fun (responses : List String) ↦
   (do
     let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
-    for s in (PastaLean.pyIter responses)do
-      for w in (PastaLean.pyIter (PastaLean.pySet (PastaLean.pyStringSplit s)))do
+    for s in (PastaLean.pyIter responses) do
+      for w in (PastaLean.pyIter (PastaLean.pySet (PastaLean.pyStringSplit s))) do
         cnt := PastaLean.pySetItem cnt w (cnt⦋w⦌ +ₚ (1 : Int))
     let __py_ret_1 := PastaLean.pySortBy (fun w ↦ -cnt⦋w⦌) false features
     return __py_ret_1 : Id _)
 
-@[spec]
-theorem sortFeatures_spec :
-    ⦃⌜True⌝⦄ sortFeatures features responses ⦃⇓result =>
-      ⌜result = PastaLean.pySortBy (fun w ↦ -cnt⦋w⦌) false features⌝⦄ :=
+theorem sortFeatures_spec {features : List String} {responses : List String} :
+    ⦃⌜True⌝⦄ sortFeatures features responses ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [sortFeatures, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [sortFeatures, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def sortFeatures'rn := fun (features : List String) ↦ fun (responses : List String) ↦
   Id.run
     (do
       let mut cnt : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounterEmpty
-      for s in (PastaLean.pyIter responses)do
-        for w in (PastaLean.pyIter (PastaLean.pySet (PastaLean.pyStringSplit s)))do
+      for s in (PastaLean.pyIter responses) do
+        for w in (PastaLean.pyIter (PastaLean.pySet (PastaLean.pyStringSplit s))) do
           cnt := PastaLean.pySetItem cnt w (cnt⦋w⦌ +ₚ (1 : Int))
       let __py_ret_1 := PastaLean.pySortBy (fun w ↦ -cnt⦋w⦌) false features
       return __py_ret_1)

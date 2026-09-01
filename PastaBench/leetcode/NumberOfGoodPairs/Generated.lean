@@ -22,7 +22,7 @@ def numIdenticalPairs := fun (nums : List Int) ↦
   (do
     let mut ans : Int := (0 : Int)
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let _ :=
         Libraries.passta.pyPassInvariant
           ((2 : Int) *ₚ ans ==
@@ -36,24 +36,24 @@ def numIdenticalPairs := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem numIdenticalPairs_spec :
+theorem numIdenticalPairs_spec {nums : List Int} :
     ⦃⌜True⌝⦄ numIdenticalPairs nums ⦃⇓ans =>
       ⌜(2 : Int) *ₚ ans =
           PastaLean.pySum
             ((PastaLean.pyIter (PastaLean.pyAnys (Libraries.collections.pyCounter nums))).map fun v =>
               v *ₚ (v -ₚ (1 : Int)))⌝⦄ :=
   by
-  mvcgen [numIdenticalPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ =>
+  mvcgen [numIdenticalPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, ans, cnt⟩ =>
     ⌜(2 : Int) *ₚ ans = PastaLean.pySum ((PastaLean.pyIter (PastaLean.pyAnys cnt)).map fun v => v *ₚ (v -ₚ (1 : Int)))⌝
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def numIdenticalPairs'rn := fun (nums : List Int) ↦
   Id.run
     (do
       let mut ans : Int := (0 : Int)
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let _ :=
           Libraries.passta.pyPassInvariant
             ((2 : Int) *ₚ ans ==

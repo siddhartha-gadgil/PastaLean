@@ -18,38 +18,36 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.StoneGameIv
 
-private def _winnerSquareGame_dfs := fun (i : Int) ↦
-  (do
-    if h_1 : i = (0 : Int) then 
-      return Bool.false
-    else
-      let _ := ()
-    let mut j : Int := (1 : Int)
-    while (j *ₚ j ≤ i) do
-      let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
-      let _ := Libraries.passta.pyPassInvariant (decide (j ≤ i))
-      let _ := Libraries.passta.pyPassDecreases (i -ₚ j)
-      if h_2 : ¬PastaLean.pyTruthy (_winnerSquareGame_dfs (i -ₚ j *ₚ j)) = true then 
-        return Bool.true
+private partial def _winnerSquareGame'dfs : Int → Bool := fun (i : Int) ↦
+  Id.run
+    (do
+      let _ := Libraries.passta.pyPassRequires (decide (i ≥ (0 : Int)))
+      if h_1 : i = (0 : Int) then 
+        return Bool.false
       else
         let _ := ()
-      j := j +ₚ (1 : Int)
-    return Bool.false : Id _)
-
-theorem _winnerSquareGame_dfs_spec : ⦃⌜i ≥ (0 : Int)⌝⦄ _winnerSquareGame_dfs i ⦃⇓_ => ⌜True⌝⦄ :=
-  by
-  mvcgen [_winnerSquareGame_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+      let mut j : Int := (1 : Int)
+      while (j *ₚ j ≤ i) do
+        let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
+        let _ := Libraries.passta.pyPassInvariant (decide (j ≤ i))
+        let _ := Libraries.passta.pyPassDecreases (i -ₚ j)
+        if h_2 : ¬PastaLean.pyTruthy (_winnerSquareGame'dfs (i -ₚ j *ₚ j)) = true then 
+          return Bool.true
+        else
+          let _ := ()
+        j := j +ₚ (1 : Int)
+      return Bool.false)
 
 def winnerSquareGame := fun (n : Int) ↦
   (do
-    let __py_ret_1 := _winnerSquareGame_dfs n
+    let __py_ret_1 := _winnerSquareGame'dfs n
     return __py_ret_1 : Id _)
 
-theorem winnerSquareGame_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ winnerSquareGame n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem winnerSquareGame_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ winnerSquareGame n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [winnerSquareGame, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
-private partial def _winnerSquareGame_dfs'rn : Int → Bool := fun (i : Int) ↦
+private partial def _winnerSquareGame'dfs'rn : Int → Bool := fun (i : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (i ≥ (0 : Int)))
@@ -62,7 +60,7 @@ private partial def _winnerSquareGame_dfs'rn : Int → Bool := fun (i : Int) ↦
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j ≤ i))
         let _ := Libraries.passta.pyPassDecreases (i -ₚ j)
-        if h_2 : !PastaLean.pyTruthy (_winnerSquareGame_dfs'rn (i -ₚ j *ₚ j)) then 
+        if h_2 : !PastaLean.pyTruthy (_winnerSquareGame'dfs'rn (i -ₚ j *ₚ j)) then 
           return Bool.true
         else
           let _ := ()
@@ -73,7 +71,7 @@ def winnerSquareGame'rn := fun (n : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (n ≥ (0 : Int)))
-      let __py_ret_1 := _winnerSquareGame_dfs'rn n
+      let __py_ret_1 := _winnerSquareGame'dfs'rn n
       return __py_ret_1)
 
 end PastaBench.leetcode.StoneGameIv

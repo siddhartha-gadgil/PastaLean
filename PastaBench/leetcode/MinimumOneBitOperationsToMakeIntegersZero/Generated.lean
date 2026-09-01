@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.MinimumOneBitOperationsToMakeIntegersZero
 
 def minimumOneBitOperations := fun (n : Int) ↦
   (do
+    let mut n := n
     let _ := Libraries.passta.pyPassDecreases n
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy n) do
@@ -29,10 +30,10 @@ def minimumOneBitOperations := fun (n : Int) ↦
       n := PastaLean.pyShiftRight n (1 : Int)
     return ans : Id _)
 
-theorem minimumOneBitOperations_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ minimumOneBitOperations n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem minimumOneBitOperations_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ minimumOneBitOperations n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minimumOneBitOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def minimumOneBitOperations'rn := fun (n : Int) ↦
   Id.run

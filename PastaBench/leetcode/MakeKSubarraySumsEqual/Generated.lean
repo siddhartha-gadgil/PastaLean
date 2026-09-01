@@ -23,25 +23,25 @@ def makeSubKSumEqual := fun (arr : List Int) ↦ fun (k : Int) ↦
     let mut n : Int := PastaLean.pyLen arr
     let mut g : Int := Libraries.math.pyMathGcd n k
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange g)do
+    for i in (PastaLean.pyRange g) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < g))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
       let mut t : List Int := PastaLean.pySort (PastaLean.pySlice arr (some i) (some n) (some g))
       let mut mid : Int := t⦋PastaLean.pyShiftRight (PastaLean.pyLen t) (1 : Int)⦌
-      ans := ans +ₚ PastaLean.pySum ((PastaLean.pyIter t).map fun x => PastaLean.pyAbs (x -ₚ mid))
+      ans := ans +ₚ PastaLean.pySum ((PastaLean.pyIter t).map fun x => Libraries.operator.pyOperatorAbs (x -ₚ mid))
       let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
     return ans : Id _)
 
 @[spec]
-theorem makeSubKSumEqual_spec :
+theorem makeSubKSumEqual_spec {arr : List Int} {k : Int} :
     ⦃⌜PastaLean.pyLen arr > (0 : Int)⌝⦄ makeSubKSumEqual arr k ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [makeSubKSumEqual, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [makeSubKSumEqual, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((0 : Int) ≤ i ∧ i < g) ∧ ans ≥ (0 : Int)⌝
-  sorry; sorry; pyany_cases <;> grind +locals
+      (0 : Int) ≤ i ∧ ans ≥ (0 : Int)⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; pyany_cases <;> grind +locals
 
 def makeSubKSumEqual'rn := fun (arr : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -50,13 +50,13 @@ def makeSubKSumEqual'rn := fun (arr : List Int) ↦ fun (k : Int) ↦
       let mut n : Int := PastaLean.pyLen arr
       let mut g : Int := Libraries.math.pyMathGcd n k
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange g)do
+      for i in (PastaLean.pyRange g) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < g))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         let mut t : List Int := PastaLean.pySort (PastaLean.pySlice arr (some i) (some n) (some g))
         let mut mid : Int := t⦋PastaLean.pyShiftRight (PastaLean.pyLen t) (1 : Int)⦌
-        ans := ans +ₚ PastaLean.pySum ((PastaLean.pyIter t).map fun x => PastaLean.pyAbs (x -ₚ mid))
+        ans := ans +ₚ PastaLean.pySum ((PastaLean.pyIter t).map fun x => Libraries.operator.pyOperatorAbs (x -ₚ mid))
         let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
       return ans)
 

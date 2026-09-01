@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.SumOfDigitsInBaseK
 
 def sumBase := fun (n : Int) ↦ fun (k : Int) ↦
   (do
+    let mut n := n
     let mut ans : Int := (0 : Int)
     while (PastaLean.pyTruthy n) do
       let _ := Libraries.passta.pyPassInvariant (decide (n ≥ (0 : Int)))
@@ -30,10 +31,10 @@ def sumBase := fun (n : Int) ↦ fun (k : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem sumBase_spec : ⦃⌜n ≥ (0 : Int) ∧ k ≥ (2 : Int)⌝⦄ sumBase n k ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem sumBase_spec {n : Int} {k : Int} : ⦃⌜n ≥ (0 : Int) ∧ k ≥ (2 : Int)⌝⦄ sumBase n k ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [sumBase, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def sumBase'rn := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run

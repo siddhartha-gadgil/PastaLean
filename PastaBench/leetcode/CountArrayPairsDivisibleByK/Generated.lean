@@ -22,9 +22,9 @@ def countPairs := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
     let mut gcds : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-    for num in (PastaLean.pyIter nums)do
+    for num in (PastaLean.pyIter nums) do
       let mut gcd_i : Int := Libraries.math.pyMathGcd num k
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems gcds))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems gcds)) do
         let gcd_j := Prod.fst _pair_1
         let count := Prod.snd _pair_1
         if h_1 : gcd_i *ₚ gcd_j %ₚ k = (0 : Int) then 
@@ -34,11 +34,10 @@ def countPairs := fun (nums : List Int) ↦ fun (k : Int) ↦
       gcds := PastaLean.pySetItem gcds gcd_i (gcds⦋gcd_i⦌ +ₚ (1 : Int))
     return ans : Id _)
 
-theorem countPairs_spec : ⦃⌜k > (0 : Int)⌝⦄ countPairs nums k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem countPairs_spec {nums : List Int} {k : Int} : ⦃⌜k > (0 : Int)⌝⦄ countPairs nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  sorry
+  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countPairs'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -46,9 +45,9 @@ def countPairs'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k > (0 : Int)))
       let mut ans : Int := (0 : Int)
       let mut gcds : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounterEmpty
-      for num in (PastaLean.pyIter nums)do
+      for num in (PastaLean.pyIter nums) do
         let mut gcd_i : Int := Libraries.math.pyMathGcd num k
-        for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems gcds))do
+        for _pair_1 in (PastaLean.pyIter (PastaLean.pyItems gcds)) do
           let gcd_j := Prod.fst _pair_1
           let count := Prod.snd _pair_1
           if h_1 : gcd_i *ₚ gcd_j %ₚ k == (0 : Int) then 

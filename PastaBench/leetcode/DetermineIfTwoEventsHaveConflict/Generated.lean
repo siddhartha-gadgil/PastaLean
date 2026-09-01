@@ -24,7 +24,7 @@ def haveConflict := fun (event1 : List String) ↦ fun (event2 : List String) �
       !(decide (event1⦋(0 : Int)⦌ > event2⦋(1 : Int)⦌) || decide (event1⦋(1 : Int)⦌ < event2⦋(0 : Int)⦌))
     return __py_ret_1 : Id _)
 
-theorem haveConflict_spec :
+theorem haveConflict_spec {event1 : List String} {event2 : List String} :
     ⦃⌜PastaLean.pyLen event1 = (2 : Int) ∧ PastaLean.pyLen event2 = (2 : Int)⌝⦄ haveConflict event1 event2 ⦃⇓_ =>
       ⌜True⌝⦄ :=
   by

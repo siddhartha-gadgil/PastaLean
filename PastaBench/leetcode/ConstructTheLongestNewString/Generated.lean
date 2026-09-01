@@ -34,7 +34,7 @@ def longestString := fun (x : Int) ↦ fun (y : Int) ↦ fun (z : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem longestString_spec :
+theorem longestString_spec {x : Int} {y : Int} {z : Int} :
     ⦃⌜True⌝⦄ longestString x y z ⦃⇓result =>
       ⌜(x < y ∧ result = (x *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int) ∨
             x > y ∧ result = (y *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int)) ∨
@@ -44,7 +44,7 @@ theorem longestString_spec :
   simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; pyany_cases <;> grind +locals
 
 def longestString'rn := fun (x : Int) ↦ fun (y : Int) ↦ fun (z : Int) ↦
-  if decide (x < y) then (x *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int)
-  else if decide (x > y) then (y *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int) else (x +ₚ y +ₚ z) *ₚ (2 : Int)
+  if x < y then (x *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int)
+  else if x > y then (y *ₚ (2 : Int) +ₚ z +ₚ (1 : Int)) *ₚ (2 : Int) else (x +ₚ y +ₚ z) *ₚ (2 : Int)
 
 end PastaBench.leetcode.ConstructTheLongestNewString

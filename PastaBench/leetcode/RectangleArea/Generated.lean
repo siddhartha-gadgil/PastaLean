@@ -20,10 +20,10 @@ namespace PastaBench.leetcode.RectangleArea
 
 def computeArea := fun (ax1 : Int) ↦ fun (ay1 : Int) ↦ fun (ax2 : Int) ↦ fun (ay2 : Int) ↦ fun (bx1 : Int) ↦
   fun (by1 : Int) ↦ fun (bx2 : Int) ↦ fun (by2 : Int) ↦
-  let a := (ax2 -ₚ ax1) *ₚ (ay2 -ₚ ay1)
-  let b := (bx2 -ₚ bx1) *ₚ (by2 -ₚ by1)
-  let width := PastaLean.pyMin [ax2, bx2] -ₚ PastaLean.pyMax [ax1, bx1]
-  let height := PastaLean.pyMin [ay2, by2] -ₚ PastaLean.pyMax [ay1, by1]
+  let a := ((ax2 -ₚ ax1) *ₚ (ay2 -ₚ ay1) : Int)
+  let b := ((bx2 -ₚ bx1) *ₚ (by2 -ₚ by1) : Int)
+  let width := (PastaLean.pyMin [ax2, bx2] -ₚ PastaLean.pyMax [ax1, bx1] : Int)
+  let height := (PastaLean.pyMin [ay2, by2] -ₚ PastaLean.pyMax [ay1, by1] : Int)
   a +ₚ b -ₚ PastaLean.pyMax [height, (0 : Int)] *ₚ PastaLean.pyMax [width, (0 : Int)]
 
 attribute [simp] computeArea
@@ -56,10 +56,10 @@ theorem computeArea_spec :
 
 def computeArea'rn := fun (ax1 : Int) ↦ fun (ay1 : Int) ↦ fun (ax2 : Int) ↦ fun (ay2 : Int) ↦ fun (bx1 : Int) ↦
   fun (by1 : Int) ↦ fun (bx2 : Int) ↦ fun (by2 : Int) ↦
-  let a := (ax2 -ₚ ax1) *ₚ (ay2 -ₚ ay1)
-  let b := (bx2 -ₚ bx1) *ₚ (by2 -ₚ by1)
-  let width := PastaLean.pyMin [ax2, bx2] -ₚ PastaLean.pyMax [ax1, bx1]
-  let height := PastaLean.pyMin [ay2, by2] -ₚ PastaLean.pyMax [ay1, by1]
+  let a := ((ax2 -ₚ ax1) *ₚ (ay2 -ₚ ay1) : Int)
+  let b := ((bx2 -ₚ bx1) *ₚ (by2 -ₚ by1) : Int)
+  let width := (PastaLean.pyMin [ax2, bx2] -ₚ PastaLean.pyMax [ax1, bx1] : Int)
+  let height := (PastaLean.pyMin [ay2, by2] -ₚ PastaLean.pyMax [ay1, by1] : Int)
   a +ₚ b -ₚ PastaLean.pyMax [height, (0 : Int)] *ₚ PastaLean.pyMax [width, (0 : Int)]
 
 end PastaBench.leetcode.RectangleArea

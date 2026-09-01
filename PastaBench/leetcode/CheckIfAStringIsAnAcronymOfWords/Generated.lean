@@ -23,7 +23,7 @@ def isAcronym := fun (words : List String) ↦ fun (s : String) ↦
     let __py_ret_1 := PastaLean.pyStringJoin "" ((PastaLean.pyIter words).map fun w => w⦋(0 : Int)⦌) == s
     return __py_ret_1 : Id _)
 
-theorem isAcronym_spec :
+theorem isAcronym_spec {words : List String} {s : String} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter words).map fun w => decide (PastaLean.pyLen w > (0 : Int)))⌝⦄
       isAcronym words s ⦃⇓_ => ⌜True⌝⦄ :=
   by

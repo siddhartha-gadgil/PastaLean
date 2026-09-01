@@ -25,7 +25,7 @@ def maximumEnergy := fun (energy : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans := -inf
     let mut n : Int := PastaLean.pyLen energy
-    for i in (PastaLean.pyRange n (n -ₚ k))do
+    for i in (PastaLean.pyRange n (n -ₚ k)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < n))
       let __unpack_value_1 := (i, (0 : Int))
@@ -41,15 +41,17 @@ def maximumEnergy := fun (energy : List Int) ↦ fun (k : Int) ↦
         j := j -ₚ k
     return ans : Id _)
 
-theorem maximumEnergy_spec :
+theorem maximumEnergy_spec {energy : List Int} {k : Int} :
     ⦃⌜(PastaLean.pyLen energy > (0 : Int) ∧ k > (0 : Int)) ∧ k ≤ PastaLean.pyLen energy⌝⦄ maximumEnergy energy k ⦃⇓_ =>
       ⌜True⌝⦄ :=
   by
-  mvcgen [maximumEnergy, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [maximumEnergy, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (0 : Int) ≤ i ∧ i < n⌝
-  sorry
+      (0 : Int) ≤ i⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; pyany_cases <;> grind +locals
 
 def maximumEnergy'rn := fun (energy : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -59,7 +61,7 @@ def maximumEnergy'rn := fun (energy : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≤ PastaLean.pyLen energy))
       let mut ans := -inf
       let mut n : Int := PastaLean.pyLen energy
-      for i in (PastaLean.pyRange n (n -ₚ k))do
+      for i in (PastaLean.pyRange n (n -ₚ k)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let __unpack_value_1 := (i, (0 : Int))

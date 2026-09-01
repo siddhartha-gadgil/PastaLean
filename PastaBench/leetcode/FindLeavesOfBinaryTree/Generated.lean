@@ -38,20 +38,20 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _findLeaves_dfs := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _findLeaves'dfs := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := ((0 : Int), ans)
         return __py_ret_1
       else
         let _ := ()
-      let __unpack_value_1 := _findLeaves_dfs ((root).getD default).left ans
+      let __unpack_value_1 := _findLeaves'dfs ((root).getD default).left ans
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       ans := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _findLeaves_dfs ((root).getD default).right ans
+      let __unpack_value_2 := _findLeaves'dfs ((root).getD default).right ans
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       ans := Prod.snd __unpack_pair_2
@@ -70,27 +70,27 @@ private partial def _findLeaves_dfs := fun (root : Option TreeNode) ↦ fun ans 
 
 def findLeaves := fun (root : Option TreeNode) ↦
   let ans := []
-  let __unpack_pair_1 := _findLeaves_dfs root ans
+  let __unpack_pair_1 := _findLeaves'dfs root ans
   let __thread_t3 := Prod.fst __unpack_pair_1
   let ans := Prod.snd __unpack_pair_1
   ans
 
 attribute [simp, taste_ingr] findLeaves
 
-private partial def _findLeaves_dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
+private partial def _findLeaves'dfs'rn := fun (root : Option TreeNode) ↦ fun ans ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := ((0 : Int), ans)
         return __py_ret_1
       else
         let _ := ()
-      let __unpack_value_1 := _findLeaves_dfs'rn ((root).getD default).left ans
+      let __unpack_value_1 := _findLeaves'dfs'rn ((root).getD default).left ans
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       ans := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _findLeaves_dfs'rn ((root).getD default).right ans
+      let __unpack_value_2 := _findLeaves'dfs'rn ((root).getD default).right ans
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       ans := Prod.snd __unpack_pair_2
@@ -109,7 +109,7 @@ private partial def _findLeaves_dfs'rn := fun (root : Option TreeNode) ↦ fun a
 
 def findLeaves'rn := fun (root : Option TreeNode) ↦
   let ans := []
-  let __unpack_pair_1 := _findLeaves_dfs'rn root ans
+  let __unpack_pair_1 := _findLeaves'dfs'rn root ans
   let __thread_t3 := Prod.fst __unpack_pair_1
   let ans := Prod.snd __unpack_pair_1
   ans

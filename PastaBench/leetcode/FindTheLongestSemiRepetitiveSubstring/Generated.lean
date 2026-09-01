@@ -27,7 +27,7 @@ def longestSemiRepetitiveSubstring := fun (s : String) ↦
     let mut __chain_1 := (0 : Int)
     let mut cnt := __chain_1
     let mut j := __chain_1
-    for i in (PastaLean.pyRange n (1 : Int))do
+    for i in (PastaLean.pyRange n (1 : Int)) do
       -- bounds for indexing and counters
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i < n))
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j) && decide (j ≤ i))
@@ -48,16 +48,17 @@ def longestSemiRepetitiveSubstring := fun (s : String) ↦
     return ans : Id _)
 
 @[spec]
-theorem longestSemiRepetitiveSubstring_spec :
+theorem longestSemiRepetitiveSubstring_spec {s : String} :
     ⦃⌜PastaLean.pyLen s ≥ (1 : Int)⌝⦄ longestSemiRepetitiveSubstring s ⦃⇓ans =>
       ⌜(1 : Int) ≤ ans ∧ ans ≤ PastaLean.pyLen s⌝⦄ :=
   by
-  mvcgen [longestSemiRepetitiveSubstring, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, j, cnt⟩ =>
+  mvcgen [longestSemiRepetitiveSubstring, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, cnt, j⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      ((((1 : Int) ≤ i ∧ i < n) ∧ (0 : Int) ≤ j ∧ j ≤ i) ∧ (0 : Int) ≤ cnt ∧ cnt ≤ (1 : Int)) ∧
-        (1 : Int) ≤ ans ∧ ans ≤ n⌝
-  sorry
+      ((0 : Int) ≤ j ∧ j ≤ i) ∧ (0 : Int) ≤ cnt ∧ cnt ≤ (1 : Int)⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; aesop; sorry
 
 def longestSemiRepetitiveSubstring'rn := fun (s : String) ↦
   Id.run
@@ -70,7 +71,7 @@ def longestSemiRepetitiveSubstring'rn := fun (s : String) ↦
       let mut __chain_1 := (0 : Int)
       let mut cnt := __chain_1
       let mut j := __chain_1
-      for i in (PastaLean.pyRange n (1 : Int))do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         -- bounds for indexing and counters
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i) && decide (i < n))
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j) && decide (j ≤ i))

@@ -24,13 +24,13 @@ def maxCoins := fun (nums : List Int) ↦
     let mut arr : List Int := [(1 : Int)] +ₚ nums +ₚ [(1 : Int)]
     let mut f : List (List Int) :=
       (PastaLean.pyRange (n +ₚ (2 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (2 : Int))
-    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+    for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen f))
-      for j in (PastaLean.pyRange (n +ₚ (2 : Int)) (i +ₚ (2 : Int)))do
+      for j in (PastaLean.pyRange (n +ₚ (2 : Int)) (i +ₚ (2 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j < PastaLean.pyLen f))
-        for k in (PastaLean.pyRange j (i +ₚ (1 : Int)))do
+        for k in (PastaLean.pyRange j (i +ₚ (1 : Int))) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ k))
           let _ := Libraries.passta.pyPassInvariant (decide (k < PastaLean.pyLen f))
           f :=
@@ -39,13 +39,15 @@ def maxCoins := fun (nums : List Int) ↦
     let __py_ret_1 := f⦋(0 : Int)⦌⦋(-1 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem maxCoins_spec : ⦃⌜True⌝⦄ maxCoins nums ⦃⇓_ => ⌜True⌝⦄ :=
+theorem maxCoins_spec {nums : List Int} : ⦃⌜True⌝⦄ maxCoins nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maxCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [maxCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (0 : Int) ≤ i ∧ i < PastaLean.pyLen f⌝
-  sorry
+  · ⇓_ => ⌜True⌝
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maxCoins'rn := fun (nums : List Int) ↦
   Id.run
@@ -56,13 +58,13 @@ def maxCoins'rn := fun (nums : List Int) ↦
       let mut arr : List Int := [(1 : Int)] +ₚ nums +ₚ [(1 : Int)]
       let mut f : List (List Int) :=
         (PastaLean.pyRange (n +ₚ (2 : Int))).map fun _ => PastaLean.pyListRepeat [(0 : Int)] (n +ₚ (2 : Int))
-      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int)))do
+      for i in (PastaLean.pyRange (-(1 : Int)) (n -ₚ (1 : Int)) (-(1 : Int))) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen f))
-        for j in (PastaLean.pyRange (n +ₚ (2 : Int)) (i +ₚ (2 : Int)))do
+        for j in (PastaLean.pyRange (n +ₚ (2 : Int)) (i +ₚ (2 : Int))) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j < PastaLean.pyLen f))
-          for k in (PastaLean.pyRange j (i +ₚ (1 : Int)))do
+          for k in (PastaLean.pyRange j (i +ₚ (1 : Int))) do
             let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ k))
             let _ := Libraries.passta.pyPassInvariant (decide (k < PastaLean.pyLen f))
             f :=

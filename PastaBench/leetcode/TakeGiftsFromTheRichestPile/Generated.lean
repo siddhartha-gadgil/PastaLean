@@ -22,19 +22,19 @@ noncomputable def pickGifts := fun (gifts : List Int) ↦ fun (k : Int) ↦
   (do
     let mut h : List Int := (PastaLean.pyIter gifts).map fun v => -v
     h := Libraries.heapq.pyHeapify h
-    for _ in (PastaLean.pyRange k)do
+    for _ in (PastaLean.pyRange k) do
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen h > (0 : Int)))
       h := Libraries.heapq.pyHeapreplaceRest h (-PastaLean.pyInt (Libraries.math.pyMathSqrtR (-h⦋(0 : Int)⦌)))
     let __py_ret_1 := -PastaLean.pySum h
     return __py_ret_1 : Id _)
 
-theorem pickGifts_spec : ⦃⌜k ≥ (0 : Int)⌝⦄ pickGifts gifts k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem pickGifts_spec {gifts : List Int} {k : Int} : ⦃⌜k ≥ (0 : Int)⌝⦄ pickGifts gifts k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [pickGifts, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [pickGifts, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, h⟩ =>
     ⌜let _ := (cur.prefix.length : Int);
       PastaLean.pyLen h > (0 : Int)⌝
-  all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def pickGifts'rn := fun (gifts : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -42,7 +42,7 @@ def pickGifts'rn := fun (gifts : List Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let mut h : List Int := (PastaLean.pyIter gifts).map fun v => -v
       h := Libraries.heapq.pyHeapify h
-      for _ in (PastaLean.pyRange k)do
+      for _ in (PastaLean.pyRange k) do
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen h > (0 : Int)))
         h := Libraries.heapq.pyHeapreplaceRest h (-PastaLean.pyInt (Libraries.math.pyMathSqrt (-h⦋(0 : Int)⦌)))
       let __py_ret_1 := -PastaLean.pySum h

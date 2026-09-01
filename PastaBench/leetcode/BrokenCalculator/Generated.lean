@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.BrokenCalculator
 
 def brokenCalc := fun (startValue : Int) ↦ fun (target : Int) ↦
   (do
+    let mut target := target
     let mut ans : Int := (0 : Int)
     while (startValue < target) do
       if h_1 : PastaLean.pyTruthy (PastaLean.pyBitAnd target (1 : Int)) then 
@@ -30,11 +31,11 @@ def brokenCalc := fun (startValue : Int) ↦ fun (target : Int) ↦
     ans := ans +ₚ (startValue -ₚ target)
     return ans : Id _)
 
-theorem brokenCalc_spec :
+theorem brokenCalc_spec {startValue : Int} {target : Int} :
     ⦃⌜startValue > (0 : Int) ∧ target > (0 : Int)⌝⦄ brokenCalc startValue target ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [brokenCalc, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def brokenCalc'rn := fun (startValue : Int) ↦ fun (target : Int) ↦
   Id.run

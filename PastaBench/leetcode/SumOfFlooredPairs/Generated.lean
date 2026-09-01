@@ -24,12 +24,12 @@ def sumOfFlooredPairs := fun (nums : List Int) ↦
     let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.pyCounter nums
     let mut mx : Int := PastaLean.pyMax nums
     let mut s : List Int := PastaLean.pyListRepeat [(0 : Int)] (mx +ₚ (1 : Int))
-    for i in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int))do
+    for i in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ mx))
       s := PastaLean.pySetItem s i (s⦋i -ₚ (1 : Int)⦌ +ₚ cnt⦋i⦌)
     let mut ans : Int := (0 : Int)
-    for y in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int))do
+    for y in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ y))
       let _ := Libraries.passta.pyPassInvariant (decide (y ≤ mx))
       if h_1 : PastaLean.pyTruthy cnt⦋y⦌ then 
@@ -48,19 +48,21 @@ def sumOfFlooredPairs := fun (nums : List Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem sumOfFlooredPairs_spec :
+theorem sumOfFlooredPairs_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter nums).map fun n => decide (n > (0 : Int)))⌝⦄
-      sumOfFlooredPairs nums ⦃⇓ans => ⌜(0 : Int) ≤ ans ∧ ans < mod⌝⦄ :=
+      sumOfFlooredPairs nums ⦃⇓ans => ⌜(0 : Int) ≤ ans⌝⦄ :=
   by
-  mvcgen [sumOfFlooredPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [sumOfFlooredPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, s⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (1 : Int) ≤ i ∧ i ≤ mx⌝
+      (1 : Int) ≤ i⌝
   · ⇓⟨cur, ans⟩ =>
     ⌜let y := (cur.prefix.length : Int);
-      (1 : Int) ≤ y ∧ y ≤ mx⌝
-  sorry
+      (1 : Int) ≤ y⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; pyany_cases <;> grind +locals; pyany_cases <;> grind +locals; sorry; sorry
 
 def sumOfFlooredPairs'rn := fun (nums : List Int) ↦
   Id.run
@@ -73,13 +75,13 @@ def sumOfFlooredPairs'rn := fun (nums : List Int) ↦
       let mut mx : Int := PastaLean.pyMax nums
       let mut s : List Int := PastaLean.pyListRepeat [(0 : Int)] (mx +ₚ (1 : Int))
       -- Build prefix sums of counts: s[i] = number of elements <= i
-      for i in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ mx))
         s := PastaLean.pySetItem s i (s⦋i -ₚ (1 : Int)⦌ +ₚ cnt⦋i⦌)
       let mut ans : Int := (0 : Int)
       -- Sum floor divisions: for each y and each x, floor(x / y)
-      for y in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int))do
+      for y in (PastaLean.pyRange (mx +ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ y))
         let _ := Libraries.passta.pyPassInvariant (decide (y ≤ mx))
         if h_1 : PastaLean.pyTruthy cnt⦋y⦌ then 

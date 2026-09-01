@@ -19,11 +19,11 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.AliceAndBobPlayingFlowerGame
 
 def flowerGame := fun (n : Int) ↦ fun (m : Int) ↦
-  let a1 := PastaLean.pyFloorDiv (n +ₚ (1 : Int)) (2 : Int)
-  let b1 := PastaLean.pyFloorDiv (m +ₚ (1 : Int)) (2 : Int)
-  let a2 := PastaLean.pyFloorDiv n (2 : Int)
-  let b2 := PastaLean.pyFloorDiv m (2 : Int)
-  let res := a1 *ₚ b2 +ₚ a2 *ₚ b1
+  let a1 := (PastaLean.pyFloorDiv (n +ₚ (1 : Int)) (2 : Int) : Int)
+  let b1 := (PastaLean.pyFloorDiv (m +ₚ (1 : Int)) (2 : Int) : Int)
+  let a2 := (PastaLean.pyFloorDiv n (2 : Int) : Int)
+  let b2 := (PastaLean.pyFloorDiv m (2 : Int) : Int)
+  let res := (a1 *ₚ b2 +ₚ a2 *ₚ b1 : Int)
   res
 
 attribute [simp] flowerGame
@@ -43,11 +43,11 @@ theorem flowerGame_spec :
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def flowerGame'rn := fun (n : Int) ↦ fun (m : Int) ↦
-  let a1 := PastaLean.pyFloorDiv (n +ₚ (1 : Int)) (2 : Int)
-  let b1 := PastaLean.pyFloorDiv (m +ₚ (1 : Int)) (2 : Int)
-  let a2 := PastaLean.pyFloorDiv n (2 : Int)
-  let b2 := PastaLean.pyFloorDiv m (2 : Int)
-  let res := a1 *ₚ b2 +ₚ a2 *ₚ b1
+  let a1 := (PastaLean.pyFloorDiv (n +ₚ (1 : Int)) (2 : Int) : Int)
+  let b1 := (PastaLean.pyFloorDiv (m +ₚ (1 : Int)) (2 : Int) : Int)
+  let a2 := (PastaLean.pyFloorDiv n (2 : Int) : Int)
+  let b2 := (PastaLean.pyFloorDiv m (2 : Int) : Int)
+  let res := (a1 *ₚ b2 +ₚ a2 *ₚ b1 : Int)
   res
 
 end PastaBench.leetcode.AliceAndBobPlayingFlowerGame

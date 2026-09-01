@@ -21,18 +21,18 @@ namespace PastaBench.leetcode.MinimizeTheDifferenceBetweenTargetAndChosenElement
 def minimizeTheDifference := fun (mat : List (List Int)) ↦ fun (target : Int) ↦
   (do
     let mut f : List Int := PastaLean.pySetFromList [(0 : Int)]
-    for row in (PastaLean.pyIter mat)do
+    for row in (PastaLean.pyIter mat) do
       let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen f > (0 : Int)))
       f := PastaLean.pySet ((PastaLean.pyIter f).flatMap fun a => (PastaLean.pyIter row).map fun b => a +ₚ b)
-    let __py_ret_1 := PastaLean.pyMin ((PastaLean.pyIter f).map fun v => PastaLean.pyAbs (v -ₚ target))
+    let __py_ret_1 := PastaLean.pyMin ((PastaLean.pyIter f).map fun v => Libraries.operator.pyOperatorAbs (v -ₚ target))
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem minimizeTheDifference_spec :
+theorem minimizeTheDifference_spec {mat : List (List Int)} {target : Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter mat).map fun row => decide (PastaLean.pyLen row > (0 : Int)))⌝⦄
       minimizeTheDifference mat target ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [minimizeTheDifference, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [minimizeTheDifference, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, f⟩ => ⌜PastaLean.pyLen f > (0 : Int)⌝
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
@@ -43,10 +43,11 @@ def minimizeTheDifference'rn := fun (mat : List (List Int)) ↦ fun (target : In
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter mat).map fun row => decide (PastaLean.pyLen row > (0 : Int))))
       let mut f : List Int := PastaLean.pySetFromList [(0 : Int)]
-      for row in (PastaLean.pyIter mat)do
+      for row in (PastaLean.pyIter mat) do
         let _ := Libraries.passta.pyPassInvariant (decide (PastaLean.pyLen f > (0 : Int)))
         f := PastaLean.pySet ((PastaLean.pyIter f).flatMap fun a => (PastaLean.pyIter row).map fun b => a +ₚ b)
-      let __py_ret_1 := PastaLean.pyMin ((PastaLean.pyIter f).map fun v => PastaLean.pyAbs (v -ₚ target))
+      let __py_ret_1 :=
+        PastaLean.pyMin ((PastaLean.pyIter f).map fun v => Libraries.operator.pyOperatorAbs (v -ₚ target))
       return __py_ret_1)
 
 end PastaBench.leetcode.MinimizeTheDifferenceBetweenTargetAndChosenElements

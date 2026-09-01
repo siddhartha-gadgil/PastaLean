@@ -20,24 +20,25 @@ namespace PastaBench.leetcode.MaximizeGreatnessOfAnArray
 
 def maximizeGreatness := fun (nums : List Int) ↦
   (do
+    let mut nums := nums
     nums := PastaLean.pySort nums
     let mut i : Int := (0 : Int)
-    for x in (PastaLean.pyIter nums)do
+    for x in (PastaLean.pyIter nums) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
       -- each time x > nums[i], we match x to beat nums[i] and increment i
       i := i +ₚ decide (x > nums⦋i⦌)
     return i : Id _)
 
-theorem maximizeGreatness_spec :
+theorem maximizeGreatness_spec {nums : List Int} :
     ⦃⌜PastaLean.pyAll
           ((PastaLean.pyRange (PastaLean.pyLen nums -ₚ (1 : Int))).map fun k =>
             decide (nums⦋k⦌ ≤ nums⦋k +ₚ (1 : Int)⦌))⌝⦄
       maximizeGreatness nums ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maximizeGreatness, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [maximizeGreatness, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, i⟩ => ⌜(0 : Int) ≤ i ∧ i < PastaLean.pyLen nums⌝
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximizeGreatness'rn := fun (nums : List Int) ↦
   Id.run
@@ -51,7 +52,7 @@ def maximizeGreatness'rn := fun (nums : List Int) ↦
             ((PastaLean.pyRange (PastaLean.pyLen nums -ₚ (1 : Int))).map fun k =>
               decide (nums⦋k⦌ ≤ nums⦋k +ₚ (1 : Int)⦌)))
       let mut i : Int := (0 : Int)
-      for x in (PastaLean.pyIter nums)do
+      for x in (PastaLean.pyIter nums) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
         -- each time x > nums[i], we match x to beat nums[i] and increment i

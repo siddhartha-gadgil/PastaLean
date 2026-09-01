@@ -38,29 +38,29 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _verticalTraversal_dfs := fun (root : Option TreeNode) ↦ fun (i : Int) ↦ fun (j : Int) ↦
+private partial def _verticalTraversal'dfs := fun (root : Option TreeNode) ↦ fun (i : Int) ↦ fun (j : Int) ↦
   fun nodes ↦
   Id.run
     (do
       let mut nodes := nodes
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return nodes
       else
         let _ := ()
       nodes := PastaLean.pyAppend nodes (j, (i, ((root).getD default).val))
-      nodes := _verticalTraversal_dfs ((root).getD default).left (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) nodes
-      nodes := _verticalTraversal_dfs ((root).getD default).right (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) nodes
+      nodes := _verticalTraversal'dfs ((root).getD default).left (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) nodes
+      nodes := _verticalTraversal'dfs ((root).getD default).right (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) nodes
       return nodes)
 
 def verticalTraversal := fun (root : Option TreeNode) ↦
   Id.run
     (do
       let mut nodes := []
-      nodes := _verticalTraversal_dfs root (0 : Int) (0 : Int) nodes
+      nodes := _verticalTraversal'dfs root (0 : Int) (0 : Int) nodes
       nodes := PastaLean.pySort nodes
       let mut ans := []
       let mut prev : Int := -(2000 : Int)
-      for _pair_1 in (PastaLean.pyIter nodes)do
+      for _pair_1 in (PastaLean.pyIter nodes) do
         let j := Prod.fst _pair_1
         let _ := Prod.fst (Prod.snd _pair_1)
         let val := Prod.snd (Prod.snd _pair_1)
@@ -74,29 +74,29 @@ def verticalTraversal := fun (root : Option TreeNode) ↦
 
 attribute [simp, taste_ingr] verticalTraversal
 
-private partial def _verticalTraversal_dfs'rn := fun (root : Option TreeNode) ↦ fun (i : Int) ↦ fun (j : Int) ↦
+private partial def _verticalTraversal'dfs'rn := fun (root : Option TreeNode) ↦ fun (i : Int) ↦ fun (j : Int) ↦
   fun nodes ↦
   Id.run
     (do
       let mut nodes := nodes
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         return nodes
       else
         let _ := ()
       nodes := PastaLean.pyAppend nodes (j, (i, ((root).getD default).val))
-      nodes := _verticalTraversal_dfs'rn ((root).getD default).left (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) nodes
-      nodes := _verticalTraversal_dfs'rn ((root).getD default).right (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) nodes
+      nodes := _verticalTraversal'dfs'rn ((root).getD default).left (i +ₚ (1 : Int)) (j -ₚ (1 : Int)) nodes
+      nodes := _verticalTraversal'dfs'rn ((root).getD default).right (i +ₚ (1 : Int)) (j +ₚ (1 : Int)) nodes
       return nodes)
 
 def verticalTraversal'rn := fun (root : Option TreeNode) ↦
   Id.run
     (do
       let mut nodes := []
-      nodes := _verticalTraversal_dfs'rn root (0 : Int) (0 : Int) nodes
+      nodes := _verticalTraversal'dfs'rn root (0 : Int) (0 : Int) nodes
       nodes := PastaLean.pySort nodes
       let mut ans := []
       let mut prev : Int := -(2000 : Int)
-      for _pair_1 in (PastaLean.pyIter nodes)do
+      for _pair_1 in (PastaLean.pyIter nodes) do
         let j := Prod.fst _pair_1
         let _ := Prod.fst (Prod.snd _pair_1)
         let val := Prod.snd (Prod.snd _pair_1)

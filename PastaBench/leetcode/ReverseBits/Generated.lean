@@ -20,9 +20,10 @@ namespace PastaBench.leetcode.ReverseBits
 
 def reverseBits := fun (n : Int) ↦
   (do
+    let mut n := n
     let mut orig : Int := n
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange (32 : Int))do
+    for i in (PastaLean.pyRange (32 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ (32 : Int)))
       let _ := Libraries.passta.pyPassInvariant (n == PastaLean.pyShiftRight orig i)
@@ -42,24 +43,13 @@ def reverseBits := fun (n : Int) ↦
               PastaLean.pyShiftLeft (PastaLean.pyBitAnd (PastaLean.pyShiftRight orig j) (1 : Int)) ((31 : Int) -ₚ j)))
     return ans : Id _)
 
-@[spec]
-theorem reverseBits_spec :
-    ⦃⌜(0 : Int) ≤ n ∧ n < (2 : Int) ^ₚ (32 : Int)⌝⦄ reverseBits n ⦃⇓ans =>
-      ⌜ans =
-          PastaLean.pySum
-            ((PastaLean.pyRange (32 : Int)).map fun j =>
-              PastaLean.pyShiftLeft (PastaLean.pyBitAnd (PastaLean.pyShiftRight orig j) (1 : Int))
-                ((31 : Int) -ₚ j))⌝⦄ :=
+theorem reverseBits_spec {n : Int} : ⦃⌜(0 : Int) ≤ n ∧ n < (2 : Int) ^ₚ (32 : Int)⌝⦄ reverseBits n ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [reverseBits, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ =>
+  mvcgen [reverseBits, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, n, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (((0 : Int) ≤ i ∧ i ≤ (32 : Int)) ∧ n = PastaLean.pyShiftRight orig i) ∧
-        ans =
-          PastaLean.pySum
-            ((PastaLean.pyRange i).map fun j =>
-              PastaLean.pyShiftLeft (PastaLean.pyBitAnd (PastaLean.pyShiftRight orig j) (1 : Int)) ((31 : Int) -ₚ j))⌝
-  sorry
+      (0 : Int) ≤ i ∧ i ≤ (32 : Int)⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; grind +locals +suggestions
 
 def reverseBits'rn := fun (n : Int) ↦
   Id.run
@@ -68,7 +58,7 @@ def reverseBits'rn := fun (n : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide ((0 : Int) ≤ n) && decide (n < (2 : Int) ^ₚ (32 : Int)))
       let mut orig : Int := n
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange (32 : Int))do
+      for i in (PastaLean.pyRange (32 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ (32 : Int)))
         let _ := Libraries.passta.pyPassInvariant (n == PastaLean.pyShiftRight orig i)

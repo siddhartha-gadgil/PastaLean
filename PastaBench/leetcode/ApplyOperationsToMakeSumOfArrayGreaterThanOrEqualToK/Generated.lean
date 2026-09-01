@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.ApplyOperationsToMakeSumOfArrayGreaterThanOrEqualT
 def minOperations := fun (k : Int) ↦
   (do
     let mut ans : Int := k
-    for a in (PastaLean.pyRange k)do
+    for a in (PastaLean.pyRange k) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ a))
       let _ := Libraries.passta.pyPassInvariant (decide (a < k))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ k))
@@ -32,9 +32,9 @@ def minOperations := fun (k : Int) ↦
     return ans : Id _)
 
 @[spec]
-theorem minOperations_spec : ⦃⌜k ≥ (0 : Int)⌝⦄ minOperations k ⦃⇓ans => ⌜ans ≤ k⌝⦄ :=
+theorem minOperations_spec {k : Int} : ⦃⌜k ≥ (0 : Int)⌝⦄ minOperations k ⦃⇓ans => ⌜ans ≤ k⌝⦄ :=
   by
-  mvcgen [minOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [minOperations, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let a := (cur.prefix.length : Int);
       ((0 : Int) ≤ a ∧ a < k) ∧ ans ≤ k⌝
@@ -45,7 +45,7 @@ def minOperations'rn := fun (k : Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let mut ans : Int := k
-      for a in (PastaLean.pyRange k)do
+      for a in (PastaLean.pyRange k) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ a))
         let _ := Libraries.passta.pyPassInvariant (decide (a < k))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ k))

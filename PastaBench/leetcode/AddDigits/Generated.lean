@@ -18,7 +18,7 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.AddDigits
 
-def addDigits := fun (num : Int) ↦ if num == (0 : Int) then (0 : Int) else (num -ₚ (1 : Int)) %ₚ (9 : Int) +ₚ (1 : Int)
+def addDigits := fun (num : Int) ↦ if num = (0 : Int) then (0 : Int) else (num -ₚ (1 : Int)) %ₚ (9 : Int) +ₚ (1 : Int)
 
 attribute [simp] addDigits
 

@@ -20,9 +20,10 @@ namespace PastaBench.leetcode.MaximumElementAfterDecreasingAndRearranging
 
 def maximumElementAfterDecrementingAndRearranging := fun (arr : List Int) ↦
   (do
+    let mut arr := arr
     arr := PastaLean.pySort arr
     arr := PastaLean.pySetItem arr (0 : Int) (1 : Int)
-    for i in (PastaLean.pyRange (PastaLean.pyLen arr) (1 : Int))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen arr) (1 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen arr))
       let mut d : Int := PastaLean.pyMax [(0 : Int), arr⦋i⦌ -ₚ arr⦋i -ₚ (1 : Int)⦌ -ₚ (1 : Int)]
@@ -30,15 +31,15 @@ def maximumElementAfterDecrementingAndRearranging := fun (arr : List Int) ↦
     let __py_ret_1 := PastaLean.pyMax arr
     return __py_ret_1 : Id _)
 
-theorem maximumElementAfterDecrementingAndRearranging_spec :
+theorem maximumElementAfterDecrementingAndRearranging_spec {arr : List Int} :
     ⦃⌜PastaLean.pyLen arr > (0 : Int)⌝⦄ maximumElementAfterDecrementingAndRearranging arr ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [maximumElementAfterDecrementingAndRearranging, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-    invariants
-  · ⇓cur =>
+    invariants?
+  · ⇓⟨cur, arr⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (1 : Int) ≤ i ∧ i < PastaLean.pyLen arr⌝
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def maximumElementAfterDecrementingAndRearranging'rn := fun (arr : List Int) ↦
   Id.run
@@ -47,7 +48,7 @@ def maximumElementAfterDecrementingAndRearranging'rn := fun (arr : List Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen arr > (0 : Int)))
       arr := PastaLean.pySort arr
       arr := PastaLean.pySetItem arr (0 : Int) (1 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen arr) (1 : Int))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen arr) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen arr))
         let mut d : Int := PastaLean.pyMax [(0 : Int), arr⦋i⦌ -ₚ arr⦋i -ₚ (1 : Int)⦌ -ₚ (1 : Int)]

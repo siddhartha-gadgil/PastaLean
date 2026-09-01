@@ -21,26 +21,24 @@ namespace PastaBench.leetcode.CountTestedDevicesAfterTestOperations
 def countTestedDevices := fun (batteryPercentages : List Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for x in (PastaLean.pyIter batteryPercentages)do
+    for x in (PastaLean.pyIter batteryPercentages) do
       ans := ans +ₚ decide (x > ans)
     return ans : Id _)
 
 @[spec]
-theorem countTestedDevices_spec :
+theorem countTestedDevices_spec {batteryPercentages : List Int} :
     ⦃⌜True⌝⦄ countTestedDevices batteryPercentages ⦃⇓ans =>
       ⌜PastaLean.pySum
-              ((List.filter (fun x => decide (x ≥ ans)) (PastaLean.pyIter batteryPercentages)).map fun x =>
-                (1 : Int)) ≥
+              ((List.filter (fun x => x ≥ ans) (PastaLean.pyIter batteryPercentages)).map fun x => (1 : Int)) ≥
             ans ∧
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen batteryPercentages +ₚ (1 : Int)) (ans +ₚ (1 : Int))).map fun k =>
               decide
                 (PastaLean.pySum
-                    ((List.filter (fun x => decide (x ≥ k)) (PastaLean.pyIter batteryPercentages)).map fun x =>
-                      (1 : Int)) <
+                    ((List.filter (fun x => x ≥ k) (PastaLean.pyIter batteryPercentages)).map fun x => (1 : Int)) <
                   k))⌝⦄ :=
   by
-  mvcgen [countTestedDevices, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [countTestedDevices, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ => ⌜ans = (cur.prefix.map (fun x => decide (x > ans))).sum⌝
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
@@ -49,7 +47,7 @@ def countTestedDevices'rn := fun (batteryPercentages : List Int) ↦
     (do
       -- The result is the H-index: the largest k such that at least k entries are ≥ k.
       let mut ans : Int := (0 : Int)
-      for x in (PastaLean.pyIter batteryPercentages)do
+      for x in (PastaLean.pyIter batteryPercentages) do
         ans := ans +ₚ decide (x > ans)
       return ans)
 

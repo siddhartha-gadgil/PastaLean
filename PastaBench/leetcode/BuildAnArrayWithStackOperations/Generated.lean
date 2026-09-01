@@ -22,7 +22,7 @@ def buildArray := fun (target : List Int) ↦ fun (n : Int) ↦
   (do
     let mut ans : List String := []
     let mut cur : Int := (1 : Int)
-    for x in (PastaLean.pyIter target)do
+    for x in (PastaLean.pyIter target) do
       while (cur < x) do
         ans := PastaLean.pyExtend ans ["Push", "Pop"]
         cur := cur +ₚ (1 : Int)
@@ -30,16 +30,18 @@ def buildArray := fun (target : List Int) ↦ fun (n : Int) ↦
       cur := cur +ₚ (1 : Int)
     return ans : Id _)
 
-theorem buildArray_spec :
+theorem buildArray_spec {target : List Int} {n : Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter target).map fun x => decide ((1 : Int) ≤ x) && decide (x ≤ n)) ∧
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen target -ₚ (1 : Int))).map fun i =>
               decide (target⦋i⦌ < target⦋i +ₚ (1 : Int)⦌))⌝⦄
       buildArray target n ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [buildArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, cur⟩ => ⌜cur = (cur.prefix.map (fun x => (1 : Int))).sum⌝
-  sorry
+  mvcgen [buildArray, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur', ans, cur⟩ => ⌜cur = (cur'.prefix.map (fun x => (1 : Int))).sum⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def buildArray'rn := fun (target : List Int) ↦ fun (n : Int) ↦
   Id.run
@@ -54,7 +56,7 @@ def buildArray'rn := fun (target : List Int) ↦ fun (n : Int) ↦
               decide (target⦋i⦌ < target⦋i +ₚ (1 : Int)⦌)))
       let mut ans : List String := []
       let mut cur : Int := (1 : Int)
-      for x in (PastaLean.pyIter target)do
+      for x in (PastaLean.pyIter target) do
         while (cur < x) do
           ans := PastaLean.pyExtend ans ["Push", "Pop"]
           cur := cur +ₚ (1 : Int)

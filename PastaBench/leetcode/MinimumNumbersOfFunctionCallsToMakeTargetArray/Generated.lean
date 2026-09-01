@@ -25,7 +25,7 @@ def minOperations := fun (nums : List Int) ↦
         PastaLean.pyMax [(0 : Int), PastaLean.pyBitLength (PastaLean.pyMax nums) -ₚ (1 : Int)]
     return __py_ret_1 : Id _)
 
-theorem minOperations_spec :
+theorem minOperations_spec {nums : List Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter nums).map fun v => decide (v ≥ (0 : Int)))⌝⦄
       minOperations nums ⦃⇓_ => ⌜True⌝⦄ :=

@@ -18,30 +18,26 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.HouseRobber
 
-private def _rob_dfs := fun (i : Int) ↦ fun (nums : List Int) ↦
-  (do
-    if h_1 : i ≥ PastaLean.pyLen nums then 
-      return (0 : Int)
-    else
-      let _ := ()
-    let _ := Libraries.passta.pyPassAssert (decide (i < PastaLean.pyLen nums))
-    let __py_ret_1 := PastaLean.pyMax [nums⦋i⦌ +ₚ _rob_dfs (i +ₚ (2 : Int)) nums, _rob_dfs (i +ₚ (1 : Int)) nums]
-    return __py_ret_1 : Id _)
+private partial def _rob'dfs : Int → List Int → Int := fun (i : Int) ↦ fun (nums : List Int) ↦
+  Id.run
+    (do
+      let _ := Libraries.passta.pyPassRequires (decide (i ≥ (0 : Int)))
+      if h_1 : i ≥ PastaLean.pyLen nums then 
+        return (0 : Int)
+      else
+        let _ := ()
+      let _ := Libraries.passta.pyPassAssert (decide (i < PastaLean.pyLen nums))
+      let __py_ret_1 := PastaLean.pyMax [nums⦋i⦌ +ₚ _rob'dfs (i +ₚ (2 : Int)) nums, _rob'dfs (i +ₚ (1 : Int)) nums]
+      return __py_ret_1)
 
-@[spec]
-theorem _rob_dfs_spec : ⦃⌜i ≥ (0 : Int)⌝⦄ _rob_dfs i nums ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
-  by
-  mvcgen [_rob_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
-
-def rob := fun (nums : List Int) ↦ _rob_dfs (0 : Int) nums
+def rob := fun (nums : List Int) ↦ _rob'dfs (0 : Int) nums
 
 attribute [simp] rob
 
 @[taste_ingr]
-theorem rob_spec : ∀ (nums : List Int), _rob_dfs (0 : Int) nums ≥ (0 : Int) := by intros; sorry
+theorem rob_spec : ∀ (nums : List Int), _rob'dfs (0 : Int) nums ≥ (0 : Int) := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _rob_dfs'rn : Int → List Int → Int := fun (i : Int) ↦ fun (nums : List Int) ↦
+private partial def _rob'dfs'rn : Int → List Int → Int := fun (i : Int) ↦ fun (nums : List Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (i ≥ (0 : Int)))
@@ -51,9 +47,9 @@ private partial def _rob_dfs'rn : Int → List Int → Int := fun (i : Int) ↦ 
         let _ := ()
       let _ := Libraries.passta.pyPassAssert (decide (i < PastaLean.pyLen nums))
       let __py_ret_1 :=
-        PastaLean.pyMax [nums⦋i⦌ +ₚ _rob_dfs'rn (i +ₚ (2 : Int)) nums, _rob_dfs'rn (i +ₚ (1 : Int)) nums]
+        PastaLean.pyMax [nums⦋i⦌ +ₚ _rob'dfs'rn (i +ₚ (2 : Int)) nums, _rob'dfs'rn (i +ₚ (1 : Int)) nums]
       return __py_ret_1)
 
-def rob'rn := fun (nums : List Int) ↦ _rob_dfs'rn (0 : Int) nums
+def rob'rn := fun (nums : List Int) ↦ _rob'dfs'rn (0 : Int) nums
 
 end PastaBench.leetcode.HouseRobber

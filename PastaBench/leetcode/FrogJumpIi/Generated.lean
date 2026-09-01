@@ -21,15 +21,15 @@ namespace PastaBench.leetcode.FrogJumpIi
 def maxJump := fun (stones : List Int) ↦
   (do
     let mut ans : Int := stones⦋(1 : Int)⦌ -ₚ stones⦋(0 : Int)⦌
-    for i in (PastaLean.pyRange (PastaLean.pyLen stones) (2 : Int))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen stones) (2 : Int)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((2 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen stones))
       ans := PastaLean.pyMax [ans, stones⦋i⦌ -ₚ stones⦋i -ₚ (2 : Int)⦌]
     return ans : Id _)
 
-theorem maxJump_spec : ⦃⌜PastaLean.pyLen stones ≥ (2 : Int)⌝⦄ maxJump stones ⦃⇓_ => ⌜True⌝⦄ :=
+theorem maxJump_spec {stones : List Int} : ⦃⌜PastaLean.pyLen stones ≥ (2 : Int)⌝⦄ maxJump stones ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [maxJump, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [maxJump, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       (2 : Int) ≤ i ∧ i < PastaLean.pyLen stones⌝
@@ -40,7 +40,7 @@ def maxJump'rn := fun (stones : List Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen stones ≥ (2 : Int)))
       let mut ans : Int := stones⦋(1 : Int)⦌ -ₚ stones⦋(0 : Int)⦌
-      for i in (PastaLean.pyRange (PastaLean.pyLen stones) (2 : Int))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen stones) (2 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((2 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen stones))
         ans := PastaLean.pyMax [ans, stones⦋i⦌ -ₚ stones⦋i -ₚ (2 : Int)⦌]

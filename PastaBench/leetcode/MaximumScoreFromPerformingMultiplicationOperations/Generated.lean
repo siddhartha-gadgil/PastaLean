@@ -18,32 +18,32 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.MaximumScoreFromPerformingMultiplicationOperations
 
-private partial def _maximumScore_f := fun i ↦ fun j ↦ fun k ↦ fun (nums : List Int) ↦ fun (multipliers : List Int) ↦
-  fun (n : Int) ↦ fun (m : Int) ↦
-  if decide (k ≥ m) || decide (i ≥ n) || decide (j < (0 : Int)) then (0 : Int)
+private partial def _maximumScore'f := fun (i : Int) ↦ fun (j : Int) ↦ fun (k : Int) ↦ fun (nums : List Int) ↦
+  fun (multipliers : List Int) ↦ fun (n : Int) ↦ fun (m : Int) ↦
+  if (k ≥ m ∨ i ≥ n) ∨ j < (0 : Int) then (0 : Int)
   else
-    let a := _maximumScore_f (i +ₚ (1 : Int)) j (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋i⦌ *ₚ multipliers⦋k⦌
-    let b := _maximumScore_f i (j -ₚ (1 : Int)) (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋j⦌ *ₚ multipliers⦋k⦌
+    let a := _maximumScore'f (i +ₚ (1 : Int)) j (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋i⦌ *ₚ multipliers⦋k⦌
+    let b := _maximumScore'f i (j -ₚ (1 : Int)) (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋j⦌ *ₚ multipliers⦋k⦌
     PastaLean.pyMax [a, b]
 
 def maximumScore := fun (nums : List Int) ↦ fun (multipliers : List Int) ↦
   (do
     let mut n : Int := PastaLean.pyLen nums
     let mut m : Int := PastaLean.pyLen multipliers
-    let __py_ret_1 := _maximumScore_f (0 : Int) (n -ₚ (1 : Int)) (0 : Int) nums multipliers n m
+    let __py_ret_1 := _maximumScore'f (0 : Int) (n -ₚ (1 : Int)) (0 : Int) nums multipliers n m
     return __py_ret_1 : Id _)
 
-theorem maximumScore_spec :
+theorem maximumScore_spec {nums : List Int} {multipliers : List Int} :
     ⦃⌜PastaLean.pyLen nums ≥ PastaLean.pyLen multipliers⌝⦄ maximumScore nums multipliers ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [maximumScore, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
-private partial def _maximumScore_f'rn := fun i ↦ fun j ↦ fun k ↦ fun (nums : List Int) ↦
+private partial def _maximumScore'f'rn := fun (i : Int) ↦ fun (j : Int) ↦ fun (k : Int) ↦ fun (nums : List Int) ↦
   fun (multipliers : List Int) ↦ fun (n : Int) ↦ fun (m : Int) ↦
   if decide (k ≥ m) || decide (i ≥ n) || decide (j < (0 : Int)) then (0 : Int)
   else
-    let a := _maximumScore_f'rn (i +ₚ (1 : Int)) j (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋i⦌ *ₚ multipliers⦋k⦌
-    let b := _maximumScore_f'rn i (j -ₚ (1 : Int)) (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋j⦌ *ₚ multipliers⦋k⦌
+    let a := _maximumScore'f'rn (i +ₚ (1 : Int)) j (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋i⦌ *ₚ multipliers⦋k⦌
+    let b := _maximumScore'f'rn i (j -ₚ (1 : Int)) (k +ₚ (1 : Int)) nums multipliers n m +ₚ nums⦋j⦌ *ₚ multipliers⦋k⦌
     PastaLean.pyMax [a, b]
 
 def maximumScore'rn := fun (nums : List Int) ↦ fun (multipliers : List Int) ↦
@@ -52,7 +52,7 @@ def maximumScore'rn := fun (nums : List Int) ↦ fun (multipliers : List Int) �
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen nums ≥ PastaLean.pyLen multipliers))
       let mut n : Int := PastaLean.pyLen nums
       let mut m : Int := PastaLean.pyLen multipliers
-      let __py_ret_1 := _maximumScore_f'rn (0 : Int) (n -ₚ (1 : Int)) (0 : Int) nums multipliers n m
+      let __py_ret_1 := _maximumScore'f'rn (0 : Int) (n -ₚ (1 : Int)) (0 : Int) nums multipliers n m
       return __py_ret_1)
 
 end PastaBench.leetcode.MaximumScoreFromPerformingMultiplicationOperations

@@ -38,13 +38,14 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private partial def _pathSum_dfs := fun (root : Option TreeNode) ↦ fun s ↦ fun (targetSum : Int) ↦ fun ans ↦ fun t ↦
+private partial def _pathSum'dfs := fun (root : Option TreeNode) ↦ fun (s : Int) ↦ fun (targetSum : Int) ↦ fun ans ↦
+  fun t ↦
   Id.run
     (do
       let mut s := s
       let mut ans := ans
       let mut t := t
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := (ans, t)
         return __py_ret_1
       else
@@ -52,18 +53,18 @@ private partial def _pathSum_dfs := fun (root : Option TreeNode) ↦ fun s ↦ f
       s := s +ₚ ((root).getD default).val
       t := PastaLean.pyAppend t ((root).getD default).val
       if h_2 :
-          (Option.isNone ((root).getD default).left ∧ Option.isNone ((root).getD default).right) ∧
+          (PastaLean.pyIsNone ((root).getD default).left ∧ PastaLean.pyIsNone ((root).getD default).right) ∧
             s = targetSum then
         
         let _ := Libraries.passta.pyPassAssert (PastaLean.pySum t == s)
         ans := PastaLean.pyAppend ans (PastaLean.pySlice t none none none)
       else
         let _ := ()
-      let __unpack_value_1 := _pathSum_dfs ((root).getD default).left s targetSum ans t
+      let __unpack_value_1 := _pathSum'dfs ((root).getD default).left s targetSum ans t
       let __unpack_pair_1 := __unpack_value_1
       ans := Prod.fst __unpack_pair_1
       t := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _pathSum_dfs ((root).getD default).right s targetSum ans t
+      let __unpack_value_2 := _pathSum'dfs ((root).getD default).right s targetSum ans t
       let __unpack_pair_2 := __unpack_value_2
       ans := Prod.fst __unpack_pair_2
       t := Prod.snd __unpack_pair_2
@@ -75,27 +76,28 @@ def pathSum := fun (root : Option TreeNode) ↦ fun (targetSum : Int) ↦
   (do
     let mut ans := []
     let mut t := []
-    let __unpack_value_1 := _pathSum_dfs root (0 : Int) targetSum ans t
+    let __unpack_value_1 := _pathSum'dfs root (0 : Int) targetSum ans t
     let __unpack_pair_1 := __unpack_value_1
     ans := Prod.fst __unpack_pair_1
     t := Prod.snd __unpack_pair_1
     return ans : Id _)
 
 @[spec]
-theorem pathSum_spec :
+theorem pathSum_spec {root : Option TreeNode} {targetSum : Int} :
     ⦃⌜True⌝⦄ pathSum root targetSum ⦃⇓ans =>
       ⌜PastaLean.pyAll ((PastaLean.pyIter ans).map fun path => PastaLean.pySum path == targetSum)⌝⦄ :=
   by
   mvcgen [pathSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
-private partial def _pathSum_dfs'rn := fun (root : Option TreeNode) ↦ fun s ↦ fun (targetSum : Int) ↦ fun ans ↦ fun t ↦
+private partial def _pathSum'dfs'rn := fun (root : Option TreeNode) ↦ fun (s : Int) ↦ fun (targetSum : Int) ↦ fun ans ↦
+  fun t ↦
   Id.run
     (do
       let mut s := s
       let mut ans := ans
       let mut t := t
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := (ans, t)
         return __py_ret_1
       else
@@ -103,18 +105,18 @@ private partial def _pathSum_dfs'rn := fun (root : Option TreeNode) ↦ fun s �
       s := s +ₚ ((root).getD default).val
       t := PastaLean.pyAppend t ((root).getD default).val
       if h_2 :
-          Option.isNone ((root).getD default).left && Option.isNone ((root).getD default).right &&
+          PastaLean.pyIsNone ((root).getD default).left && PastaLean.pyIsNone ((root).getD default).right &&
             s == targetSum then
         
         let _ := Libraries.passta.pyPassAssert (PastaLean.pySum t == s)
         ans := PastaLean.pyAppend ans (PastaLean.pySlice t none none none)
       else
         let _ := ()
-      let __unpack_value_1 := _pathSum_dfs'rn ((root).getD default).left s targetSum ans t
+      let __unpack_value_1 := _pathSum'dfs'rn ((root).getD default).left s targetSum ans t
       let __unpack_pair_1 := __unpack_value_1
       ans := Prod.fst __unpack_pair_1
       t := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _pathSum_dfs'rn ((root).getD default).right s targetSum ans t
+      let __unpack_value_2 := _pathSum'dfs'rn ((root).getD default).right s targetSum ans t
       let __unpack_pair_2 := __unpack_value_2
       ans := Prod.fst __unpack_pair_2
       t := Prod.snd __unpack_pair_2
@@ -125,7 +127,7 @@ private partial def _pathSum_dfs'rn := fun (root : Option TreeNode) ↦ fun s �
 def pathSum'rn := fun (root : Option TreeNode) ↦ fun (targetSum : Int) ↦
   let ans := []
   let t := []
-  let __unpack_pair_1 := _pathSum_dfs'rn root (0 : Int) targetSum ans t
+  let __unpack_pair_1 := _pathSum'dfs'rn root (0 : Int) targetSum ans t
   let ans := Prod.fst __unpack_pair_1
   let t := Prod.snd __unpack_pair_1
   ans

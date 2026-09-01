@@ -20,22 +20,24 @@ namespace PastaBench.leetcode.MirrorReflection
 
 def mirrorReflection := fun (p : Int) ↦ fun (q : Int) ↦
   (do
+    let mut p := p
+    let mut q := q
     let mut g := Libraries.math.pyMathGcd p q
     let _ := Libraries.passta.pyPassAssert (decide (g > (0 : Int)))
-    let mut p : Int := PastaLean.pyFloorDiv p g %ₚ (2 : Int)
+    p := PastaLean.pyFloorDiv p g %ₚ (2 : Int)
     let _ := Libraries.passta.pyPassAssert (p == (0 : Int) || p == (1 : Int))
-    let mut q : Int := PastaLean.pyFloorDiv q g %ₚ (2 : Int)
+    q := PastaLean.pyFloorDiv q g %ₚ (2 : Int)
     let _ := Libraries.passta.pyPassAssert (q == (0 : Int) || q == (1 : Int))
     if h_1 : p = (1 : Int) ∧ q = (1 : Int) then 
       return (1 : Int)
     else
       let _ := ()
     let _ := Libraries.passta.pyPassAssert !(p == (1 : Int) && q == (1 : Int))
-    let __py_ret_1 := if p == (1 : Int) then (0 : Int) else (2 : Int)
+    let __py_ret_1 := if p = (1 : Int) then (0 : Int) else (2 : Int)
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem mirrorReflection_spec :
+theorem mirrorReflection_spec {p : Int} {q : Int} :
     ⦃⌜p > (0 : Int) ∧ q > (0 : Int)⌝⦄ mirrorReflection p q ⦃⇓result =>
       ⌜((p = (1 : Int) ∧ q = (1 : Int)) ∧ result = (1 : Int) ∨ (p = (1 : Int) ∧ q ≠ (1 : Int)) ∧ result = (0 : Int)) ∨
           p ≠ (1 : Int) ∧ result = (2 : Int)⌝⦄ :=

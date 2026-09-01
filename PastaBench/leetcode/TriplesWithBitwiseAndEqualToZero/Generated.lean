@@ -20,13 +20,14 @@ namespace PastaBench.leetcode.TriplesWithBitwiseAndEqualToZero
 
 def countTriplets := fun (nums : List Int) ↦
   let cnt :=
-    Libraries.collections.pyCounter
-      ((PastaLean.pyIter nums).flatMap fun x => (PastaLean.pyIter nums).map fun y => PastaLean.pyBitAnd x y)
+    (Libraries.collections.pyCounter
+        ((PastaLean.pyIter nums).flatMap fun x => (PastaLean.pyIter nums).map fun y => PastaLean.pyBitAnd x y) :
+      Libraries.collections.PyDefaultDict Int Int)
   PastaLean.pySum
     ((PastaLean.pyIter (PastaLean.pyItems cnt)).flatMap fun _pair_1 =>
       let xy := Prod.fst _pair_1;
       let v := Prod.snd _pair_1;
-      (List.filter (fun z => PastaLean.pyBitAnd xy z == (0 : Int)) (PastaLean.pyIter nums)).map fun z => v)
+      (List.filter (fun z => PastaLean.pyBitAnd xy z = (0 : Int)) (PastaLean.pyIter nums)).map fun z => v)
 
 attribute [simp] countTriplets
 
@@ -40,19 +41,20 @@ theorem countTriplets_spec :
           ((PastaLean.pyIter (PastaLean.pyItems cnt)).flatMap fun _pair_1 =>
             let xy := Prod.fst _pair_1;
             let v := Prod.snd _pair_1;
-            (List.filter (fun z => PastaLean.pyBitAnd xy z == (0 : Int)) (PastaLean.pyIter nums)).map fun z => v) =
+            (List.filter (fun z => PastaLean.pyBitAnd xy z = (0 : Int)) (PastaLean.pyIter nums)).map fun z => v) =
         PastaLean.pySum
           ((PastaLean.pyIter nums).flatMap fun x =>
             (PastaLean.pyIter nums).flatMap fun y =>
-              (List.filter (fun z => PastaLean.pyBitAnd (PastaLean.pyBitAnd x y) z == (0 : Int))
+              (List.filter (fun z => PastaLean.pyBitAnd (PastaLean.pyBitAnd x y) z = (0 : Int))
                     (PastaLean.pyIter nums)).map
                 fun z => (1 : Int)) :=
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def countTriplets'rn := fun (nums : List Int) ↦
   let cnt :=
-    Libraries.collections.pyCounter
-      ((PastaLean.pyIter nums).flatMap fun x => (PastaLean.pyIter nums).map fun y => PastaLean.pyBitAnd x y)
+    (Libraries.collections.pyCounter
+        ((PastaLean.pyIter nums).flatMap fun x => (PastaLean.pyIter nums).map fun y => PastaLean.pyBitAnd x y) :
+      Libraries.collections.PyDefaultDict Int Int)
   PastaLean.pySum
     ((PastaLean.pyIter (PastaLean.pyItems cnt)).flatMap fun _pair_1 =>
       let xy := Prod.fst _pair_1;

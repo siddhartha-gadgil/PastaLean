@@ -23,20 +23,18 @@ def printVertically := fun (s : String) ↦
     let mut words : List String := PastaLean.pyStringSplit s
     let mut n : Int := PastaLean.pyMax ((PastaLean.pyIter words).map fun w => PastaLean.pyLen w)
     let mut ans : List String := []
-    for j in (PastaLean.pyRange n)do
-      let mut t : List String :=
-        (PastaLean.pyIter words).map fun w => if decide (j < PastaLean.pyLen w) then w⦋j⦌ else " "
+    for j in (PastaLean.pyRange n) do
+      let mut t : List String := (PastaLean.pyIter words).map fun w => if j < PastaLean.pyLen w then w⦋j⦌ else " "
       while (t⦋(-1 : Int)⦌ = " ") do
         t := PastaLean.pyPopRest t
       ans := PastaLean.pyAppend ans (PastaLean.pyStringJoin "" t)
     return ans : Id _)
 
-theorem printVertically_spec :
+theorem printVertically_spec {s : String} :
     ⦃⌜PastaLean.pyLen (PastaLean.pyStringSplit s) > (0 : Int)⌝⦄ printVertically s ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [printVertically, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [printVertically, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def printVertically'rn := fun (s : String) ↦
   Id.run
@@ -45,9 +43,8 @@ def printVertically'rn := fun (s : String) ↦
       let mut words : List String := PastaLean.pyStringSplit s
       let mut n : Int := PastaLean.pyMax ((PastaLean.pyIter words).map fun w => PastaLean.pyLen w)
       let mut ans : List String := []
-      for j in (PastaLean.pyRange n)do
-        let mut t : List String :=
-          (PastaLean.pyIter words).map fun w => if decide (j < PastaLean.pyLen w) then w⦋j⦌ else " "
+      for j in (PastaLean.pyRange n) do
+        let mut t : List String := (PastaLean.pyIter words).map fun w => if j < PastaLean.pyLen w then w⦋j⦌ else " "
         while (t⦋(-1 : Int)⦌ == " ") do
           t := PastaLean.pyPopRest t
         ans := PastaLean.pyAppend ans (PastaLean.pyStringJoin "" t)

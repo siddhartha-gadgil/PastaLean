@@ -39,7 +39,7 @@ def countLetters := fun (s : String) ↦
       i := j
     return ans : Id _)
 
-theorem countLetters_spec : ⦃⌜True⌝⦄ countLetters s ⦃⇓_ => ⌜True⌝⦄ :=
+theorem countLetters_spec {s : String} : ⦃⌜True⌝⦄ countLetters s ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [countLetters, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   all_goals sorry

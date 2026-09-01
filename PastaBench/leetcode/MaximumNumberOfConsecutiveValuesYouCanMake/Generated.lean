@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.MaximumNumberOfConsecutiveValuesYouCanMake
 def getMaximumConsecutive := fun (coins : List Int) ↦
   (do
     let mut ans : Int := (1 : Int)
-    for v in (PastaLean.pyIter (PastaLean.pySort coins))do
+    for v in (PastaLean.pyIter (PastaLean.pySort coins)) do
       let _ := Libraries.passta.pyPassInvariant (decide (ans > (0 : Int)))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ (1 : Int) +ₚ PastaLean.pySum coins))
       if h_1 : v > ans then 
@@ -31,13 +31,12 @@ def getMaximumConsecutive := fun (coins : List Int) ↦
       ans := ans +ₚ v
     return ans : Id _)
 
-theorem getMaximumConsecutive_spec :
+theorem getMaximumConsecutive_spec {coins : List Int} :
     ⦃⌜PastaLean.pyAll ((PastaLean.pyIter coins).map fun v => decide (v > (0 : Int)))⌝⦄
       getMaximumConsecutive coins ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [getMaximumConsecutive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  sorry
+  mvcgen [getMaximumConsecutive, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def getMaximumConsecutive'rn := fun (coins : List Int) ↦
   Id.run
@@ -46,7 +45,7 @@ def getMaximumConsecutive'rn := fun (coins : List Int) ↦
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll ((PastaLean.pyIter coins).map fun v => decide (v > (0 : Int))))
       let mut ans : Int := (1 : Int)
-      for v in (PastaLean.pyIter (PastaLean.pySort coins))do
+      for v in (PastaLean.pyIter (PastaLean.pySort coins)) do
         let _ := Libraries.passta.pyPassInvariant (decide (ans > (0 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≤ (1 : Int) +ₚ PastaLean.pySum coins))
         if h_1 : v > ans then 

@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.NthDigit
 
 def findNthDigit := fun (n : Int) ↦
   (do
+    let mut n := n
     let __unpack_value_1 := ((1 : Int), (9 : Int))
     let __unpack_pair_1 := __unpack_value_1
     let mut k := Prod.fst __unpack_pair_1
@@ -34,10 +35,10 @@ def findNthDigit := fun (n : Int) ↦
       cnt := cnt *ₚ (10 : Int)
     let _ := Libraries.passta.pyPassAssert (decide (k > (0 : Int)))
     let _ := Libraries.passta.pyPassAssert (decide (cnt > (0 : Int)))
-    let mut num := (10 : Int) ^ₚ (k -ₚ (1 : Int)) +ₚ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k
+    let mut num : Int := (10 : Int) ^ₚ (k -ₚ (1 : Int)) +ₚ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k
     let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k))
     let _ := Libraries.passta.pyPassAssert (decide (PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k < cnt))
-    let mut idx := (n -ₚ (1 : Int)) %ₚ k
+    let mut idx : Int := (n -ₚ (1 : Int)) %ₚ k
     let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ idx) && decide (idx < k))
     let _ := Libraries.passta.pyPassAssert (decide ((10 : Int) ^ₚ (k -ₚ (1 : Int)) ≤ num))
     let _ := Libraries.passta.pyPassAssert (decide (num < (10 : Int) ^ₚ k))
@@ -45,10 +46,11 @@ def findNthDigit := fun (n : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem findNthDigit_spec : ⦃⌜n ≥ (1 : Int)⌝⦄ findNthDigit n ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result < (10 : Int)⌝⦄ :=
+theorem findNthDigit_spec {n : Int} :
+    ⦃⌜n ≥ (1 : Int)⌝⦄ findNthDigit n ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result < (10 : Int)⌝⦄ :=
   by
   mvcgen [findNthDigit, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def findNthDigit'rn := fun (n : Int) ↦
   Id.run
@@ -70,11 +72,11 @@ def findNthDigit'rn := fun (n : Int) ↦
       -- Now 1 <= n <= k*cnt and k>0
       let _ := Libraries.passta.pyPassAssert (decide (k > (0 : Int)))
       let _ := Libraries.passta.pyPassAssert (decide (cnt > (0 : Int)))
-      let mut num := (10 : Int) ^ₚ (k -ₚ (1 : Int)) +ₚ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k
+      let mut num : Int := (10 : Int) ^ₚ (k -ₚ (1 : Int)) +ₚ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k
       -- offset in [0, cnt-1]
       let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k))
       let _ := Libraries.passta.pyPassAssert (decide (PastaLean.pyFloorDiv (n -ₚ (1 : Int)) k < cnt))
-      let mut idx := (n -ₚ (1 : Int)) %ₚ k
+      let mut idx : Int := (n -ₚ (1 : Int)) %ₚ k
       let _ := Libraries.passta.pyPassAssert (decide ((0 : Int) ≤ idx) && decide (idx < k))
       -- num is in [10^(k-1), 10^k)
       let _ := Libraries.passta.pyPassAssert (decide ((10 : Int) ^ₚ (k -ₚ (1 : Int)) ≤ num))

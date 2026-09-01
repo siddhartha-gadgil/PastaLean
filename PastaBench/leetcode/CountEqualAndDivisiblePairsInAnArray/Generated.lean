@@ -21,34 +21,33 @@ namespace PastaBench.leetcode.CountEqualAndDivisiblePairsInAnArray
 def countPairs := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for j in (PastaLean.pyRange (PastaLean.pyLen nums) (1 : Int))do
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pySlice nums none (some j) none)))do
+    for j in (PastaLean.pyRange (PastaLean.pyLen nums) (1 : Int)) do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pySlice nums none (some j) none))) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
         ans := ans +ₚ PastaLean.pyInt (x == nums⦋j⦌ && i *ₚ j %ₚ k == (0 : Int))
     return ans : Id _)
 
 @[spec]
-theorem countPairs_spec :
+theorem countPairs_spec {nums : List Int} {k : Int} :
     ⦃⌜k ≠ (0 : Int)⌝⦄ countPairs nums k ⦃⇓ans =>
       ⌜ans =
           PastaLean.pySum
             ((PastaLean.pyRange (PastaLean.pyLen nums)).flatMap fun i =>
-              (List.filter (fun j => nums⦋i⦌ == nums⦋j⦌ && i *ₚ j %ₚ k == (0 : Int))
+              (List.filter (fun j => nums⦋i⦌ = nums⦋j⦌ ∧ i *ₚ j %ₚ k = (0 : Int))
                     (PastaLean.pyRange (PastaLean.pyLen nums) (i +ₚ (1 : Int)))).map
                 fun j => (1 : Int))⌝⦄ :=
   by
-  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  sorry
+  mvcgen [countPairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def countPairs'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (k != (0 : Int))
       let mut ans : Int := (0 : Int)
-      for j in (PastaLean.pyRange (PastaLean.pyLen nums) (1 : Int))do
-        for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pySlice nums none (some j) none)))do
+      for j in (PastaLean.pyRange (PastaLean.pyLen nums) (1 : Int)) do
+        for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pySlice nums none (some j) none))) do
           let i := Prod.fst _pair_1
           let x := Prod.snd _pair_1
           ans := ans +ₚ PastaLean.pyInt (x == nums⦋j⦌ && i *ₚ j %ₚ k == (0 : Int))

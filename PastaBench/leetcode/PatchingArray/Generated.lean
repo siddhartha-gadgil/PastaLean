@@ -38,13 +38,13 @@ def minPatches := fun (nums : List Int) ↦ fun (n : Int) ↦
     let _ := Libraries.passta.pyPassAssert (decide (x > n))
     return ans : Id _)
 
-theorem minPatches_spec :
+theorem minPatches_spec {nums : List Int} {n : Int} :
     ⦃⌜(n ≥ (0 : Int) ∧ PastaLean.pyAll ((PastaLean.pyIter nums).map fun num => decide (num > (0 : Int)))) ∧
           nums = PastaLean.pySort nums⌝⦄
       minPatches nums n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minPatches, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  all_goals sorry
 
 def minPatches'rn := fun (nums : List Int) ↦ fun (n : Int) ↦
   Id.run

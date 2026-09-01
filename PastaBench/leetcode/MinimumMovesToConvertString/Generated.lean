@@ -35,7 +35,7 @@ def minimumMoves := fun (s : String) ↦
     return ans : Id _)
 
 @[spec]
-theorem minimumMoves_spec : ⦃⌜True⌝⦄ minimumMoves s ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem minimumMoves_spec {s : String} : ⦃⌜True⌝⦄ minimumMoves s ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [minimumMoves, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   all_goals sorry

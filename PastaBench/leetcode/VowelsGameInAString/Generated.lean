@@ -19,7 +19,7 @@ set_option maxHeartbeats 800000
 namespace PastaBench.leetcode.VowelsGameInAString
 
 def doesAliceWin := fun (s : String) ↦
-  let vowels := PastaLean.pySet "aeiou"
+  let vowels := (PastaLean.pySet "aeiou" : List String)
   PastaLean.pyStdAny ((PastaLean.pyIter s).map fun c => PastaLean.pyContains vowels c)
 
 attribute [simp] doesAliceWin
@@ -33,7 +33,7 @@ theorem doesAliceWin_spec :
   by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def doesAliceWin'rn := fun (s : String) ↦
-  let vowels := PastaLean.pySet "aeiou"
+  let vowels := (PastaLean.pySet "aeiou" : List String)
   PastaLean.pyStdAny ((PastaLean.pyIter s).map fun c => PastaLean.pyContains vowels c)
 
 end PastaBench.leetcode.VowelsGameInAString

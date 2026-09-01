@@ -22,14 +22,14 @@ def uniqueLetterString := fun (s : String) ↦
   (do
     let mut ans : Int := (0 : Int)
     let mut d : Libraries.collections.PyDefaultDict String (List Int) := Libraries.collections.pyDefaultDictList
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
       let i := Prod.fst _pair_1
       let c := Prod.snd _pair_1
       d := PastaLean.pySetItem d c (PastaLean.pyAppend d⦋c⦌ i)
-    for __py_loop_1 in (PastaLean.pyIter (PastaLean.pyAnys d))do
+    for __py_loop_1 in (PastaLean.pyIter (PastaLean.pyAnys d)) do
       let mut v := __py_loop_1
       v := [-(1 : Int)] +ₚ v +ₚ [PastaLean.pyLen s]
-      for i in (PastaLean.pyRange (PastaLean.pyLen v -ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen v -ₚ (1 : Int)) (1 : Int)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen v -ₚ (1 : Int)))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
@@ -37,25 +37,24 @@ def uniqueLetterString := fun (s : String) ↦
     let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
     return ans : Id _)
 
-theorem uniqueLetterString_spec : ⦃⌜True⌝⦄ uniqueLetterString s ⦃⇓_ => ⌜True⌝⦄ :=
+theorem uniqueLetterString_spec {s : String} : ⦃⌜True⌝⦄ uniqueLetterString s ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [uniqueLetterString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, ans⟩ => ⌜True⌝
-  sorry
+  mvcgen [uniqueLetterString, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def uniqueLetterString'rn := fun (s : String) ↦
   Id.run
     (do
       let mut ans : Int := (0 : Int)
       let mut d : Libraries.collections.PyDefaultDict String (List Int) := Libraries.collections.pyDefaultDictList
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
         let i := Prod.fst _pair_1
         let c := Prod.snd _pair_1
         d := PastaLean.pySetItem d c (PastaLean.pyAppend d⦋c⦌ i)
-      for __py_loop_1 in (PastaLean.pyIter (PastaLean.pyAnys d))do
+      for __py_loop_1 in (PastaLean.pyIter (PastaLean.pyAnys d)) do
         let mut v := __py_loop_1
         v := [-(1 : Int)] +ₚ v +ₚ [PastaLean.pyLen s]
-        for i in (PastaLean.pyRange (PastaLean.pyLen v -ₚ (1 : Int)) (1 : Int))do
+        for i in (PastaLean.pyRange (PastaLean.pyLen v -ₚ (1 : Int)) (1 : Int)) do
           let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
           let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen v -ₚ (1 : Int)))
           let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))

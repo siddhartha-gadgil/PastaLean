@@ -21,37 +21,39 @@ namespace PastaBench.leetcode.NumberOfSubarraysWithGcdEqualToK
 def subarrayGCD := fun (nums : List Int) ↦ fun (k : Int) ↦
   (do
     let mut ans : Int := (0 : Int)
-    for i in (PastaLean.pyRange (PastaLean.pyLen nums))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen nums)) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
       let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
       let mut g : Int := (0 : Int)
-      for x in (PastaLean.pyIter (PastaLean.pySlice nums (some i) none none))do
+      for x in (PastaLean.pyIter (PastaLean.pySlice nums (some i) none none)) do
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         g := Libraries.math.pyMathGcd g x
         ans := ans +ₚ (g == k)
     return ans : Id _)
 
 @[spec]
-theorem subarrayGCD_spec : ⦃⌜k ≥ (0 : Int)⌝⦄ subarrayGCD nums k ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+theorem subarrayGCD_spec {nums : List Int} {k : Int} :
+    ⦃⌜k ≥ (0 : Int)⌝⦄ subarrayGCD nums k ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
   by
-  mvcgen [subarrayGCD, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  mvcgen [subarrayGCD, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
   · ⇓⟨cur, ans⟩ =>
     ⌜let i := (cur.prefix.length : Int);
       ((0 : Int) ≤ i ∧ i < PastaLean.pyLen nums) ∧ ans ≥ (0 : Int)⌝
-  sorry
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry; sorry; pyany_cases <;> grind +locals
 
 def subarrayGCD'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums)) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < PastaLean.pyLen nums))
         let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
         let mut g : Int := (0 : Int)
-        for x in (PastaLean.pyIter (PastaLean.pySlice nums (some i) none none))do
+        for x in (PastaLean.pyIter (PastaLean.pySlice nums (some i) none none)) do
           let _ := Libraries.passta.pyPassInvariant (decide (ans ≥ (0 : Int)))
           g := Libraries.math.pyMathGcd g x
           ans := ans +ₚ (g == k)

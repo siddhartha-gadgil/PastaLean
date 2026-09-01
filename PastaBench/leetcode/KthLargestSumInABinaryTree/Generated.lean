@@ -41,21 +41,21 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
 def kthLargestLevelSum := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   (do
     let mut arr : List Int := []
-    let mut q := Libraries.collections.pyDeque [root]
+    let mut q : List (Option TreeNode) := Libraries.collections.pyDeque [root]
     while (PastaLean.pyTruthy q) do
       let mut t : Int := (0 : Int)
       -- process one tree level
       let mut n : Int := PastaLean.pyLen q
-      for _ in (PastaLean.pyRange n)do
+      for _ in (PastaLean.pyRange n) do
         let mut node := PastaLean.pyPopLeftValue q
         q := PastaLean.pyPopLeftRest q
-        t := t +ₚ node.val
-        if h_1 : PastaLean.pyTruthy node.left then 
-          q := PastaLean.pyAppend q node.left
+        t := t +ₚ ((node).getD default).val
+        if h_1 : PastaLean.pyTruthy ((node).getD default).left then 
+          q := PastaLean.pyAppend q ((node).getD default).left
         else
           let _ := ()
-        if h_2 : PastaLean.pyTruthy node.right then 
-          q := PastaLean.pyAppend q node.right
+        if h_2 : PastaLean.pyTruthy ((node).getD default).right then 
+          q := PastaLean.pyAppend q ((node).getD default).right
         else
           let _ := ()
       arr := PastaLean.pyAppend arr t
@@ -71,31 +71,33 @@ def kthLargestLevelSum := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
     let __py_ret_1 := topk⦋(-1 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem kthLargestLevelSum_spec : ⦃⌜Option.isSome root ∧ k > (0 : Int)⌝⦄ kthLargestLevelSum root k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem kthLargestLevelSum_spec {root : Option TreeNode} {k : Int} :
+    ⦃⌜!PastaLean.pyIsNone root ∧ k > (0 : Int)⌝⦄ kthLargestLevelSum root k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [kthLargestLevelSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def kthLargestLevelSum'rn := fun (root : Option TreeNode) ↦ fun (k : Int) ↦
   Id.run
     (do
-      let _ := Libraries.passta.pyPassRequires (Option.isSome root)
+      let _ := Libraries.passta.pyPassRequires !PastaLean.pyIsNone root
       let _ := Libraries.passta.pyPassRequires (decide (k > (0 : Int)))
       let mut arr : List Int := []
-      let mut q := Libraries.collections.pyDeque [root]
+      let mut q : List (Option TreeNode) := Libraries.collections.pyDeque [root]
       while (PastaLean.pyTruthy q) do
         let mut t : Int := (0 : Int)
         -- process one tree level
         let mut n : Int := PastaLean.pyLen q
-        for _ in (PastaLean.pyRange n)do
+        for _ in (PastaLean.pyRange n) do
           let mut node := PastaLean.pyPopLeftValue q
           q := PastaLean.pyPopLeftRest q
-          t := t +ₚ node.val
-          if h_1 : PastaLean.pyTruthy node.left then 
-            q := PastaLean.pyAppend q node.left
+          t := t +ₚ ((node).getD default).val
+          if h_1 : PastaLean.pyTruthy ((node).getD default).left then 
+            q := PastaLean.pyAppend q ((node).getD default).left
           else
             let _ := ()
-          if h_2 : PastaLean.pyTruthy node.right then 
-            q := PastaLean.pyAppend q node.right
+          if h_2 : PastaLean.pyTruthy ((node).getD default).right then 
+            q := PastaLean.pyAppend q ((node).getD default).right
           else
             let _ := ()
         arr := PastaLean.pyAppend arr t

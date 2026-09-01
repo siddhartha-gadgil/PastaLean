@@ -21,7 +21,7 @@ namespace PastaBench.leetcode.GlobalAndLocalInversions
 def isIdealPermutation := fun (nums : List Int) ↦
   (do
     let mut mx : Int := (0 : Int)
-    for i in (PastaLean.pyRange (PastaLean.pyLen nums) (2 : Int))do
+    for i in (PastaLean.pyRange (PastaLean.pyLen nums) (2 : Int)) do
       mx := PastaLean.pyMax [mx, nums⦋i -ₚ (2 : Int)⦌]
       if h_1 : mx > nums⦋i⦌ then 
         return Bool.false
@@ -30,10 +30,8 @@ def isIdealPermutation := fun (nums : List Int) ↦
     return Bool.true : Id _)
 
 @[spec]
-theorem isIdealPermutation_spec :
-    ⦃⌜PastaLean.pyAll
-          ((PastaLean.pyIter nums).map fun n => PastaLean.pyTruthy (isinstance n int) && decide (n ≥ (0 : Int)))⌝⦄
-      isIdealPermutation nums ⦃⇓result =>
+theorem isIdealPermutation_spec {nums : List Int} :
+    ⦃⌜True⌝⦄ isIdealPermutation nums ⦃⇓result =>
       ⌜result =
           PastaLean.pyAll
             ((PastaLean.pyRange (PastaLean.pyLen nums) (2 : Int)).map fun j =>
@@ -43,9 +41,8 @@ theorem isIdealPermutation_spec :
                   else PastaLean.pyMax (PastaLean.pySlice nums none (some (j -ₚ (1 : Int))) none)) ≤
                   nums⦋j⦌))⌝⦄ :=
   by
-  mvcgen [isIdealPermutation, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · Invariant.withEarlyReturn (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝)
-  sorry
+  mvcgen [isIdealPermutation, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def isIdealPermutation'rn := fun (nums : List Int) ↦
   Id.run
@@ -54,11 +51,13 @@ def isIdealPermutation'rn := fun (nums : List Int) ↦
       let _ :=
         Libraries.passta.pyPassRequires
           (PastaLean.pyAll
-            ((PastaLean.pyIter nums).map fun n => PastaLean.pyTruthy (isinstance n int) && decide (n ≥ (0 : Int))))
+            ((PastaLean.pyIter nums).map fun n =>
+              if PastaLean.pyTruthy (PastaLean.pyIsInstance n "int") then decide (n ≥ (0 : Int))
+              else PastaLean.pyIsInstance n "int"))
       -- The result is True exactly when no non-local inversion exists:
       -- for every i >= 2, the maximum of nums[:i-1] does not exceed nums[i].
       let mut mx : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums) (2 : Int))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums) (2 : Int)) do
         mx := PastaLean.pyMax [mx, nums⦋i -ₚ (2 : Int)⦌]
         if h_1 : mx > nums⦋i⦌ then 
           return Bool.false

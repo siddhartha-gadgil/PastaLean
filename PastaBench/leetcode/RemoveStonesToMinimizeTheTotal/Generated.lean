@@ -22,19 +22,18 @@ def minStoneSum := fun (piles : List Int) ↦ fun (k : Int) ↦
   (do
     let mut pq : List Int := (PastaLean.pyIter piles).map fun x => -x
     pq := Libraries.heapq.pyHeapify pq
-    for _ in (PastaLean.pyRange k)do
+    for _ in (PastaLean.pyRange k) do
       pq := Libraries.heapq.pyHeapreplaceRest pq (PastaLean.pyFloorDiv pq⦋(0 : Int)⦌ (2 : Int))
     let __py_ret_1 := -PastaLean.pySum pq
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem minStoneSum_spec :
+theorem minStoneSum_spec {piles : List Int} {k : Int} :
     ⦃⌜k ≥ (0 : Int) ∧ PastaLean.pyAll ((PastaLean.pyIter piles).map fun x => decide (x ≥ (0 : Int)))⌝⦄
       minStoneSum piles k ⦃⇓result => ⌜(0 : Int) ≤ result ∧ result ≤ PastaLean.pySum piles⌝⦄ :=
   by
-  mvcgen [minStoneSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+  mvcgen [minStoneSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def minStoneSum'rn := fun (piles : List Int) ↦ fun (k : Int) ↦
   Id.run
@@ -45,7 +44,7 @@ def minStoneSum'rn := fun (piles : List Int) ↦ fun (k : Int) ↦
           (PastaLean.pyAll ((PastaLean.pyIter piles).map fun x => decide (x ≥ (0 : Int))))
       let mut pq : List Int := (PastaLean.pyIter piles).map fun x => -x
       pq := Libraries.heapq.pyHeapify pq
-      for _ in (PastaLean.pyRange k)do
+      for _ in (PastaLean.pyRange k) do
         pq := Libraries.heapq.pyHeapreplaceRest pq (PastaLean.pyFloorDiv pq⦋(0 : Int)⦌ (2 : Int))
       let __py_ret_1 := -PastaLean.pySum pq
       return __py_ret_1)

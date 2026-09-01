@@ -23,23 +23,22 @@ def kInversePairs := fun (n : Int) ↦ fun (k : Int) ↦
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
     let mut f : List Int := [(1 : Int)] +ₚ PastaLean.pyListRepeat [(0 : Int)] k
     let mut s : List Int := PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (2 : Int))
-    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
-      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+    for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
+      for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
         f :=
           PastaLean.pySetItem f j ((s⦋j +ₚ (1 : Int)⦌ -ₚ s⦋PastaLean.pyMax [(0 : Int), j -ₚ (i -ₚ (1 : Int))]⦌) %ₚ mod)
-      for j in (PastaLean.pyRange (k +ₚ (2 : Int)) (1 : Int))do
+      for j in (PastaLean.pyRange (k +ₚ (2 : Int)) (1 : Int)) do
         s := PastaLean.pySetItem s j ((s⦋j -ₚ (1 : Int)⦌ +ₚ f⦋j -ₚ (1 : Int)⦌) %ₚ mod)
     let __py_ret_1 := f⦋k⦌
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem kInversePairs_spec :
+theorem kInversePairs_spec {n : Int} {k : Int} :
     ⦃⌜n ≥ (0 : Int) ∧ k ≥ (0 : Int)⌝⦄ kInversePairs n k ⦃⇓result =>
       ⌜(0 : Int) ≤ result ∧ result < (1000000007 : Int)⌝⦄ :=
   by
-  mvcgen [kInversePairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [kInversePairs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def kInversePairs'rn := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run
@@ -49,12 +48,12 @@ def kInversePairs'rn := fun (n : Int) ↦ fun (k : Int) ↦
       let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
       let mut f : List Int := [(1 : Int)] +ₚ PastaLean.pyListRepeat [(0 : Int)] k
       let mut s : List Int := PastaLean.pyListRepeat [(0 : Int)] (k +ₚ (2 : Int))
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
-        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
+        for j in (PastaLean.pyRange (k +ₚ (1 : Int)) (1 : Int)) do
           f :=
             PastaLean.pySetItem f j
               ((s⦋j +ₚ (1 : Int)⦌ -ₚ s⦋PastaLean.pyMax [(0 : Int), j -ₚ (i -ₚ (1 : Int))]⦌) %ₚ mod)
-        for j in (PastaLean.pyRange (k +ₚ (2 : Int)) (1 : Int))do
+        for j in (PastaLean.pyRange (k +ₚ (2 : Int)) (1 : Int)) do
           s := PastaLean.pySetItem s j ((s⦋j -ₚ (1 : Int)⦌ +ₚ f⦋j -ₚ (1 : Int)⦌) %ₚ mod)
       let __py_ret_1 := f⦋k⦌
       return __py_ret_1)

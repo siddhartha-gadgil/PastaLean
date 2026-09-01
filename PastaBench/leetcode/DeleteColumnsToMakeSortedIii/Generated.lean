@@ -22,11 +22,11 @@ def minDeletionSize := fun (strs : List String) ↦
   (do
     let mut n : Int := PastaLean.pyLen strs⦋(0 : Int)⦌
     let mut f : List Int := PastaLean.pyListRepeat [(1 : Int)] n
-    for i in (PastaLean.pyRange n)do
+    for i in (PastaLean.pyRange n) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i < n))
       let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-      for j in (PastaLean.pyRange i)do
+      for j in (PastaLean.pyRange i) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
         let _ := Libraries.passta.pyPassInvariant (decide (j < i))
         let _ := Libraries.passta.pyPassDecreases (i -ₚ j)
@@ -37,16 +37,17 @@ def minDeletionSize := fun (strs : List String) ↦
     let __py_ret_1 := n -ₚ PastaLean.pyMax f
     return __py_ret_1 : Id _)
 
-theorem minDeletionSize_spec :
+theorem minDeletionSize_spec {strs : List String} :
     ⦃⌜PastaLean.pyLen strs > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter strs).map fun s => PastaLean.pyLen s == PastaLean.pyLen strs⦋(0 : Int)⦌)⌝⦄
       minDeletionSize strs ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [minDeletionSize, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur =>
+  mvcgen [minDeletionSize, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, f⟩ =>
     ⌜let i := (cur.prefix.length : Int);
-      (0 : Int) ≤ i ∧ i < n⌝
-  sorry
+      (0 : Int) ≤ i⌝
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]
 
 def minDeletionSize'rn := fun (strs : List String) ↦
   Id.run
@@ -57,11 +58,11 @@ def minDeletionSize'rn := fun (strs : List String) ↦
           (PastaLean.pyAll ((PastaLean.pyIter strs).map fun s => PastaLean.pyLen s == PastaLean.pyLen strs⦋(0 : Int)⦌))
       let mut n : Int := PastaLean.pyLen strs⦋(0 : Int)⦌
       let mut f : List Int := PastaLean.pyListRepeat [(1 : Int)] n
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
         let _ := Libraries.passta.pyPassDecreases (n -ₚ i)
-        for j in (PastaLean.pyRange i)do
+        for j in (PastaLean.pyRange i) do
           let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ j))
           let _ := Libraries.passta.pyPassInvariant (decide (j < i))
           let _ := Libraries.passta.pyPassDecreases (i -ₚ j)

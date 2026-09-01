@@ -31,7 +31,7 @@ def canDivideIntoSubsequences := fun (nums : List Int) ↦ fun (k : Int) ↦
           PastaLean.pyLen nums)
     return __py_ret_1 : Id _)
 
-theorem canDivideIntoSubsequences_spec :
+theorem canDivideIntoSubsequences_spec {nums : List Int} {k : Int} :
     ⦃⌜PastaLean.pyLen nums > (0 : Int)⌝⦄ canDivideIntoSubsequences nums k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [canDivideIntoSubsequences, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]

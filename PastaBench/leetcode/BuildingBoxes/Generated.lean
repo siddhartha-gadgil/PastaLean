@@ -42,7 +42,7 @@ def minimumBoxes := fun (n : Int) ↦
       k := k +ₚ (1 : Int)
     return ans : Id _)
 
-theorem minimumBoxes_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ minimumBoxes n ⦃⇓_ => ⌜True⌝⦄ :=
+theorem minimumBoxes_spec {n : Int} : ⦃⌜n ≥ (0 : Int)⌝⦄ minimumBoxes n ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [minimumBoxes, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
   simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry

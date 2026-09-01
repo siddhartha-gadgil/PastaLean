@@ -20,7 +20,8 @@ namespace PastaBench.leetcode.AddMinimumNumberOfRungs
 
 def addRungs := fun (rungs : List Int) ↦ fun (dist : Int) ↦
   (do
-    let mut rungs : List Int := [(0 : Int)] +ₚ rungs
+    let mut rungs := rungs
+    rungs := [(0 : Int)] +ₚ rungs
     let __py_ret_1 :=
       PastaLean.pySum
         ((PastaLean.pyIter (Libraries.itertools.pyPairwise rungs)).map fun _pair_1 =>
@@ -30,7 +31,7 @@ def addRungs := fun (rungs : List Int) ↦ fun (dist : Int) ↦
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem addRungs_spec :
+theorem addRungs_spec {rungs : List Int} {dist : Int} :
     ⦃⌜dist > (0 : Int) ∧
           PastaLean.pyAll
             ((PastaLean.pyIter (Libraries.itertools.pyPairwise ([(0 : Int)] +ₚ rungs))).map fun _pair_1 =>
@@ -40,7 +41,7 @@ theorem addRungs_spec :
       addRungs rungs dist ⦃⇓result => ⌜result ≥ (0 : Int)⌝⦄ :=
   by
   mvcgen [addRungs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
 
 def addRungs'rn := fun (rungs : List Int) ↦ fun (dist : Int) ↦
   Id.run

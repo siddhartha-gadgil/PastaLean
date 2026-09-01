@@ -22,7 +22,7 @@ def validateStackSequences := fun (pushed : List Int) ↦ fun (popped : List Int
   (do
     let mut stk : List Int := []
     let mut i : Int := (0 : Int)
-    for x in (PastaLean.pyIter pushed)do
+    for x in (PastaLean.pyIter pushed) do
       let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
       let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen popped))
       stk := PastaLean.pyAppend stk x
@@ -36,12 +36,14 @@ def validateStackSequences := fun (pushed : List Int) ↦ fun (popped : List Int
     let __py_ret_1 := i == PastaLean.pyLen popped
     return __py_ret_1 : Id _)
 
-theorem validateStackSequences_spec :
+theorem validateStackSequences_spec {pushed : List Int} {popped : List Int} :
     ⦃⌜PastaLean.pyLen pushed = PastaLean.pyLen popped⌝⦄ validateStackSequences pushed popped ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [validateStackSequences, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓⟨cur, i⟩ => ⌜(0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen popped⌝
-  sorry
+  mvcgen [validateStackSequences, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants?
+  · ⇓⟨cur, stk, i⟩ => ⌜(0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen popped⌝
+  · fun _ => ULift.up 0
+  · ⇓_ => ⌜True⌝
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def validateStackSequences'rn := fun (pushed : List Int) ↦ fun (popped : List Int) ↦
   Id.run
@@ -49,7 +51,7 @@ def validateStackSequences'rn := fun (pushed : List Int) ↦ fun (popped : List 
       let _ := Libraries.passta.pyPassRequires (PastaLean.pyLen pushed == PastaLean.pyLen popped)
       let mut stk : List Int := []
       let mut i : Int := (0 : Int)
-      for x in (PastaLean.pyIter pushed)do
+      for x in (PastaLean.pyIter pushed) do
         let _ := Libraries.passta.pyPassInvariant (decide ((0 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i ≤ PastaLean.pyLen popped))
         stk := PastaLean.pyAppend stk x

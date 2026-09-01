@@ -22,8 +22,8 @@ def valueAfterKSeconds := fun (n : Int) ↦ fun (k : Int) ↦
   (do
     let mut a : List Int := PastaLean.pyListRepeat [(1 : Int)] n
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
-    for _ in (PastaLean.pyRange k)do
-      for i in (PastaLean.pyRange n (1 : Int))do
+    for _ in (PastaLean.pyRange k) do
+      for i in (PastaLean.pyRange n (1 : Int)) do
         -- bounds needed for safe indexing of a and a[i-1]
         let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
         let _ := Libraries.passta.pyPassInvariant (decide (i < n))
@@ -31,11 +31,11 @@ def valueAfterKSeconds := fun (n : Int) ↦ fun (k : Int) ↦
     let __py_ret_1 := a⦋n -ₚ (1 : Int)⦌
     return __py_ret_1 : Id _)
 
-theorem valueAfterKSeconds_spec : ⦃⌜n ≥ (1 : Int) ∧ k ≥ (0 : Int)⌝⦄ valueAfterKSeconds n k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem valueAfterKSeconds_spec {n : Int} {k : Int} :
+    ⦃⌜n ≥ (1 : Int) ∧ k ≥ (0 : Int)⌝⦄ valueAfterKSeconds n k ⦃⇓_ => ⌜True⌝⦄ :=
   by
-  mvcgen [valueAfterKSeconds, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-  · ⇓cur => ⌜True⌝
-  sorry
+  mvcgen [valueAfterKSeconds, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def valueAfterKSeconds'rn := fun (n : Int) ↦ fun (k : Int) ↦
   Id.run
@@ -44,8 +44,8 @@ def valueAfterKSeconds'rn := fun (n : Int) ↦ fun (k : Int) ↦
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (0 : Int)))
       let mut a : List Int := PastaLean.pyListRepeat [(1 : Int)] n
       let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
-      for _ in (PastaLean.pyRange k)do
-        for i in (PastaLean.pyRange n (1 : Int))do
+      for _ in (PastaLean.pyRange k) do
+        for i in (PastaLean.pyRange n (1 : Int)) do
           -- bounds needed for safe indexing of a and a[i-1]
           let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ i))
           let _ := Libraries.passta.pyPassInvariant (decide (i < n))

@@ -33,16 +33,18 @@ def BinaryIndexedTree.new := fun n ↦
       return self)
 
 def BinaryIndexedTree.update := fun (self : BinaryIndexedTree) ↦ fun (x : Int) ↦ fun (v : Int) ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
-    let _ := Libraries.passta.pyPassDecreases (self.n -ₚ x)
-    while (x ≤ self.n) do
-      let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
-      let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ v) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
+      let _ := Libraries.passta.pyPassDecreases (self.n -ₚ x)
+      while (x ≤ self.n) do
+        let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
+        let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ v) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
 attribute [simp, taste_ingr] BinaryIndexedTree.update
 
@@ -77,16 +79,18 @@ def BinaryIndexedTree'rn.new := fun n ↦
       return self)
 
 def BinaryIndexedTree'rn.update := fun (self : BinaryIndexedTree'rn) ↦ fun (x : Int) ↦ fun (v : Int) ↦
-  Id.run do
-    let mut self := self
-    let mut x := x
-    let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
-    let _ := Libraries.passta.pyPassDecreases (self.n -ₚ x)
-    while (x ≤ self.n) do
-      let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
-      let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
-      self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ v) }
-      x := x +ₚ PastaLean.pyBitAnd x (-x)
+  Id.run
+    (do
+      let mut self := self
+      let mut x := x
+      let _ := Libraries.passta.pyPassRequires (decide ((1 : Int) ≤ x) && decide (x ≤ self.n))
+      let _ := Libraries.passta.pyPassDecreases (self.n -ₚ x)
+      while (x ≤ self.n) do
+        let _ := Libraries.passta.pyPassInvariant (decide ((1 : Int) ≤ x))
+        let _ := Libraries.passta.pyPassInvariant (decide (x ≤ self.n))
+        self := { self with c := PastaLean.pySetItem self.c x (self.c⦋x⦌ +ₚ v) }
+        x := x +ₚ PastaLean.pyBitAnd x (-x)
+      return self)
 
 def BinaryIndexedTree'rn.query := fun (self : BinaryIndexedTree'rn) ↦ fun (x : Int) ↦
   Id.run
@@ -108,18 +112,18 @@ def createSortedArray := fun (instructions : List Int) ↦
     let mut tree := BinaryIndexedTree.new m
     let mut ans : Int := (0 : Int)
     let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate instructions))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate instructions)) do
       let i := Prod.fst _pair_1
       let x := Prod.snd _pair_1
-      let mut cost :=
+      let mut cost : Int :=
         PastaLean.pyMin [BinaryIndexedTree.query tree (x -ₚ (1 : Int)), i -ₚ BinaryIndexedTree.query tree x]
       ans := ans +ₚ cost
-      let _ := BinaryIndexedTree.update tree x (1 : Int)
+      tree := BinaryIndexedTree.update tree x (1 : Int)
     let __py_ret_1 := ans %ₚ mod
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem createSortedArray_spec :
+theorem createSortedArray_spec {instructions : List Int} :
     ⦃⌜PastaLean.pyLen instructions > (0 : Int) ∧
           PastaLean.pyAll ((PastaLean.pyIter instructions).map fun x => decide (x ≥ (1 : Int)))⌝⦄
       createSortedArray instructions ⦃⇓result =>
@@ -139,13 +143,13 @@ def createSortedArray'rn := fun (instructions : List Int) ↦
       let mut tree := BinaryIndexedTree'rn.new m
       let mut ans : Int := (0 : Int)
       let mut mod : Int := (10 : Int) ^ₚ (9 : Int) +ₚ (7 : Int)
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate instructions))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate instructions)) do
         let i := Prod.fst _pair_1
         let x := Prod.snd _pair_1
-        let mut cost :=
+        let mut cost : Int :=
           PastaLean.pyMin [BinaryIndexedTree'rn.query tree (x -ₚ (1 : Int)), i -ₚ BinaryIndexedTree'rn.query tree x]
         ans := ans +ₚ cost
-        let _ := BinaryIndexedTree'rn.update tree x (1 : Int)
+        tree := BinaryIndexedTree'rn.update tree x (1 : Int)
       let __py_ret_1 := ans %ₚ mod
       return __py_ret_1)
 

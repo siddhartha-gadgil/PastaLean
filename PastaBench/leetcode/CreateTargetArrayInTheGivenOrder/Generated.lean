@@ -21,14 +21,14 @@ namespace PastaBench.leetcode.CreateTargetArrayInTheGivenOrder
 def createTargetArray := fun (nums : List Int) ↦ fun (index : List Int) ↦
   (do
     let mut target : List Int := []
-    for _pair_1 in (PastaLean.pyIter (PastaLean.pyZip nums index))do
+    for _pair_1 in (PastaLean.pyIter (PastaLean.pyZip nums index)) do
       let x := Prod.fst _pair_1
       let i := Prod.snd _pair_1
       target := PastaLean.pyInsert target i x
     return target : Id _)
 
 @[spec]
-theorem createTargetArray_spec :
+theorem createTargetArray_spec {nums : List Int} {index : List Int} :
     ⦃⌜PastaLean.pyLen nums = PastaLean.pyLen index⌝⦄ createTargetArray nums index ⦃⇓target =>
       ⌜PastaLean.pyLen target = PastaLean.pyLen nums ∧ PastaLean.pySort target = PastaLean.pySort nums⌝⦄ :=
   by
@@ -40,7 +40,7 @@ def createTargetArray'rn := fun (nums : List Int) ↦ fun (index : List Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (PastaLean.pyLen nums == PastaLean.pyLen index)
       let mut target : List Int := []
-      for _pair_1 in (PastaLean.pyIter (PastaLean.pyZip nums index))do
+      for _pair_1 in (PastaLean.pyIter (PastaLean.pyZip nums index)) do
         let x := Prod.fst _pair_1
         let i := Prod.snd _pair_1
         target := PastaLean.pyInsert target i x

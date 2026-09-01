@@ -43,15 +43,15 @@ def frequenciesOfElements := fun (head : Option ListNode) ↦
         cnt := PastaLean.pySetItem cnt ((head).getD default).val (cnt⦋((head).getD default).val⦌ +ₚ (1 : Int))
         head := ((head).getD default).next
       let mut dummy := ListNode.new
-      for val in (PastaLean.pyIter (PastaLean.pyAnys cnt))do
+      for val in (PastaLean.pyIter (PastaLean.pyAnys cnt)) do
         -- Each frequency is positive
         let _ := Libraries.passta.pyPassAssert (decide (val > (0 : Int)))
         dummy := { dummy with next := ListNode.new val dummy.next }
       -- The result list contains only positive integers
       let mut node := dummy.next
       while (PastaLean.pyTruthy node) do
-        let _ := Libraries.passta.pyPassAssert (decide (node.val > (0 : Int)))
-        node := node.next
+        let _ := Libraries.passta.pyPassAssert (decide (((node).getD default).val > (0 : Int)))
+        node := ((node).getD default).next
       let __py_ret_1 := dummy.next
       return __py_ret_1)
 
@@ -66,15 +66,15 @@ def frequenciesOfElements'rn := fun (head : Option ListNode) ↦
         cnt := PastaLean.pySetItem cnt ((head).getD default).val (cnt⦋((head).getD default).val⦌ +ₚ (1 : Int))
         head := ((head).getD default).next
       let mut dummy := ListNode'rn.new
-      for val in (PastaLean.pyIter (PastaLean.pyAnys cnt))do
+      for val in (PastaLean.pyIter (PastaLean.pyAnys cnt)) do
         -- Each frequency is positive
         let _ := Libraries.passta.pyPassAssert (decide (val > (0 : Int)))
         dummy := { dummy with next := ListNode'rn.new val dummy.next }
       -- The result list contains only positive integers
       let mut node := dummy.next
       while (PastaLean.pyTruthy node) do
-        let _ := Libraries.passta.pyPassAssert (decide (node.val > (0 : Int)))
-        node := node.next
+        let _ := Libraries.passta.pyPassAssert (decide (((node).getD default).val > (0 : Int)))
+        node := ((node).getD default).next
       let __py_ret_1 := dummy.next
       return __py_ret_1)
 

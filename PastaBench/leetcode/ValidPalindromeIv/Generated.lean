@@ -42,18 +42,18 @@ def makePalindrome := fun (s : String) ↦
       Libraries.passta.pyPassAssert
         (cnt ==
           PastaLean.pySum
-            ((List.filter (fun k => s⦋k⦌ != s⦋PastaLean.pyLen s -ₚ (1 : Int) -ₚ k⦌)
+            ((List.filter (fun k => s⦋k⦌ ≠ s⦋PastaLean.pyLen s -ₚ (1 : Int) -ₚ k⦌)
                   (PastaLean.pyRange (PastaLean.pyFloorDiv (PastaLean.pyLen s) (2 : Int)))).map
               fun k => (1 : Int)))
     let __py_ret_1 := decide (cnt ≤ (2 : Int))
     return __py_ret_1 : Id _)
 
 @[spec]
-theorem makePalindrome_spec :
+theorem makePalindrome_spec {s : String} :
     ⦃⌜True⌝⦄ makePalindrome s ⦃⇓result =>
       ⌜result =
           (PastaLean.pySum
-              ((List.filter (fun k => s⦋k⦌ != s⦋PastaLean.pyLen s -ₚ (1 : Int) -ₚ k⦌)
+              ((List.filter (fun k => s⦋k⦌ ≠ s⦋PastaLean.pyLen s -ₚ (1 : Int) -ₚ k⦌)
                     (PastaLean.pyRange (PastaLean.pyFloorDiv (PastaLean.pyLen s) (2 : Int)))).map
                 fun k => (1 : Int)) ≤
             (2 : Int))⌝⦄ :=

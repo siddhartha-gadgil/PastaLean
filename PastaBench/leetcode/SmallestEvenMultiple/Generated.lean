@@ -18,7 +18,7 @@ set_option maxHeartbeats 800000
 
 namespace PastaBench.leetcode.SmallestEvenMultiple
 
-def smallestEvenMultiple := fun (n : Int) ↦ if n %ₚ (2 : Int) == (0 : Int) then n else n *ₚ (2 : Int)
+def smallestEvenMultiple := fun (n : Int) ↦ if n %ₚ (2 : Int) = (0 : Int) then n else n *ₚ (2 : Int)
 
 attribute [simp] smallestEvenMultiple
 

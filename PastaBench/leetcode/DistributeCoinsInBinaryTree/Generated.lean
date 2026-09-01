@@ -38,63 +38,20 @@ def TreeNode'rn.new (val : _ := (0 : Int)) (left : Option TreeNode'rn := Option.
     (right : Option TreeNode'rn := Option.none) : TreeNode'rn :=
   ({ val := val, left := left, right := right } : TreeNode'rn)
 
-private def _distributeCoins_dfs := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
-  (do
-    if h_1 : Option.isNone root then 
-      let __py_ret_1 := ((0 : Int), ans)
-      return __py_ret_1
-    else
-      let _ := ()
-    let __unpack_value_1 := _distributeCoins_dfs ((root).getD default).left ans
-    let __unpack_pair_1 := __unpack_value_1
-    let mut __thread_t1 := Prod.fst __unpack_pair_1
-    let mut ans := Prod.snd __unpack_pair_1
-    let __unpack_value_2 := _distributeCoins_dfs ((root).getD default).right ans
-    let __unpack_pair_2 := __unpack_value_2
-    let mut __thread_t2 := Prod.fst __unpack_pair_2
-    ans := Prod.snd __unpack_pair_2
-    let __unpack_value_3 := (__thread_t1, __thread_t2)
-    let __unpack_pair_3 := __unpack_value_3
-    let mut left := Prod.fst __unpack_pair_3
-    let mut right := Prod.snd __unpack_pair_3
-    ans := ans +ₚ (PastaLean.pyAbs left +ₚ PastaLean.pyAbs right)
-    let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
-    let __py_ret_1 := (left +ₚ right +ₚ ((root).getD default).val -ₚ (1 : Int), ans)
-    return __py_ret_1 : Id _)
-
-theorem _distributeCoins_dfs_spec : ⦃⌜True⌝⦄ _distributeCoins_dfs root ans ⦃⇓_ => ⌜True⌝⦄ :=
-  by
-  mvcgen [_distributeCoins_dfs, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-
-def distributeCoins := fun (root : Option TreeNode) ↦
-  (do
-    let mut ans : Int := (0 : Int)
-    let __unpack_value_1 := _distributeCoins_dfs root ans
-    let __unpack_pair_1 := __unpack_value_1
-    let mut __thread_t3 := Prod.fst __unpack_pair_1
-    ans := Prod.snd __unpack_pair_1
-    return ans : Id _)
-
-@[spec]
-theorem distributeCoins_spec : ⦃⌜True⌝⦄ distributeCoins root ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
-  by
-  mvcgen [distributeCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
-
-private partial def _distributeCoins_dfs'rn := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
+private partial def _distributeCoins'dfs := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
   Id.run
     (do
       let mut ans := ans
-      if h_1 : Option.isNone root then 
+      if h_1 : PastaLean.pyIsNone root then 
         let __py_ret_1 := ((0 : Int), ans)
         return __py_ret_1
       else
         let _ := ()
-      let __unpack_value_1 := _distributeCoins_dfs'rn ((root).getD default).left ans
+      let __unpack_value_1 := _distributeCoins'dfs ((root).getD default).left ans
       let __unpack_pair_1 := __unpack_value_1
       let mut __thread_t1 := Prod.fst __unpack_pair_1
       ans := Prod.snd __unpack_pair_1
-      let __unpack_value_2 := _distributeCoins_dfs'rn ((root).getD default).right ans
+      let __unpack_value_2 := _distributeCoins'dfs ((root).getD default).right ans
       let __unpack_pair_2 := __unpack_value_2
       let mut __thread_t2 := Prod.fst __unpack_pair_2
       ans := Prod.snd __unpack_pair_2
@@ -102,14 +59,55 @@ private partial def _distributeCoins_dfs'rn := fun (root : Option TreeNode) ↦ 
       let __unpack_pair_3 := __unpack_value_3
       let mut left := Prod.fst __unpack_pair_3
       let mut right := Prod.snd __unpack_pair_3
-      ans := ans +ₚ (PastaLean.pyAbs left +ₚ PastaLean.pyAbs right)
+      ans := ans +ₚ (Libraries.operator.pyOperatorAbs left +ₚ Libraries.operator.pyOperatorAbs right)
+      let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
+      let __py_ret_1 := (left +ₚ right +ₚ ((root).getD default).val -ₚ (1 : Int), ans)
+      return __py_ret_1)
+
+def distributeCoins := fun (root : Option TreeNode) ↦
+  (do
+    let mut ans : Int := (0 : Int)
+    let __unpack_value_1 := _distributeCoins'dfs root ans
+    let __unpack_pair_1 := __unpack_value_1
+    let mut __thread_t3 := Prod.fst __unpack_pair_1
+    ans := Prod.snd __unpack_pair_1
+    return ans : Id _)
+
+@[spec]
+theorem distributeCoins_spec {root : Option TreeNode} : ⦃⌜True⌝⦄ distributeCoins root ⦃⇓ans => ⌜ans ≥ (0 : Int)⌝⦄ :=
+  by
+  mvcgen [distributeCoins, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+
+private partial def _distributeCoins'dfs'rn := fun (root : Option TreeNode) ↦ fun (ans : Int) ↦
+  Id.run
+    (do
+      let mut ans := ans
+      if h_1 : PastaLean.pyIsNone root then 
+        let __py_ret_1 := ((0 : Int), ans)
+        return __py_ret_1
+      else
+        let _ := ()
+      let __unpack_value_1 := _distributeCoins'dfs'rn ((root).getD default).left ans
+      let __unpack_pair_1 := __unpack_value_1
+      let mut __thread_t1 := Prod.fst __unpack_pair_1
+      ans := Prod.snd __unpack_pair_1
+      let __unpack_value_2 := _distributeCoins'dfs'rn ((root).getD default).right ans
+      let __unpack_pair_2 := __unpack_value_2
+      let mut __thread_t2 := Prod.fst __unpack_pair_2
+      ans := Prod.snd __unpack_pair_2
+      let __unpack_value_3 := (__thread_t1, __thread_t2)
+      let __unpack_pair_3 := __unpack_value_3
+      let mut left := Prod.fst __unpack_pair_3
+      let mut right := Prod.snd __unpack_pair_3
+      ans := ans +ₚ (Libraries.operator.pyOperatorAbs left +ₚ Libraries.operator.pyOperatorAbs right)
       let _ := Libraries.passta.pyPassAssert (decide (ans ≥ (0 : Int)))
       let __py_ret_1 := (left +ₚ right +ₚ ((root).getD default).val -ₚ (1 : Int), ans)
       return __py_ret_1)
 
 def distributeCoins'rn := fun (root : Option TreeNode) ↦
   let ans := (0 : Int)
-  let __unpack_pair_1 := _distributeCoins_dfs'rn root ans
+  let __unpack_pair_1 := _distributeCoins'dfs'rn root ans
   let __thread_t3 := Prod.fst __unpack_pair_1
   let ans := Prod.snd __unpack_pair_1
   ans

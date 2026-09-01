@@ -20,7 +20,7 @@ namespace PastaBench.leetcode.PutMarblesInBags
 
 def putMarbles := fun (weights : List Int) ↦ fun (k : Int) ↦
   (do
-    let mut arr :=
+    let mut arr : List Int :=
       PastaLean.pySort
         ((PastaLean.pyIter (Libraries.itertools.pyPairwise weights)).map fun _pair_1 =>
           let a := Prod.fst _pair_1;
@@ -31,7 +31,8 @@ def putMarbles := fun (weights : List Int) ↦ fun (k : Int) ↦
         PastaLean.pySum (PastaLean.pySlice arr none (some (k -ₚ (1 : Int))) none)
     return __py_ret_1 : Id _)
 
-theorem putMarbles_spec : ⦃⌜k ≥ (1 : Int) ∧ PastaLean.pyLen weights ≥ k⌝⦄ putMarbles weights k ⦃⇓_ => ⌜True⌝⦄ :=
+theorem putMarbles_spec {weights : List Int} {k : Int} :
+    ⦃⌜k ≥ (1 : Int) ∧ PastaLean.pyLen weights ≥ k⌝⦄ putMarbles weights k ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [putMarbles, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
 
@@ -40,7 +41,7 @@ def putMarbles'rn := fun (weights : List Int) ↦ fun (k : Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (k ≥ (1 : Int)))
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen weights ≥ k))
-      let mut arr :=
+      let mut arr : List Int :=
         PastaLean.pySort
           ((PastaLean.pyIter (Libraries.itertools.pyPairwise weights)).map fun _pair_1 =>
             let a := Prod.fst _pair_1;

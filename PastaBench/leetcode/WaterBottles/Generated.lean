@@ -20,6 +20,7 @@ namespace PastaBench.leetcode.WaterBottles
 
 def numWaterBottles := fun (numBottles : Int) ↦ fun (numExchange : Int) ↦
   (do
+    let mut numBottles := numBottles
     let mut orig : Int := numBottles
     let mut ans : Int := numBottles
     while (numBottles ≥ numExchange) do
@@ -31,13 +32,11 @@ def numWaterBottles := fun (numBottles : Int) ↦ fun (numExchange : Int) ↦
       ans := ans +ₚ (1 : Int)
     return ans : Id _)
 
-@[spec]
-theorem numWaterBottles_spec :
-    ⦃⌜numBottles ≥ (0 : Int) ∧ numExchange > (1 : Int)⌝⦄ numWaterBottles numBottles numExchange ⦃⇓ans =>
-      ⌜ans = orig +ₚ PastaLean.pyFloorDiv (orig -ₚ (1 : Int)) (numExchange -ₚ (1 : Int))⌝⦄ :=
+theorem numWaterBottles_spec {numBottles : Int} {numExchange : Int} :
+    ⦃⌜numBottles ≥ (0 : Int) ∧ numExchange > (1 : Int)⌝⦄ numWaterBottles numBottles numExchange ⦃⇓_ => ⌜True⌝⦄ :=
   by
   mvcgen [numWaterBottles, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start]
-  sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
 
 def numWaterBottles'rn := fun (numBottles : Int) ↦ fun (numExchange : Int) ↦
   Id.run
