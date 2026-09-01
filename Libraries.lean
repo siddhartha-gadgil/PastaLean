@@ -13,6 +13,8 @@ import Libraries.math.Mapping
 import Libraries.math.TheoremsMath
 import Libraries.numpy.Mapping
 import Libraries.numpy.TheoremsNumpy
+import Libraries.operator.OperatorDef
+import Libraries.operator.Mapping
 import Libraries.pandas.Mapping
 import Libraries.passta.Mapping
 import Libraries.scipy.ScipyDef

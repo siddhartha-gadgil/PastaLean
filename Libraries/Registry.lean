@@ -8,6 +8,7 @@ import Libraries.itertools.Mapping
 import Libraries.math.Mapping
 import Libraries.string.Mapping
 import Libraries.numpy.Mapping
+import Libraries.operator.Mapping
 import Libraries.passta.Mapping
 import Libraries.scipy.Mapping
 import Libraries.pandas.Mapping
@@ -31,6 +32,7 @@ def pythonLibraryMap? (moduleName member : String) : Option Lean.Name :=
   | "math" => math.pythonMathMemberMap? member
   | "string" => string.pythonStringMemberMap? member
   | "numpy" => numpy.pythonNumpyMemberMap? member
+  | "operator" => operator.pythonOperatorMemberMap? member
   | "passta" => passta.pythonPasstaMemberMap? member
   | "scipy" => scipy.pythonScipyMemberMap? member
   | "pandas" => pandas.pythonPandasMemberMap? member
