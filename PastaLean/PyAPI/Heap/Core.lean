@@ -52,12 +52,12 @@ structure Heap (V : Type) where
 /-- Allocating at the frontier `next` and bumping it preserves well-formedness. -/
 theorem wf_alloc (h : Heap V) (v : V) :
     ∀ a, a ≥ h.next + 1 → (Store.update h.store h.next v) a = none := by
-  intro a ha; simp only [Store.update, if_neg (show a ≠ h.next by omega)]; exact h.wf a (by omega)
+  intro a ha; simp only [Store.update, ite_eq_right (show a ≠ h.next by omega)]; exact h.wf a (by omega)
 
 /-- Writing at `l` while pushing the frontier past `l` preserves well-formedness. -/
 theorem wf_write (h : Heap V) (l : Nat) (v : V) :
     ∀ a, a ≥ max h.next (l + 1) → (Store.update h.store l v) a = none := by
-  intro a ha; simp only [Store.update, if_neg (show a ≠ l by omega)]; exact h.wf a (by omega)
+  intro a ha; simp only [Store.update, ite_eq_right (show a ≠ l by omega)]; exact h.wf a (by omega)
 
 /-! ## The heap monad
 

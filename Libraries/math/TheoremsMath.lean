@@ -47,7 +47,7 @@ theorem pyMathGcd_mul_lcm (a b : Int) :
 /-- `math.factorial` is strictly positive on every nonnegative input. -/
 theorem pyMathFactorial_pos {n : Int} (hn : 0 ≤ n) : 0 < pyMathFactorial n := by
   unfold pyMathFactorial
-  rw [if_neg (by omega)]
+  rw [ite_eq_right (by omega)]
   refine Int.sign_pos_iff.mp ?_
   simp only [Int.ofNat_eq_natCast, Int.sign_pos_iff, Int.natCast_pos]
   exact_mod_cast Nat.factorial_pos n.toNat
@@ -56,7 +56,7 @@ theorem pyMathFactorial_pos {n : Int} (hn : 0 ≤ n) : 0 < pyMathFactorial n := 
 theorem pyMathFactorial_succ {n : Int} (hn : 0 ≤ n) :
     pyMathFactorial (n + 1) = (n + 1) * pyMathFactorial n := by
   unfold pyMathFactorial
-  rw [if_neg (by omega), if_neg (by omega)]
+  rw [ite_eq_right (by omega), ite_eq_right (by omega)]
   have h : (n + 1).toNat = n.toNat + 1 := by omega
   rw [h, Nat.factorial_succ]
   ring_nf
@@ -69,7 +69,7 @@ theorem pyMathComb_symm {n k : Int} (hk : 0 ≤ k) (hkn : k ≤ n) :
     pyMathComb n (n - k) = pyMathComb n k := by
   unfold pyMathComb
   simp_all
-  rw [if_neg (by omega), if_neg (by omega)]
+  rw [ite_eq_right (by omega), ite_eq_right (by omega)]
   have h : (n - k).toNat = n.toNat - k.toNat := by omega
   rw [h]
   exact_mod_cast Nat.choose_symm (by omega)
@@ -77,13 +77,13 @@ theorem pyMathComb_symm {n k : Int} (hk : 0 ≤ k) (hkn : k ≤ n) :
 /-- `C(n, 0) = 1` for nonnegative `n`. -/
 theorem pyMathComb_zero_right {n : Int} (hn : 0 ≤ n) : pyMathComb n 0 = 1 := by
   unfold pyMathComb
-  rw [if_neg (by grind)]
+  rw [ite_eq_right (by grind)]
   simp
 
 /-- `perm(n, n) = n!`: arranging all `n` items is `n` factorial. -/
 theorem pyMathPerm_self {n : Int} (hn : 0 ≤ n) : pyMathPerm n n = pyMathFactorial n := by
   unfold pyMathPerm pyMathFactorial
-  rw [if_neg (by grind), if_neg (by omega)]
+  rw [ite_eq_right (by grind), ite_eq_right (by omega)]
   rw [Nat.descFactorial_self]
 
 /-! ### `isqrt` -/
@@ -92,7 +92,7 @@ theorem pyMathPerm_self {n : Int} (hn : 0 ≤ n) : pyMathPerm n n = pyMathFactor
 theorem pyMathIsqrt_sq_le {n : Int} (hn : 0 ≤ n) :
     pyMathIsqrt n * pyMathIsqrt n ≤ n := by
   unfold pyMathIsqrt
-  rw [if_neg (by omega)]
+  rw [ite_eq_right (by omega)]
   have := Int.sqrt_nonneg n
   simp_all
   refine (Int.abs_le_sqrt hn).mp ?_
@@ -101,7 +101,7 @@ theorem pyMathIsqrt_sq_le {n : Int} (hn : 0 ≤ n) :
 /-- `math.isqrt` is nonnegative. -/
 theorem pyMathIsqrt_nonneg {n : Int} (hn : 0 ≤ n) : 0 ≤ pyMathIsqrt n := by
   unfold pyMathIsqrt
-  rw [if_neg (by omega)]
+  rw [ite_eq_right (by omega)]
   exact Int.sqrt_nonneg n
 
 end Libraries.math

@@ -23,7 +23,7 @@ namespace Libraries.numpy
 /-- A nonnegative dimension passed as a `Nat` cast survives `pyNumpyNatFromInt` unchanged. -/
 @[simp] theorem natFromInt_natCast (r : Nat) : pyNumpyNatFromInt (r : Int) = r := by
   unfold pyNumpyNatFromInt
-  rw [if_neg (by simp)]
+  rw [ite_eq_right (by simp)]
   simp
 
 /-- A list of lists whose rows all share a common length `k` is rectangular. This is the workhorse
