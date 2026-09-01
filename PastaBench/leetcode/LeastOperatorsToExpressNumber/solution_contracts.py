@@ -1,3 +1,4 @@
+import random
 from contracts import *
 import functools
 import collections

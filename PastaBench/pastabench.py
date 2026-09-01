@@ -345,6 +345,16 @@ def _entry_defs(source: str) -> set[str]:
         return set()
 
 
+def restore_imports(original: str, annotated: str) -> str:
+    """Put back the module-level imports the rewrite dropped. The dataset's preamble
+    (`from bisect import *`, …) is what binds names like `bisect_right`/`accumulate`; without it the
+    annotated twin references unbound globals and translates to unknown identifiers."""
+    kept = {ln.strip() for ln in annotated.splitlines()}
+    lost = [ln for ln in original.splitlines()
+            if ln.startswith(("import ", "from ")) and ln.strip() not in kept]
+    return "\n".join(lost) + "\n" + annotated if lost else annotated
+
+
 def _annotate_one(t: dict, provider: str, model: str | None, force: bool) -> tuple[str, str]:
     """Annotate one unit. Returns `(module, status)` where status is `ok` / `skip` / an error."""
     dst = t["dir"] / CONTRACTS_FILE
@@ -368,7 +378,7 @@ def _annotate_one(t: dict, provider: str, model: str | None, force: bool) -> tup
         return t["module"], f"dropped definitions: {', '.join(sorted(missing))}"
     if not CONTRACT_RE.search(annotated):
         return t["module"], "no contracts inserted"
-    dst.write_text(annotated)
+    dst.write_text(restore_imports(original, annotated))
     return t["module"], "ok"
 
 

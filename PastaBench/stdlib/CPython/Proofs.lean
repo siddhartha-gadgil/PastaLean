@@ -98,12 +98,12 @@ private abbrev BC : Int × Int × Int → Bool := fun s => decide (s.1 < s.2.1)
 
 private abbrev BLB (a : List Int) (x : Int) : Int × Int × Int → Int × Int × Int :=
   fun s =>
-    let mid := pyFloorDiv (s.1 + s.2.1) 2
+    let mid := pyFloorDiv (s.1 + s.2.1) (2 : Int)
     (if a⦋mid⦌ < x then mid + 1 else s.1, (if a⦋mid⦌ < x then s.2.1 else mid, mid))
 
 private abbrev BRB (a : List Int) (x : Int) : Int × Int × Int → Int × Int × Int :=
   fun s =>
-    let mid := pyFloorDiv (s.1 + s.2.1) 2
+    let mid := pyFloorDiv (s.1 + s.2.1) (2 : Int)
     (if x < a⦋mid⦌ then s.1 else mid + 1, (if x < a⦋mid⦌ then mid else s.2.1, mid))
 
 /-- The bounds invariant `0 ≤ lo ≤ hi ≤ n` survives the loop, so the returned index is a legal
@@ -130,9 +130,10 @@ private theorem bisect_loop (B : Int × Int × Int → Int × Int × Int) (n : I
       have hstep : pyWhileFuel BC B (k + 1) (lo, (hi, mid)) = pyWhileFuel BC B k (B (lo, (hi, mid))) := by
         simp [pyWhileFuel, BC, hlt]
       rw [hstep]
-      obtain ⟨l', h', m'⟩ := B (lo, (hi, mid))
-      exact ih l' h' m' p0 ple pn (by omega)
-    · simp only [pyWhileFuel, BC, decide_eq_true_eq, if_neg (by simpa using hlt)]
+      -- `Prod` eta lets `ih` take the three components of `B (lo, (hi, mid))` directly; naming them
+      -- with `obtain` first would leave `p0`/`ple`/`pn` talking about the un-destructured term.
+      exact ih _ _ _ p0 ple pn (Nat.lt_succ_iff.mp (Nat.lt_of_lt_of_le pdec hfuel))
+    · simp only [pyWhileFuel, BC, decide_eq_true_eq, ite_eq_right hlt]
       exact ⟨h0, by omega⟩
 
 private theorem bisect_left_body (a : List Int) (x : Int) (lo hi mid : Int)
@@ -142,7 +143,7 @@ private theorem bisect_left_body (a : List Int) (x : Int) (lo hi mid : Int)
       (BLB a x (lo, (hi, mid))).2.1 ≤ pyLen a ∧
       ((BLB a x (lo, (hi, mid))).2.1 - (BLB a x (lo, (hi, mid))).1).toNat < (hi - lo).toNat := by
   obtain ⟨hml, hmr⟩ := pyFloorDiv_two_mem hlt
-  by_cases hb : a⦋pyFloorDiv (lo + hi) 2⦌ < x <;> simp only [BLB, hb, if_true, if_false] <;>
+  by_cases hb : a⦋pyFloorDiv (lo + hi) (2 : Int)⦌ < x <;> simp only [hb, ite_true, ite_false] <;>
     refine ⟨by omega, by omega, by omega, by omega⟩
 
 private theorem bisect_right_body (a : List Int) (x : Int) (lo hi mid : Int)
@@ -152,7 +153,7 @@ private theorem bisect_right_body (a : List Int) (x : Int) (lo hi mid : Int)
       (BRB a x (lo, (hi, mid))).2.1 ≤ pyLen a ∧
       ((BRB a x (lo, (hi, mid))).2.1 - (BRB a x (lo, (hi, mid))).1).toNat < (hi - lo).toNat := by
   obtain ⟨hml, hmr⟩ := pyFloorDiv_two_mem hlt
-  by_cases hb : x < a⦋pyFloorDiv (lo + hi) 2⦌ <;> simp only [BRB, hb, if_true, if_false] <;>
+  by_cases hb : x < a⦋pyFloorDiv (lo + hi) (2 : Int)⦌ <;> simp only [hb, ite_true, ite_false] <;>
     refine ⟨by omega, by omega, by omega, by omega⟩
 
 /-- `bisect_left` returns a legal insertion index. -/
@@ -161,7 +162,7 @@ theorem bisect_left_mem_range (a : List Int) (x : Int) :
   show 0 ≤ (pyWhile _ BC (BLB a x) _).1 ∧ (pyWhile _ BC (BLB a x) _).1 ≤ _
   exact bisect_loop (BLB a x) (pyLen a) (fun lo hi mid h1 h2 h3 =>
     bisect_left_body a x lo hi mid h1 h2 h3) _ 0 (pyLen a) 0
-    (le_refl _) (by simpa using pyLen_nonneg a) (le_refl _) (le_refl _)
+    (le_refl _) (pyLen_nonneg a) (le_refl _) (le_refl _)
 
 /-- `bisect_right` returns a legal insertion index. -/
 theorem bisect_right_mem_range (a : List Int) (x : Int) :
@@ -169,7 +170,7 @@ theorem bisect_right_mem_range (a : List Int) (x : Int) :
   show 0 ≤ (pyWhile _ BC (BRB a x) _).1 ∧ (pyWhile _ BC (BRB a x) _).1 ≤ _
   exact bisect_loop (BRB a x) (pyLen a) (fun lo hi mid h1 h2 h3 =>
     bisect_right_body a x lo hi mid h1 h2 h3) _ 0 (pyLen a) 0
-    (le_refl _) (by simpa using pyLen_nonneg a) (le_refl _) (le_refl _)
+    (le_refl _) (pyLen_nonneg a) (le_refl _) (le_refl _)
 
 /-! ## `mean` / `median` — Lib/statistics.py -/
 
@@ -179,12 +180,17 @@ theorem mean_spec' : ∀ (data : List Int), pyLen data > (0 : Int) →
   intro data h
   have hne : ((pyLen data : Int) : ℚ) ≠ 0 := by
     simp only [ne_eq, Int.cast_eq_zero]; omega
+  simp only [int_pyDiv, rat_int_pyMul]
   field_simp
 
 /-- Statement fidelity: our theorem is exactly the one PastaLean generated. -/
 example : mean_spec = mean_spec' := rfl
 
 theorem median_singleton (v : Int) : Id.run (median [v]) = ((v : Int) : ℚ) := by
-  native_decide
+  -- `pySort` is `List.mergeSort`, defined by well-founded recursion: it needs its own equation
+  -- lemma before the rest of the body reduces.
+  have hs : pySort [v] = [v] := List.mergeSort_singleton v
+  simp only [median, Id.run, hs]
+  rfl
 
 end PastaBench.stdlib.CPython

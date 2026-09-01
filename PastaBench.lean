@@ -299,7 +299,7 @@ import PastaBench.leetcode.SumOfNumberAndItsReverse.Proofs
 import PastaBench.leetcode.TopKFrequentWords.Proofs
 import PastaBench.leetcode.VowelsGameInAString.Proofs
 import PastaBench.leetcode.WaterAndJugProblem.Proofs
-import PastaBench.stdlib.Gcd.Proofs
+import PastaBench.stdlib.CPython.Proofs
 
 /-! # PastaBench — Python→Lean verification benchmark
 
