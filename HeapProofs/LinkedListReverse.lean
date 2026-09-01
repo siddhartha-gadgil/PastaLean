@@ -13,10 +13,10 @@ in-place linked-list reverse (`example_scripts/heap/37_linked_list_reverse.py`):
   a null pointer is `none : Option (Ref Node)`. The ghost list `xs : List Int` relates to the heap by
   `IsList`, quantifying each tail pointer with the lattice `⨆` (`Lean.Order.iSup`).
 * The loop's decreasing quantity is the remaining spine length at `curr` — a *heap-resident* fact, not
-  a pure function of the two `Ref` pointers in the loop state. The stock pure `RepeatVariant` measure
-  cannot express it, so the loop is proven with the **ghost-`Nat` measure rule** `forIn_loop_ghost`
-  (in `PastaLean/PyAPI/Heap/Proof.lean`): the invariant `INV` carries a ghost `Nat`, and each continue
-  step re-establishes it at a strictly smaller index.
+  a pure function of the two `Ref` pointers in the loop state. `RepeatVariant` (Lean PR #14507) is
+  exactly that general: its `EvalsTo : β → γ → Pred` evaluates the measure *inside* the assertion
+  lattice, so `RepeatVariant.ofHeapRel` (in `PastaLean/PyAPI/Heap/Proof.lean`) turns the relation
+  "`n` nodes remain at `curr`" into a measure and the loop goes through the stock `Spec.forIn_loop`.
 * Leaf steps use the library's `readRefM_spec`/`writeRefM_spec` under `vcgen`; the registered
   `@[frameproc]` frames the untouched tail across each step, and the closing `example` frames an
   unrelated cell `l ↦ v` across the entire reverse.
@@ -96,18 +96,27 @@ theorem reverse_handoff_le (nd : Node) (v : Int) (rest acc : List Int)
   rw [heq]
   exact sepConj_mono_r (IsList_cons_intro nd r acc)
 
-/-! ## The loop invariant
+/-! ## The loop measure and invariant
 
-Carries a ghost `Nat` = the remaining spine length at `curr`. In the `.inl` (continue) case the heap
-is split as the reversed prefix `acc` at `prev` and the remaining segment `rest` at `curr`, with the
-pure witness `xs = acc.reverse ++ rest ∧ rest.length = n`. In the `.inr` (done) case the whole heap is
-the fully reversed list. -/
+`REAL b n` is the measure relation "at cursor `b = (prev, curr)` exactly `n` nodes remain": the heap
+splits as the reversed prefix `acc` at `prev` and the remaining segment `rest` at `curr`, with the
+pure witness `xs = acc.reverse ++ rest ∧ rest.length = n`. `MEASURE` is that relation as a stock
+`RepeatVariant`. The invariant's `.inl` (continue) case is the same thing with the measure
+existentially quantified; its `.inr` (done) case is the fully reversed list. -/
+noncomputable def REAL (xs : List Int) (b : Option (Ref Node) × Option (Ref Node)) (n : Nat) :
+    HProp Val :=
+  iSup (fun (ra : List Int × List Int) =>
+    sepPure (xs = ra.2.reverse ++ ra.1 ∧ ra.1.length = n) ∗ (IsList ra.1 b.2 ∗ IsList ra.2 b.1))
+
+noncomputable def MEASURE (xs : List Int) :
+    RepeatVariant (Option (Ref Node) × Option (Ref Node)) (HProp Val) :=
+  RepeatVariant.ofHeapRel (REAL xs)
+
 noncomputable def INV (xs : List Int) :
-    Nat → (Option (Ref Node) × Option (Ref Node)) ⊕ (Option (Ref Node) × Option (Ref Node)) →
+    (Option (Ref Node) × Option (Ref Node)) ⊕ (Option (Ref Node) × Option (Ref Node)) →
     HProp Val
-  | n, .inl b => iSup (fun (ra : List Int × List Int) =>
-      sepPure (xs = ra.2.reverse ++ ra.1 ∧ ra.1.length = n) ∗ (IsList ra.1 b.2 ∗ IsList ra.2 b.1))
-  | _, .inr b => IsList xs.reverse b.1
+  | .inl b => iSup (REAL xs b)
+  | .inr b => IsList xs.reverse b.1
 
 /-! ## The translated program (verbatim from `pastalean translate --heap`, example 37) -/
 
@@ -123,34 +132,38 @@ def reverse := fun (head : Option (PastaLean.Ref Node)) ↦
       return prev) :
     (PastaLean.HeapM Val) _)
 
-/-! ## The spec, proved on the translated `forIn` via the ghost measure -/
+/-! ## The spec, proved on the translated `forIn` via the stock `Spec.forIn_loop` -/
 
 theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
     ⦃ IsList xs head ⦄ reverse head ⦃ fun r => IsList xs.reverse r ⦄ := by
   simp only [reverse]
-  refine Triple.bind _ _ (fun b => iSup (fun n => INV xs n (.inr b))) ?hx ?hf
+  refine Triple.bind _ _ (fun b => INV xs (.inr b)) ?hx ?hf
   case hf =>
     intro b
     refine Triple.pure b.1 ?_
-    refine iSup_le _ _ (fun n => ?_)
     simp only [INV]
     exact PartialOrder.rel_refl
   case hx =>
     refine Triple.intro (PartialOrder.rel_trans
-      (y := INV xs xs.length (.inl (none, head))) ?hpre ?hloop)
+      (y := INV xs (.inl (none, head))) ?hpre ?hloop)
     case hloop =>
       refine Triple.le_wp ?_
-      apply forIn_loop_ghost (inv := INV xs) (n₀ := xs.length)
-      intro n b
+      apply Spec.forIn_loop (measure := MEASURE xs) (inv := INV xs)
+      -- `mb`'s type is `(MEASURE xs).γ`; ascribing it as `Nat` keeps `omega`/`<` usable below.
+      refine fun b (mb : Nat) => ?_
       obtain ⟨prev, curr⟩ := b
-      simp only [INV]
+      simp only [MEASURE, INV]
+      -- The invariant's own `⨆` pins the measure, so the step's `EvalsTo b mb ⊓ …` collapses.
+      refine Triple.intro (PartialOrder.rel_trans
+        (RepeatVariant.ofHeapRel_meet_le (REAL xs) (prev, curr) mb) (Triple.le_wp ?_))
+      simp only [REAL]
       refine Triple.iSup_pre _ _ _ ?_
       rintro ⟨rest, acc⟩
       refine Triple.sepPure_pre _ _ _ _ ?_
       rintro ⟨hxs, hlen⟩
       cases curr with
       | none =>
-        rw [if_neg (by decide)]
+        rw [ite_eq_right (by decide)]
         cases rest with
         | nil =>
           refine Triple.pure (ForInStep.done (prev, none)) ?_
@@ -169,7 +182,7 @@ theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
           rw [IsList_nil_eq] at hs
           exact absurd (((sepPure_sepConj_iff (some r = none) (IsList acc prev) s).mp hs).1) (by simp)
         | cons v vs =>
-          rw [if_pos (show (!PastaLean.pyIsNone (some r)) = true from rfl)]
+          rw [ite_eq_left (show (!PastaLean.pyIsNone (some r)) = true from rfl)]
           simp only [Option.getD_some]
           rw [IsList_cons_some]
           refine Triple.iSup_sepConj_pre _ _ _ _ ?_
@@ -182,20 +195,24 @@ theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
             rename_i nd1 e1 nd2 e2 _u
             subst e1
             subst e2
-            have hlen' : (v :: vs).length = n := hlen
-            have hlt : vs.length < n := by
+            have hlen' : (v :: vs).length = mb := hlen
+            have hlt : vs.length < mb := by
               simp only [List.length_cons] at hlen'; omega
             have hxs' : xs = acc.reverse ++ (v :: vs) := hxs
-            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
-              (⟨vs.length, hlt⟩ : {k // k < n}) ?_
-            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
-              ((vs, v :: acc) : List Int × List Int) ?_
+            -- Rebuild the yield post from one entailment: `EvalsBelow` at `vs.length < mb`, and the
+            -- invariant's `⨆` at the same witness.
+            refine PartialOrder.rel_trans (y := REAL xs (some r, nptr) vs.length) ?_
+              (le_meet _ _ _ (RepeatVariant.ofHeapRel_le_evalsBelow (REAL xs) hlt)
+                (Std.Internal.Do.CompleteLattice.le_iSup_of_le vs.length PartialOrder.rel_refl))
             have hspatial :
                 (IsList vs nptr ∗ IsList acc prev) ∗ r ↦ ({ val := v, next := prev } : Node)
                   ⊑ IsList vs nptr ∗ IsList (v :: acc) (some r) := by
               rw [sepConj_comm (IsList vs nptr) (IsList acc prev)]
               exact reverse_handoff_le { val := v, next := prev } v vs acc r nptr prev rfl rfl
             refine PartialOrder.rel_trans hspatial ?_
+            simp only [REAL]
+            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
+              ((vs, v :: acc) : List Int × List Int) ?_
             intro s hs
             refine (sepPure_sepConj_iff _ _ s).mpr ⟨?_, hs⟩
             refine ⟨?_, rfl⟩
@@ -205,6 +222,9 @@ theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
     case hpre =>
       intro s hs
       simp only [INV]
+      rw [iSup_hprop_apply]
+      refine ⟨xs.length, ?_⟩
+      simp only [REAL]
       rw [iSup_hprop_apply]
       refine ⟨(xs, []), ?_⟩
       refine (sepPure_sepConj_iff _ _ s).mpr ⟨⟨?_, rfl⟩, ?_⟩

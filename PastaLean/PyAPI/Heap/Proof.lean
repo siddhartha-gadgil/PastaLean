@@ -15,9 +15,11 @@ The **provability** half of `--heap`: a weakest-precondition / separation-logic 
 registered `@[frameproc]`.
 
 Requires the toolchain's internal `Std.Internal.Do` WP framework + `@[frameproc]` machinery. Built
-against `nightly-2026-08-03`, which carries the footprint-based auto-framing API from Lean PR #14529
+against `nightly-2026-08-09`, which carries the footprint-based auto-framing API from Lean PR #14529
 (the frame procedure now returns a full `FrameSplit`: frame + a discharged split VC + residual
-subgoal). Only adaptation vs upstream HeapSL: the error dimension is `PyException` (not `String`).
+subgoal) and the state-dependent loop measures from PR #14507 (`RepeatVariant` is a structure whose
+`EvalsTo` reads the state). Only adaptation vs upstream HeapSL: the error dimension is `PyException`
+(not `String`).
 -/
 
 -- Coexistence with Mathlib (both define `Order`/`CompleteLattice`): we open the WP framework
@@ -78,6 +80,11 @@ def HProp (V : Type) : Type := Store V → Prop
 
 instance : Lean.Order.CompleteLattice (HProp V) :=
   inferInstanceAs (Lean.Order.CompleteLattice (Store V → Prop))
+
+-- Required by the stock loop rules (`Spec.repeatM`/`Spec.forIn_loop`). The generic pointwise
+-- instance is stated for `∀ s, β s` and does not unfold the `HProp` def, so bridge it explicitly.
+instance (P : HProp V) : PreservesSup (meet P) :=
+  inferInstanceAs (PreservesSup (meet (show Store V → Prop from P)))
 
 /-- The empty-store assertion. -/
 def emp : HProp V := fun s => ∀ n, s n = none
@@ -664,101 +671,95 @@ theorem iSup_hprop_apply {ι : Type} (P : ι → HProp V) (s : Store V) :
   · rintro ⟨f, ⟨i, rfl⟩, hf⟩; exact ⟨i, hf⟩
   · rintro ⟨i, hi⟩; exact ⟨P i, ⟨i, rfl⟩, hi⟩
 
-/-! ## Ghost-`Nat` measure loop rules
+/-! ## Heap-resident loop measures
 
-A weakest-precondition rule for `while`/`forIn` whose termination metric is a ghost `Nat` carried in
-the invariant (`inv : Nat → α ⊕ β → Pred`), rather than a pure function of the loop state: each
-continue step re-establishes the invariant at a strictly smaller ghost index (via `⨆` over
-`{k // k < n}`). This proves loops whose decreasing quantity is *heap-resident* — e.g. the remaining
-spine length of a linked list being reversed in place — which the stock pure `RepeatVariant` rule
-cannot express. Generic over any `WPMonad`. -/
+The stock `RepeatVariant` (Lean PR #14507) is a structure whose `EvalsTo : α → γ → Pred` relates a
+cursor to a measure value *inside the assertion lattice*, so the measure may read the heap — e.g. the
+remaining spine length of a linked list being reversed in place. Its `total` law demands that every
+store pin some value, which no store-constraining assertion satisfies on its own; `ofHeapRel`
+supplies the missing default. -/
 
-universe ghu ghv ghp ghe
+/-- Build a `RepeatVariant` from a relational, heap-reading measure `real a n` ("at cursor `a` the
+measure is `n`"). Stores where `real` pins no value admit every value — that is what makes `total`
+hold; the loop invariant rules that case out again at each step (`ofHeapRel_pin`). -/
+noncomputable def RepeatVariant.ofHeapRel {α : Type} (real : α → Nat → HProp V) :
+    Std.Internal.Do.RepeatVariant α (HProp V) where
+  γ := Nat
+  EvalsTo a n := fun s => real a n s ∨ ∀ m, ¬ real a m s
+  total a := PartialOrder.rel_antisymm (le_top _) <| by
+    intro s _
+    refine (iSup_hprop_apply _ s).mpr ?_
+    by_cases h : ∃ m, real a m s
+    · obtain ⟨m, hm⟩ := h
+      exact ⟨m, Or.inl hm⟩
+    · exact ⟨0, Or.inr (fun m hm => h ⟨m, hm⟩)⟩
 
-section GhostWhile
-variable {α β : Type ghu} {m : Type ghu → Type ghv} {Pred : Type ghp} {EPred : Type ghe}
-variable [Monad m] [Lean.Order.MonadTail m] [Assertion Pred] [Assertion EPred]
-  [WPMonad m Pred EPred]
+/-- Introduction: a pinned measure value satisfies `EvalsTo`. -/
+theorem RepeatVariant.ofHeapRel_evalsTo {α : Type} (real : α → Nat → HProp V)
+    {a : α} {n : Nat} {s : Store V} (h : real a n s) : (ofHeapRel real).EvalsTo a n s :=
+  Or.inl h
 
-theorem repeatM_ghost
-    {init : α} {f : α → m (α ⊕ β)} [Nonempty β]
-    (inv : Nat → α ⊕ β → Pred)
-    (einv : EPred)
-    (n₀ : Nat)
-    (step : ∀ (n : Nat) (a : α),
-      Triple
-        (f a)
-        (inv n (.inl a))
-        (fun r => match r with
-          | .inl a' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl a'))
-          | .inr b => inv n (.inr b))
-        einv) :
-    Triple
-      (repeatM f init)
-      (inv n₀ (.inl init))
-      (fun b => Lean.Order.iSup (fun n => inv n (.inr b)))
-      einv := by
-  suffices key : ∀ (n : Nat) (a : α),
-      Triple
-        (_root_.repeatM f a)
-        (inv n (.inl a))
-        (fun b => Lean.Order.iSup (fun k => inv k (.inr b)))
-        einv
-    from key n₀ init
-  intro n
-  induction n using Nat.strongRecOn with
-  | _ n ih =>
-    intro a
-    rw [_root_.repeatM.Internal.eq_of_monadTail (f := f) a]
-    refine Triple.bind (f := fun x => match x with
-      | .inl a' => _root_.repeatM f a'
-      | .inr b => Pure.pure b)
-      (f a) (fun r => match r with
-        | .inl a' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl a'))
-        | .inr b => inv n (.inr b))
-      (step n a) ?_
-    rintro (a' | b)
-    · refine Triple.intro ?_
-      refine Lean.Order.iSup_le _ _ ?_
-      rintro ⟨n', hn'⟩
-      exact (ih n' hn' a').le_wp
-    · exact Triple.pure b (Lean.Order.le_iSup (fun k => inv k (.inr b)) n)
+/-- Elimination: where the measure *is* pinned somewhere, `EvalsTo a n` pins it at `n`. -/
+theorem RepeatVariant.ofHeapRel_pin {α : Type} (real : α → Nat → HProp V)
+    {a : α} {n : Nat} {s : Store V} (hsome : ∃ m, real a m s)
+    (h : (ofHeapRel real).EvalsTo a n s) : real a n s :=
+  h.resolve_right (fun hno => hsome.elim fun m hm => hno m hm)
 
--- `haveI` (not `have`) is load-bearing: it registers `Nonempty β` as a local instance for
--- `apply repeatM_ghost`; the style linter's `have` suggestion would drop it from instance search.
-set_option linter.style.haveILetI false in
-theorem forIn_loop_ghost
-    {l : Lean.Loop} {init : β} {f : Unit → β → m (ForInStep β)}
-    (inv : Nat → β ⊕ β → Pred)
-    (einv : EPred)
-    (n₀ : Nat)
-    (step : ∀ (n : Nat) (b : β),
-      Triple
-        (f () b)
-        (inv n (.inl b))
-        (fun r => match r with
-          | .yield b' => Lean.Order.iSup (fun (n' : {k // k < n}) => inv n'.val (.inl b'))
-          | .done b' => inv n (.inr b'))
-        einv) :
-    Triple
-      (forIn l init f)
-      (inv n₀ (.inl init))
-      (fun b => Lean.Order.iSup (fun n => inv n (.inr b)))
-      einv := by
-  haveI : Nonempty β := ⟨init⟩
-  change Triple (pre := inv n₀ (.inl init)) (_root_.Lean.Loop.forIn l init f)
-    (fun b => Lean.Order.iSup (fun n => inv n (.inr b))) einv
-  simp only [_root_.Lean.Loop.forIn]
-  apply repeatM_ghost (inv := inv) (einv := einv) (n₀ := n₀)
-  intro n b
-  apply Triple.bind
-  · exact step n b
-  · intro r
-    cases r with
-    | yield b' => exact Triple.pure (Sum.inl b') Lean.Order.PartialOrder.rel_refl
-    | done b' => exact Triple.pure (Sum.inr b') Lean.Order.PartialOrder.rel_refl
+/-- `EvalsBelow` at `ofHeapRel`: pin the measure at any strictly smaller `n'`. -/
+theorem RepeatVariant.ofHeapRel_evalsBelow {α : Type} (real : α → Nat → HProp V)
+    {a : α} {n' n : Nat} {s : Store V} (hlt : n' < n) (h : real a n' s) :
+    (ofHeapRel real).EvalsBelow a n s := by
+  refine (iSup_hprop_apply _ s).mpr ⟨n', ?_⟩
+  exact (hprop_meet_apply _ _ s) ▸ ⟨Or.inl h, (hprop_ofProp_apply _ s) ▸ hlt⟩
 
-end GhostWhile
+/-- Entailment form of `ofHeapRel_evalsBelow`, for rebuilding a step's yield postcondition. -/
+theorem RepeatVariant.ofHeapRel_le_evalsBelow {α : Type} (real : α → Nat → HProp V)
+    {a : α} {n' n : Nat} (hlt : n' < n) : real a n' ⊑ (ofHeapRel real).EvalsBelow a n := by
+  intro s h
+  exact ofHeapRel_evalsBelow real hlt h
+
+/-- Peel the step precondition of `Spec.forIn_loop` at `ofHeapRel`: an invariant of the shape
+`⨆ n, real a n` witnesses that the measure is pinned somewhere, which kills the default disjunct. -/
+theorem RepeatVariant.ofHeapRel_meet_le {α : Type} (real : α → Nat → HProp V) (a : α) (n : Nat) :
+    ((ofHeapRel real).EvalsTo a n ⊓ iSup (real a)) ⊑ real a n := by
+  intro s hs
+  rw [hprop_meet_apply] at hs
+  exact ofHeapRel_pin real ((iSup_hprop_apply _ s).mp hs.2) hs.1
+
+/-! ## Pure loop measures under framing
+
+The stock `Spec.forIn_loop` hands the measure pin `⌜measure b = mb⌝` to the step *inside* the
+precondition, where the frame procedure discards it along with everything else outside the
+footprint — leaving the yield branch's `EvalsBelow b' mb` unprovable, since nothing then ties the
+abstract `mb` to the cursor. Non-separating clients never see this: at `Pred = σ → Prop` the whole
+precondition is lifted into the local context as a hypothesis instead. `forIn_loop_measure`
+discharges the pin up front, so the step is left with the frame-friendly `⌜measure b' < measure b⌝`.
+-/
+
+/-- A pure `Nat` termination measure on the loop cursor: the second invariant hole of
+`forIn_loop_measure`. -/
+@[spec_invariant_type] def PureMeasure (β : Type) : Type := β → Nat
+
+/-- `PureMeasure` as a function; unlike the bare coercion this stays type-correct under `implicit`
+transparency, which `simp` checks. -/
+def PureMeasure.toFun {β : Type} (measure : PureMeasure β) : β → Nat := measure
+
+/-- `Spec.forIn_loop` specialised to a pure cursor measure, with the measure pin discharged. -/
+theorem forIn_loop_measure {β : Type} {l : Lean.Loop} {init : β}
+    {f : Unit → β → HeapM V (ForInStep β)}
+    (measure : PureMeasure β) (inv : RepeatInvariant β β (HProp V)) (einv : HeapEPred V)
+    (step : ∀ b, Triple (f () b) (inv (.inl b))
+      (fun r => match r with
+        | .yield b' => (⌜measure b' < measure b⌝ : HProp V) ⊓ inv (.inl b')
+        | .done b' => inv (.inr b')) einv) :
+    Triple (forIn l init f) (inv (.inl init)) (fun b => inv (.inr b)) einv := by
+  refine Spec.forIn_loop (measure := .ofMeasure measure.toFun) inv einv ?_
+  intro b mb
+  simp only [RepeatVariant.evalsTo_ofMeasure, Assertion.NondetFun.evalsTo_pure,
+    RepeatVariant.evalsBelow_ofMeasure_nat]
+  refine Triple.intro (ofProp_meet_le _ _ _ (fun h => ?_))
+  subst h
+  exact (step b).le_wp
 
 /-! ## Precondition-shaping helpers (peel `iSup` / `sepPure` off a heap-triple precondition) -/
 

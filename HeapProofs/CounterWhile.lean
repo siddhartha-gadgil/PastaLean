@@ -16,8 +16,10 @@ proves that after the loop the cell has advanced by exactly `k`. This is the fir
 Where a `for`-loop's `pyRange_forIn` spec hands the iteration count to `vcgen`, a `while` desugars to
 `Lean.Loop.forIn` and is reasoned about by `Spec.forIn_loop`, which needs **two** supplied pieces:
 
-* `inv2` — a *pure* decreasing measure `RepeatVariant` (`β → Nat`), here `(k - i).toNat`, witnessing
-  termination. It is heap-blind, as `RepeatVariant` demands.
+* `inv2` — a *pure* decreasing measure `PureMeasure` (`β → Nat`), here `(k - i).toNat`, witnessing
+  termination. It is heap-blind: the loop rule used is `forIn_loop_measure`, `Spec.forIn_loop`
+  specialised to a pure cursor measure, because the stock rule's measure pin does not survive a
+  frame split (see `PastaLean.PyAPI.Heap.Proof`).
 * `inv1` — a heap-reading loop invariant `RepeatInvariant` (`β ⊕ β → HProp`), `.inl` while looping /
   `.inr` at the break. It reads the heap (`c ↦ {cell.v + i}`) and carries the counter bounds as
   *separating* pure facts (`∗ sepPure (i ≤ k)`), so the `@[frameproc]` can still cancel `c ↦` when the
@@ -72,7 +74,7 @@ decreasing measure `(k - i).toNat` witnessing termination of the `while`. -/
 theorem bump_spec (c : Ref Cell) (cell : Cell) (k : Int) (hk : 0 ≤ k) :
     ⦃ (c ↦ cell : HProp Val) ⦄ bump c k
     ⦃ fun _ => c ↦ { cell with v := cell.v +ₚ k } ⦄ := by
-  vcgen [bump, readRefM_spec, writeRefM_spec] invariants
+  vcgen [bump, readRefM_spec, writeRefM_spec, forIn_loop_measure] invariants
     | inv1 => Sum.elim
         (fun i => (c ↦ { cell with v := cell.v +ₚ i } ∗ sepPure (i ≤ k) : HProp Val))
         (fun i => (c ↦ { cell with v := cell.v +ₚ i } ∗ sepPure (i ≤ k) ∗ sepPure (k ≤ i) : HProp Val))
