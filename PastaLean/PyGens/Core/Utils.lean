@@ -507,5 +507,88 @@ def applyPrivacy (name : String) (cmd : TSyntax `command) : PygenM (TSyntax `com
   else
     pure cmd
 
+/-- Append `x` unless it is already present, preserving first-seen order. -/
+def pushUnique (xs : Array String) (x : String) : Array String :=
+  if xs.contains x then xs else xs.push x
+
+def appendUnique (xs ys : Array String) : Array String :=
+  ys.foldl pushUnique xs
+
+/-- Every `Name` id appearing anywhere in `json`. -/
+partial def jsonNameIds (json : Json) : Array String :=
+  let here :=
+    match jsonNodeType? json, json.getObjValAs? String "id" with
+    | some "Name", .ok id => #[id]
+    | _, _ => #[]
+  match json with
+  | .arr elems => elems.foldl (fun acc e => appendUnique acc (jsonNameIds e)) here
+  | .obj fields => fields.toList.foldl (fun acc (_, v) => appendUnique acc (jsonNameIds v)) here
+  | _ => here
+
+/-- Does assigning to this target node mutate the variable `name`? Covers a bare `Name`, tuple/
+list unpacking, `Starred`, and a `Subscript`/`Attribute` whose base (recursively) is `name`
+(`a[i] = …` reassigns the immutable-value container `a`, so it mutates `a`). -/
+partial def assignTargetMutatesName (target : Json) (name : String) : Bool :=
+  match target.getObjValAs? String "node_type" with
+  | .ok "Name" => target.getObjValAs? String "id" == .ok name
+  | .ok "Tuple" | .ok "List" =>
+      match target.getObjValAs? (Array Json) "elts" with
+      | .ok elts => elts.any (fun e => assignTargetMutatesName e name)
+      | _ => false
+  | .ok "Starred" | .ok "Subscript" | .ok "Attribute" =>
+      (target.getObjVal? "value").toOption.any (fun v => assignTargetMutatesName v name)
+  | _ => false
+
+/-- Python list/set/dict methods that mutate their receiver in place. Codegen lowers each as a
+reassignment of the (immutable-value) receiver, so a parameter used as the receiver of one of
+these must be shadowed by `let mut`. Over-inclusion is harmless (an unused shadow). -/
+def inPlaceMutatingMethods : List String :=
+  [ "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+    "add", "discard", "update", "setdefault", "popitem",
+    "intersection_update", "difference_update", "symmetric_difference_update",
+    "appendleft", "popleft", "appendright" ]
+
+/-- Is `name` mutated (an `=`, augmented `op=`, annotated assignment, or `for` target — including
+unpacking and subscript-assignment) anywhere in this subtree, without descending into a nested
+function/lambda/class scope (which rebinds the name in a separate scope)? Used to decide which
+function parameters must be shadowed by `let mut` so the monadic body can reassign them, and which
+mutable variables a loop threads as its mvcgen state. -/
+partial def jsonMutatesName (json : Json) (name : String) : Bool :=
+  match json with
+  | .arr elems => elems.toList.any (fun e => jsonMutatesName e name)
+  | .obj fields =>
+      match json.getObjValAs? String "node_type" with
+      | .ok "FunctionDef" | .ok "AsyncFunctionDef" | .ok "Lambda" | .ok "ClassDef" => false
+      | nodeType =>
+          let mutatedHere :=
+            match nodeType with
+            | .ok "Assign" | .ok "AugAssign" | .ok "AnnAssign" | .ok "For" =>
+                (json.getObjVal? "target").toOption.any (fun t => assignTargetMutatesName t name)
+            | .ok "Delete" =>
+                -- `del name[i]` rebuilds and reassigns the container, so it mutates `name`.
+                match (json.getObjVal? "targets").toOption.bind (·.getArr?.toOption) with
+                | some targets => targets.any (fun t => assignTargetMutatesName t name)
+                | none => false
+            | .ok "Call" =>
+                -- An in-place mutating method (`name.append(x)`, `name.add(x)`, …) is lowered as a
+                -- reassignment of the receiver, so it mutates `name`. Likewise a heapq mutating
+                -- *module function* (`heapq.heappush(name, x)`, `heapify(name)`, `heappop(name)`)
+                -- reassigns its FIRST ARGUMENT.
+                match (json.getObjVal? "func").toOption with
+                | some funcJson =>
+                    (funcJson.getObjValAs? String "node_type" == .ok "Attribute"
+                      && (match funcJson.getObjValAs? String "attr" with
+                          | .ok m => inPlaceMutatingMethods.contains m
+                          | _ => false)
+                      && (funcJson.getObjVal? "value").toOption.any
+                          (fun recv => assignTargetMutatesName recv name))
+                    || ((libraryMutatorOf? funcJson).isSome
+                      && (match (json.getObjValAs? (Array Json) "args").toOption with
+                          | some args => args[0]?.any (fun a => assignTargetMutatesName a name)
+                          | none => false))
+                | none => false
+            | _ => false
+          mutatedHere || fields.toList.any (fun (_, v) => jsonMutatesName v name)
+  | _ => false
 
 end PastaLean

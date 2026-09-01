@@ -12,7 +12,10 @@ def exprStmtDoElemSyntax (valueJson : Json) : PygenM (TSyntax `doElem) := do
     -- Only fall back when the node has no `doElem` form at all. A `doElem` generator that ran and
     -- *failed* must propagate: swallowing it silently discards statements such as `g[i].append(v)`.
     let msg ← e.toMessageData.toString
-    unless msg.startsWith "Unsupported syntax category" do throw e
+    -- `getCode` wraps the generator's message, so the marker lands at the *end*; keying it to this
+    -- node's own type keeps a nested generator's failure from being mistaken for a missing form.
+    let key := (valueJson.getObjValAs? String "node_type").toOption.getD ""
+    unless msg.endsWith s!"Unsupported syntax category for {key} node" do throw e
     let valueStx ← getCode valueJson `term
     -- If the expression carries an effect (e.g. a statement-position ternary
     -- `print(a) if c else print(b)`, whose branches are `IO`), it must be *run*, not merely

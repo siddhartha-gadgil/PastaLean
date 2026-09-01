@@ -105,6 +105,9 @@ def runProveFileTask (jsonTask : Json) (env : Environment) : IO Json := do
 so a later per-statement `translate` sees types a single statement couldn't reveal. Returns the
 stamped AST for the driver to send back one node at a time. -/
 def runInferTypesTask (jsonTask : Json) : IO Json := do
+  -- Runs once per module, before its first `translate`, so it doubles as the per-file reset for
+  -- the cross-statement registries a warm server would otherwise carry into the next file.
+  PastaLean.monadicDefsRef.set []
   let .ok ast := jsonTask.getObjVal? "ast"
     | return errorResponse "inferTypes: missing 'ast' field"
   pure <| Json.mkObj [("result", Json.bool true), ("ast", TypeInfer.inferModule ast)]

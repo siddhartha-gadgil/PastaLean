@@ -442,6 +442,16 @@ def truthyConditionTerm (json : Json) (code : TSyntax `term) : PygenM (TSyntax `
   if conditionIsBoolean json then pure code
   else `($(mkIdent ``PastaLean.pyTruthy) $code)
 
+/-- A `passta` predicate marker (`Assert`/`Invariant`/…) takes a `Prop`, so a marker argument that
+is a bare *value* (`assert q` on a deque, `Assume(flag)`) has to go through Python truthiness first
+or it lands in the `Prop` slot as a `List`/`Int`. Comparisons, boolean operators and calls already
+lower to `Bool`, which coerces. -/
+def passtaMarkerNeedsTruthy (json : Json) : Bool :=
+  match json.getObjValAs? String "node_type" with
+  | .ok "Name" | .ok "Subscript" | .ok "Attribute"
+  | .ok "List" | .ok "Tuple" | .ok "Dict" | .ok "Set" => true
+  | _ => false
+
 /-- A JSON node that lowers to a Lean `String` value: a string literal or an f-string. Used to
 route `x in s` to substring containment when the left operand is statically a string. -/
 def isStringyJson (json : Json) : Bool :=
@@ -452,6 +462,57 @@ def isStringyJson (json : Json) : Bool :=
       | .ok (.str _) => true
       | _ => false
   | _ => false
+
+/-- Route the value-shaped arguments of a `passta` predicate marker through Python truthiness; a
+no-op for every other call. Both `Call` lowerings (term and `doElem`) go through this — `Assert(q)`
+is a statement, `Assert(q) if …` an expression, and either way `q` lands in a `Prop` slot. -/
+def passtaMarkerArgCodes (funcJson : Json) (argsArray : Array Json)
+    (argsCodes : Array (TSyntax `term)) : PygenM (Array (TSyntax `term)) := do
+  unless funcJson.getObjValAs? String "library_module" == .ok "passta" &&
+      funcJson.getObjValAs? String "library_member" != .ok "Decreases" &&
+      argsCodes.size == argsArray.size do
+    return argsCodes
+  argsArray.zipIdx.mapM fun (argJson, i) =>
+    if passtaMarkerNeedsTruthy argJson then truthyConditionTerm argJson argsCodes[i]!
+    else pure argsCodes[i]!
+
+/-- A JSON node whose Python value is a `float`. Python's `/` is always true division, so a `float`
+can reach a slot Lean has already fixed as `Int`. Recurses through arithmetic because `x / 2 + 1` is
+float-valued too; `//` and the bitwise ops are not, so they stop the recursion. -/
+partial def isFloatyJson (json : Json) : Bool :=
+  stampedFloat json ||
+  match json.getObjValAs? String "node_type" with
+  | .ok "BinOp" =>
+      let arm (key : String) : Bool := (json.getObjVal? key).toOption.any isFloatyJson
+      match json.getObjValAs? String "op" with
+      | .ok "div" => true
+      | .ok "add" | .ok "sub" | .ok "mul" | .ok "pow" | .ok "mod" => arm "left" || arm "right"
+      | _ => false
+  | .ok "UnaryOp" => (json.getObjVal? "operand").toOption.any isFloatyJson
+  | .ok "IfExp" =>
+      (json.getObjVal? "body").toOption.any isFloatyJson ||
+        (json.getObjVal? "orelse").toOption.any isFloatyJson
+  | .ok "Constant" => json.getObjValAs? String "python_literal_kind" == .ok "float"
+  | .ok "Call" => (json.getObjVal? "func").toOption.any (·.getObjValAs? String "id" == .ok "float")
+  | _ => false
+
+/-- Widen an integer-valued term to the mode's float type — the same coercion `float(x)` lowers to:
+`pyRat` (exact ℚ) or `pyFloat` (the run twin's `Float`). -/
+def widenToFloat (code : TSyntax `term) : PygenM (TSyntax `term) := do
+  match ← getNumericMode with
+  | .approx => `(PastaLean.pyFloat $code)
+  | .exact => `(PastaLean.pyRat $code)
+
+/-- A tuple *literal* on the right of `in`/`not in` (`c in ('D', 'I')`) is a plain membership test in
+Python, but lowers to a Lean `×` product, which no `PyContains` instance covers — re-lower it as a
+list, which is the same test on the same elements. `none` when the right side is not such a tuple. -/
+def membershipTupleAsList? (rightJson : Option Json) : PygenM (Option (TSyntax `term)) := do
+  let some rj := rightJson | return none
+  unless rj.getObjValAs? String "node_type" == .ok "Tuple" do return none
+  let .ok (.arr elts) := rj.getObjValAs? Json "elts" | return none
+  if elts.isEmpty then return none
+  let eltCodes ← elts.mapM (getCode · `term)
+  some <$> `([$eltCodes,*])
 
 /-- Apply a Python comparison operator to already-lowered terms. `leftJson` only affects
 membership lowering: a string literal on the left of `in`/`not in` means substring containment
@@ -504,16 +565,17 @@ def compareApplyTerm (op : String) (leftJson : Json) (leftCode rightCode : TSynt
   | "gt" => if prop then `($leftCode > $rightCode) else `(decide ($leftCode > $rightCode))
   | "le" => if prop then `($leftCode <= $rightCode) else `(decide ($leftCode <= $rightCode))
   | "ge" => if prop then `($leftCode >= $rightCode) else `(decide ($leftCode >= $rightCode))
-  | "in" =>
-      if isStringyJson leftJson then
-        `($(mkIdent ``PastaLean.pyStrContainsSubstr) $rightCode $leftCode)
-      else
-        `($(mkIdent ``pyContains) $rightCode $leftCode)
-  | "notin" =>
-      if isStringyJson leftJson then
-        `(! ($(mkIdent ``PastaLean.pyStrContainsSubstr) $rightCode $leftCode))
-      else
-        `(! ($(mkIdent ``pyContains) $rightCode $leftCode))
+  | "in" | "notin" =>
+      -- Substring containment only when the container really is a string: a tuple literal on the
+      -- right is an element test even for a string on the left (`"ab" in ("ab", "cd")`).
+      let tuple? ← membershipTupleAsList? rightJson
+      let test ← match tuple? with
+        | some listCode => `($(mkIdent ``pyContains) $listCode $leftCode)
+        | none =>
+            if isStringyJson leftJson then
+              `($(mkIdent ``PastaLean.pyStrContainsSubstr) $rightCode $leftCode)
+            else `($(mkIdent ``pyContains) $rightCode $leftCode)
+      if op == "in" then pure test else `(! $test)
   | _ => throwError s!"Unsupported comparison operator: {op}"
 
 @[pygen "BinOp"]
@@ -677,8 +739,22 @@ def ifExpSyntax : (kind : SyntaxNodeKind) → Json →
       let bodyCode ← getCode bodyJson `term
       `(if $testCode then some $bodyCode else none)
     else
-      let bodyCode ← getCode bodyJson `term
-      let orelseCode ← getCode orelseJson `term
+      let mut bodyCode ← getCode bodyJson `term
+      let mut orelseCode ← getCode orelseJson `term
+      -- Python is free to return an `int` from one arm and a `float` from the other; Lean unifies the
+      -- two arms, so the integer one is widened to match.
+      match isFloatyJson bodyJson, isFloatyJson orelseJson with
+      | true, false => orelseCode ← widenToFloat orelseCode
+      | false, true => bodyCode ← widenToFloat bodyCode
+      | _, _ => pure ()
+      -- In a contract one predicate arm forces both arms to `Prop`; Python reads the other arm as a
+      -- truthiness test (`Ensures(r * 2 == s if len(d) % 2 == 0 else sorted(d)[k])`).
+      if (← getPropCondition) && (← numericModeIsExact) then
+        let t := mkIdent ``PastaLean.pyTruthy
+        match conditionIsBoolean bodyJson, conditionIsBoolean orelseJson with
+        | true, false => orelseCode ← `($t $orelseCode = true)
+        | false, true => bodyCode ← `($t $bodyCode = true)
+        | _, _ => pure ()
       `(if $testCode then $bodyCode else $orelseCode)
   | _, _ => throwError s!"Unsupported syntax category for IfExp node"
 

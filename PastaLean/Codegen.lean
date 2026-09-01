@@ -74,6 +74,17 @@ initialize runSuffixRef : IO.Ref String ← IO.mkRef ""
 in a run-twin so `foo'rn` calls `bar'rn` / builds `CNN'rn`, not the `prove` `bar`/`CNN`. -/
 initialize userNamesRef : IO.Ref (List String) ← IO.mkRef []
 
+/-- Python names of the functions Track M emits `Id`-typed (`def f := fun x ↦ ((do …) : Id _)`),
+paired with their arity. `Id τ` is defeq to `τ` but not *reducibly* so, so another definition using
+one as an ordinary value (`sorted(xs, key=f)`, `x - rev(x)`) fails instance synthesis on
+`Ord (Id ℤ)` / `PyHSub ℤ (Id ℤ) _`; such references get an `Id.run` wrap. Exact mode only — the
+run twin is a plain value def. Cleared per file by the `inferTypes` task. -/
+initialize monadicDefsRef : IO.Ref (List (String × Nat)) ← IO.mkRef []
+
+/-- The arity of `name` if it was emitted as an `Id`-typed Track-M definition. -/
+def monadicDefArity? (name : String) : IO (Option Nat) := do
+  return (← monadicDefsRef.get).lookup name
+
 /-- The suffix to append to a top-level def name being emitted (empty unless in a run-twin). -/
 def getRunSuffix : IO String := runSuffixRef.get
 

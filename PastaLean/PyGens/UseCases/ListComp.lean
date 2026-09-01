@@ -24,9 +24,11 @@ partial def destructureCompTarget (targetJson : Json) (source : TSyntax `term) (
         throwError "Tuple comprehension target must have at least two elements."
       let n := elts.size
       let pairIdent := mkIdent (← freshName `_pair)
+      -- `_list_unpack` (stamped by the inference pass) means the element is a list row, not a `Prod`.
+      let isTuple := targetJson.getObjValAs? Bool "_list_unpack" != .ok true
       let mut result := body
       for i in (List.range n).reverse do
-        let acc ← tupleAccessTerm pairIdent i n
+        let acc ← unpackAccessTerm isTuple pairIdent i n
         result ← destructureCompTarget elts[i]! acc result
       `(let $pairIdent := $source; $result)
   | _ =>
@@ -49,9 +51,10 @@ def listCompTargetLambda (targetJson : Json) (body : TSyntax `term) :
         throwError "Tuple comprehension target must have at least two elements."
       let n := elts.size
       let pairIdent := mkIdent (← freshName `_pair)
+      let isTuple := targetJson.getObjValAs? Bool "_list_unpack" != .ok true
       let mut result := body
       for i in (List.range n).reverse do
-        result ← destructureCompTarget elts[i]! (← tupleAccessTerm pairIdent i n) result
+        result ← destructureCompTarget elts[i]! (← unpackAccessTerm isTuple pairIdent i n) result
       `(fun $pairIdent => $result)
   | _ =>
       throwError s!"Unsupported comprehension target: {targetJson}"

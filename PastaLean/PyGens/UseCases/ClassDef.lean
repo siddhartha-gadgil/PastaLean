@@ -117,10 +117,13 @@ def classSelfThreadingValue (argInfos : Array (TSyntax `ident × Option (TSyntax
   addVar `self
   let selfDecl ← if selfIsParam then `(doElem| let mut $selfId:ident := $selfId:ident)
                  else `(doElem| let mut $selfId:ident : $classTyTerm := default)
+  -- `self` is declared above; the body may also reassign an ordinary parameter (`while x <= self.n: … x += …`).
+  let paramPrelude ← mutatedParamPrelude (argInfos.filter (·.1.getId != `self)) bodyElems
   let bodyStxArray ← monadicFunctionBodySyntax bodyElems
   let idRun := mkIdent ``Id.run
   let core ← `($idRun do
       $selfDecl:doElem
+      $[$paramPrelude:doElem]*
       $[$bodyStxArray:doElem]*
       return $selfId:term)
   let mut result := core

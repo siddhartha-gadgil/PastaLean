@@ -1319,7 +1319,8 @@ def _splice_taste_winners(code, winners):
     by position (not append order) is essential — a `mvcgen … with taste?` whose VCs `mvcgen` itself
     discharged records NO winner, so order-based zipping would shift every later token onto the wrong
     proof. A token with a matching winner gets it (prettified); a `with taste?` with no winner is a
-    self-closed `mvcgen` → drop the dead `with` clause; any other unmatched `taste?` → `sorry`.
+    self-closed `mvcgen` → drop the dead `with` clause; any other unmatched `taste?` →
+    `all_goals sorry`.
 
     Comment/string aware: `taste?` ALSO shows up inside docstrings/comments (e.g. ``:= by taste?`` in
     prose), which aren't elaborated and have no winner. Those never match a `pos`, so they're left
@@ -1395,7 +1396,9 @@ def _splice_taste_winners(code, winners):
                         out.pop()
             else:
                 # Unmatched `taste?` (e.g. inside prose, or no recorded proof) → keep it compiling.
-                out.append("sorry")
+                # `all_goals`, not a bare `sorry`: `mvcgen` usually leaves several VCs (one per
+                # branch), and it is a no-op when it left none.
+                out.append("all_goals sorry")
             i += len("taste?")
             continue
         out.append(c)
@@ -1450,6 +1453,34 @@ def _mutual_recursion_groups(body):
         n: frozenset([n] + [m for m in reach[n] if m != n and n in reach.get(m, set())])
         for n in names
     }
+
+
+def _returns_a_value(method_json):
+    """True if the method has a `return <expr>` outside any nested function/lambda scope."""
+    def walk(node):
+        if isinstance(node, list):
+            return any(walk(x) for x in node)
+        if not isinstance(node, dict):
+            return False
+        nt = node.get("node_type")
+        if nt in ("FunctionDef", "AsyncFunctionDef", "ClassDef", "Lambda"):
+            return False
+        if nt == "Return" and node.get("value") is not None:
+            return True
+        return any(walk(v) for k, v in node.items() if k != "node_type")
+    return walk((method_json or {}).get("body", []))
+
+
+def _prune_value_returning_mutators(body):
+    """Value semantics lower a mutator to `self ↦ self` (`classSelfThreadingValue`), a codomain that
+    cannot also carry a Python return value — so a method that both writes `self` and returns is
+    emitted as an ordinary function and its writes are dropped. Heap mode keeps it a real mutator:
+    there the write goes through a ref and the return value survives."""
+    for s in body:
+        if isinstance(s, dict) and s.get("node_type") == "ClassDef":
+            by_name = {m.get("name"): m for m in s.get("methods", [])}
+            s["mutators"] = [n for n in s.get("mutators", [])
+                             if not _returns_a_value(by_name.get(n))]
 
 
 def _collect_class_table(body):
@@ -1523,6 +1554,8 @@ def _stamp_class_dispatch(ast_json):
     if ast_json.get("node_type") != "Module":
         return ast_json
     body = ast_json.get("body", [])
+    if not _HEAP_MODE:
+        _prune_value_returning_mutators(body)
     table = _collect_class_table(body)
     if not table:
         return ast_json

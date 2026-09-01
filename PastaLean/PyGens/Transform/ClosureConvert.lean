@@ -23,13 +23,6 @@ Captured names the helper *mutates* (rebind, `x[i] = v`, `x.append(…)`) cannot
 those are rejected with a clear error rather than silently dropped.
 -/
 
-/-- Append `x` unless it is already present, preserving first-seen order. -/
-private def pushUnique (xs : Array String) (x : String) : Array String :=
-  if xs.contains x then xs else xs.push x
-
-private def appendUnique (xs ys : Array String) : Array String :=
-  ys.foldl pushUnique xs
-
 /-- The statement blocks nested directly inside `stmt` (`if`/`for`/`while`/`try` bodies). -/
 private def nestedBlocks (stmt : Json) : Array (Array Json) := Id.run do
   let mut blocks := #[]
@@ -41,17 +34,6 @@ private def nestedBlocks (stmt : Json) : Array (Array Json) := Id.run do
       if let .ok elems := handler.getObjValAs? (Array Json) "body" then
         blocks := blocks.push elems
   return blocks
-
-/-- Every `Name` id appearing anywhere in `json`. -/
-partial def jsonNameIds (json : Json) : Array String :=
-  let here :=
-    match jsonNodeType? json, json.getObjValAs? String "id" with
-    | some "Name", .ok id => #[id]
-    | _, _ => #[]
-  match json with
-  | .arr elems => elems.foldl (fun acc e => appendUnique acc (jsonNameIds e)) here
-  | .obj fields => fields.toList.foldl (fun acc (_, v) => appendUnique acc (jsonNameIds v)) here
-  | _ => here
 
 /-- The names an assignment/loop target binds (a bare name, or the elements of a tuple unpack).
 A `Subscript`/`Attribute` target mutates but does not bind. -/

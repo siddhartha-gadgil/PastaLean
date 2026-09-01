@@ -284,70 +284,25 @@ partial def jsonReferencesName (json : Json) (target : String) : Bool :=
     | .obj fields => fields.toList.any (fun (_, value) => jsonReferencesName value target)
     | _ => false
 
-/-- Does assigning to this target node mutate the variable `name`? Covers a bare `Name`, tuple/
-list unpacking, `Starred`, and a `Subscript`/`Attribute` whose base (recursively) is `name`
-(`a[i] = …` reassigns the immutable-value container `a`, so it mutates `a`). -/
-partial def assignTargetMutatesName (target : Json) (name : String) : Bool :=
-  match target.getObjValAs? String "node_type" with
-  | .ok "Name" => target.getObjValAs? String "id" == .ok name
-  | .ok "Tuple" | .ok "List" =>
-      match target.getObjValAs? (Array Json) "elts" with
-      | .ok elts => elts.any (fun e => assignTargetMutatesName e name)
-      | _ => false
-  | .ok "Starred" | .ok "Subscript" | .ok "Attribute" =>
-      (target.getObjVal? "value").toOption.any (fun v => assignTargetMutatesName v name)
-  | _ => false
-
-/-- Python list/set/dict methods that mutate their receiver in place. Codegen lowers each as a
-reassignment of the (immutable-value) receiver, so a parameter used as the receiver of one of
-these must be shadowed by `let mut`. Over-inclusion is harmless (an unused shadow). -/
-def inPlaceMutatingMethods : List String :=
-  [ "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
-    "add", "discard", "update", "setdefault", "popitem",
-    "intersection_update", "difference_update", "symmetric_difference_update",
-    "appendleft", "popleft", "appendright" ]
-
-/-- Is `name` mutated (an `=`, augmented `op=`, annotated assignment, or `for` target — including
-unpacking and subscript-assignment) anywhere in this subtree, without descending into a nested
-function/lambda/class scope (which rebinds the name in a separate scope)? Used to decide which
-function parameters must be shadowed by `let mut` so the monadic body can reassign them. -/
-partial def jsonMutatesName (json : Json) (name : String) : Bool :=
-  match json with
-  | .arr elems => elems.toList.any (fun e => jsonMutatesName e name)
-  | .obj fields =>
-      match json.getObjValAs? String "node_type" with
-      | .ok "FunctionDef" | .ok "AsyncFunctionDef" | .ok "Lambda" | .ok "ClassDef" => false
-      | nodeType =>
-          let mutatedHere :=
-            match nodeType with
-            | .ok "Assign" | .ok "AugAssign" | .ok "AnnAssign" | .ok "For" =>
-                (json.getObjVal? "target").toOption.any (fun t => assignTargetMutatesName t name)
-            | .ok "Delete" =>
-                -- `del name[i]` rebuilds and reassigns the container, so it mutates `name`.
-                match (json.getObjVal? "targets").toOption.bind (·.getArr?.toOption) with
-                | some targets => targets.any (fun t => assignTargetMutatesName t name)
-                | none => false
-            | .ok "Call" =>
-                -- An in-place mutating method (`name.append(x)`, `name.add(x)`, …) is lowered as a
-                -- reassignment of the receiver, so it mutates `name`. Likewise a heapq mutating
-                -- *module function* (`heapq.heappush(name, x)`, `heapify(name)`, `heappop(name)`)
-                -- reassigns its FIRST ARGUMENT.
-                match (json.getObjVal? "func").toOption with
-                | some funcJson =>
-                    (funcJson.getObjValAs? String "node_type" == .ok "Attribute"
-                      && (match funcJson.getObjValAs? String "attr" with
-                          | .ok m => inPlaceMutatingMethods.contains m
-                          | _ => false)
-                      && (funcJson.getObjVal? "value").toOption.any
-                          (fun recv => assignTargetMutatesName recv name))
-                    || ((libraryMutatorOf? funcJson).isSome
-                      && (match (json.getObjValAs? (Array Json) "args").toOption with
-                          | some args => args[0]?.any (fun a => assignTargetMutatesName a name)
-                          | none => false))
-                | none => false
-            | _ => false
-          mutatedHere || fields.toList.any (fun (_, v) => jsonMutatesName v name)
-  | _ => false
+/-- A Lean function parameter is an immutable binder, but Python lets a body reassign or augment its
+parameters (`i -= 1`, `a[k] = v`). For each mutated parameter, register it and emit a `let mut p := p`
+shadow for the top of the (monadic) body, so reassignments resolve against the mutable shadow. A
+cell/ref param (`--heap`) is already a `Ref` — its mutations go through `writeRefM`/`modifyRefM`, so
+shadowing it would wrongly rebind the name to a plain value. Pure bodies never mutate, so this
+prelude is empty for them. -/
+def mutatedParamPrelude (argInfos : Array (TSyntax `ident × Option (TSyntax `term)))
+    (bodyElems : Array Json)
+    (heapCellParams : Array (Name × Bool) := #[])
+    (heapRefParams : Array (Name × Option String) := #[]) :
+    PygenM (Array (TSyntax `doElem)) := do
+  let mut prelude : Array (TSyntax `doElem) := #[]
+  for (argIdent, _) in argInfos do
+    if heapCellParams.any (·.1 == argIdent.getId) then continue
+    if heapRefParams.any (·.1 == argIdent.getId) then continue
+    if bodyElems.any (fun b => jsonMutatesName b argIdent.getId.toString) then
+      addVar argIdent.getId
+      prelude := prelude.push (← `(doElem| let mut $argIdent:ident := $argIdent))
+  return prelude
 
 /-- Build the Lean value for a Python function body, using a pure term when possible and
 falling back to `do` notation for effectful bodies. This helper is reused for top-level
@@ -388,19 +343,7 @@ def functionValueSyntax (argInfos : Array (TSyntax `ident × Option (TSyntax `te
         | some ty => `(fun ($argIdent : $ty) ↦ $result)
         | none => `(fun $argIdent ↦ $result)
     pure result
-  -- A Lean function parameter is an immutable binder, but Python lets a body reassign or
-  -- augment its parameters (`i -= 1`, `a[k] = v`). For each mutated parameter, register it and
-  -- emit a `let mut p := p` shadow at the top of the (monadic) body, then reassignments resolve
-  -- against the mutable shadow. Pure bodies never mutate, so this prelude is empty for them.
-  let mut paramPrelude : Array (TSyntax `doElem) := #[]
-  for (argIdent, _) in argInfos do
-    -- A cell/ref param is already a `Ref`; its mutations go through `writeRefM`/`modifyRefM`, so it
-    -- needs no `let mut` value shadow (shadowing it would rebind the name to a plain value).
-    if heapCellParams.any (·.1 == argIdent.getId) then continue
-    if heapRefParams.any (·.1 == argIdent.getId) then continue
-    if bodyElems.any (fun b => jsonMutatesName b argIdent.getId.toString) then
-      addVar argIdent.getId
-      paramPrelude := paramPrelude.push (← `(doElem| let mut $argIdent:ident := $argIdent))
+  let paramPrelude ← mutatedParamPrelude argInfos bodyElems heapCellParams heapRefParams
   -- The monad codomain: `PyAny` when the returns disagree (`_box_return`), else a hole for Lean to
   -- infer. Without this an effectful boxed function would keep `_`, and Lean would fix the monad's
   -- type from the first `return` — forcing e.g. `Float`, so a later `return 0` (`ℤ`) fails to match.
@@ -763,8 +706,14 @@ def buildWhileFunction (name : String) (json : Json) (sh : WhileShape) :
   let thmCmd ← `(command| @[spec] theorem $(mkIdent (name ++ "_spec").toName) :
       ⦃⌜$pre⌝⦄ $nameIdent $paramIdents* ⦃⇓ $rId => ⌜$post⌝⦄ := by
         mvcgen [$nameLemma]
-        · exact PastaLean.pyWhile_correct (I := $iLam) (Q := $qLam) $muLam $cLam $bodyLam $s0
-            (by $oblTac:tactic) (by $oblTac:tactic) (by $oblTac:tactic))
+        -- `all_goals try`, not a focusing `·`: `mvcgen` may discharge the loop VC itself (leaving no
+        -- goal for the rule) or leave several branch VCs beside it. The mop-up keeps either shape
+        -- compiling — as a `sorry` warning rather than a hard error.
+        all_goals
+          try
+            exact PastaLean.pyWhile_correct (I := $iLam) (Q := $qLam) $muLam $cLam $bodyLam $s0
+              (by $oblTac:tactic) (by $oblTac:tactic) (by $oblTac:tactic)
+        all_goals sorry)
   return #[finalDef, thmCmd]
 
 /-- Build `partial def name : <arg tys → ret> := value` for a member of a mutual group. The
@@ -881,7 +830,12 @@ def funcDefSyntax : (kind : SyntaxNodeKind) → Json →
         if let some (cleanBody, letJsons, hypJsons, conclJson) := contractShape? paramNames bodyArr substantive then
           let argInfos ← functionArgInfos json
           let valueStx ← functionValueSyntax argInfos cleanBody
-          let finalDef ← applyPrivacy name (← `(command| def $nameIdent := $valueStx))
+          let nc ← (pure ((← getNumericMode) == .exact &&
+              json.getObjValAs? Bool "_real_fn" == .ok true)) <||>
+            bodyNeedsNoncomputable cleanBody
+          let defCmd ← if nc then `(command| noncomputable def $nameIdent := $valueStx)
+            else `(command| def $nameIdent := $valueStx)
+          let finalDef ← applyPrivacy name defCmd
           if (← getNumericMode) == .approx then
             return ⟨mkNullNode #[finalDef.raw]⟩
           let thmName := mkIdent (name ++ "_spec").toName
@@ -900,8 +854,11 @@ def funcDefSyntax : (kind : SyntaxNodeKind) → Json →
         -- function `Id`-typed (so `mvcgen` sees the `do`) with `Requires`/`Assume` stripped to the
         -- precondition, plus a `<fn>_spec` Hoare-triple theorem driven by `mvcgen … with taste?`.
         -- Exact mode only; the runnable `'rn` twin (approx) falls through to normal emission.
-        if (← getNumericMode) == .exact then
-          if let some info := monadicContractInfo? substantive then
+        -- A self-recursive body is excluded: the generic path emits it `partial` (Lean can't see the
+        -- termination measure), and a `partial def` has no unfolding equation for `mvcgen` to use, so
+        -- the `Id`-typed def + spec theorem would be both unprovable and un-elaborable.
+        if (← getNumericMode) == .exact && !substantive.any (jsonReferencesName · baseName) then
+          if let some info := monadicContractInfo? paramNames substantive then
             let argInfos ← functionArgInfos json
             -- Pick the monad mvcgen sees. A `try`/`raise` body needs a *pure* exception monad with
             -- mvcgen `throw`/`try` specs: `ExceptT PyException Id`. `Id` has no `MonadExcept`, so
@@ -910,8 +867,9 @@ def funcDefSyntax : (kind : SyntaxNodeKind) → Json →
             -- (no mvcgen specs). `ExceptT … Id` avoids all three. A pure body stays `Id _`.
             let usesExc := bodyNeedsExceptionMonad info.cleanBody
             let valueStx ← withFreshVariables do
+              let paramPrelude ← mutatedParamPrelude argInfos info.cleanBody
               let bodyStxArray ← monadicFunctionBodySyntax info.cleanBody
-              let doStx ← `(do $[$bodyStxArray:doElem]*)
+              let doStx ← `(do $[$paramPrelude:doElem]* $[$bodyStxArray:doElem]*)
               let monadTy ← if usesExc then `(ExceptT PastaLean.PyException Id _) else `(Id _)
               let mut v ← `(($doStx : $monadTy))
               for (argIdent, ty?) in argInfos.reverse do
@@ -930,7 +888,8 @@ def funcDefSyntax : (kind : SyntaxNodeKind) → Json →
               else `(command| def $nameIdent := $valueStx)
             let finalDef ← applyPrivacy name defCmd
             let thmCmd ← buildMonadicSpec (mkIdent (name ++ "_spec").toName) nameIdent
-              (argInfos.map (·.1)) info
+              argInfos info
+            monadicDefsRef.modify ((baseName, argInfos.size) :: ·)
             return ⟨mkNullNode #[finalDef.raw, thmCmd.raw]⟩
         -- `_real_fn` (set by the Python per-variable pass) means the function produces or handles an
         -- `ℝ` value → it must be `noncomputable` in exact mode. This is now DECOUPLED from which

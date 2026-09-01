@@ -161,28 +161,66 @@ def buildSpecTheorem (thmName : TSyntax `ident)
         | none => `(∀ $argIdent, $propTy)
     `(command| @[taste_ingr] theorem $thmName : $propTy := by taste?)
 
-/-- Does any `Assign`/`AugAssign` inside `stmt` (recursing into nested bodies) target `name`? Used
-to find which mutable variables a loop threads (its mvcgen state). -/
-partial def jsonAssignsName (stmt : Json) (name : String) : Bool :=
+/-- The names `stmt` *declares* at the position it occupies in the emitted `do` block: its own
+assignment target, or — for an `if`/`try` — the targets of its branches, which codegen hoists to a
+`let mut` in front of the block. Loop bodies and nested scopes are skipped: their locals live inside
+the loop, not in the enclosing state. -/
+partial def stmtDeclaredNames (stmt : Json) : Array String :=
   match jsonNodeType? stmt with
-  | some "Assign" | some "AugAssign" =>
-    ((stmt.getObjVal? "target").bind (·.getObjValAs? String "id")) == .ok name
-  | _ => Id.run do
-    for key in ["body", "orelse", "finalbody"] do
+  | some "Assign" | some "AugAssign" | some "AnnAssign" =>
+    match (stmt.getObjVal? "target").bind (·.getObjValAs? String "id") with
+    | .ok name => #[name]
+    | _ => #[]
+  | some "If" | some "Try" => Id.run do
+    let mut acc : Array String := #[]
+    for key in ["body", "orelse", "finalbody", "handlers"] do
       if let .ok (arr : Array Json) := stmt.getObjValAs? (Array Json) key then
         for s in arr do
-          if jsonAssignsName s name then return true
-    return false
+          for n in stmtDeclaredNames s do
+            if !acc.contains n then acc := acc.push n
+    return acc
+  | _ => #[]
 
-/-- Mutable-variable declaration order: top-level `Assign` targets, first occurrence first. This is
-the order mvcgen threads them as the loop state tuple. -/
-def declaredMutOrder (body : Array Json) : Array String := Id.run do
-  let mut acc : Array String := #[]
+/-- Mutable-variable declaration order, as the emitted `do` block declares them: first the
+parameters the body mutates (codegen shadows each with `let mut p := p` at the top, in parameter
+order), then each name's first assignment in source order. This is the order mvcgen threads them as
+the loop state tuple — reversed, since the tuple is innermost-declared-first. -/
+def declaredMutOrder (paramNames : Array String) (body : Array Json) : Array String := Id.run do
+  let mut acc : Array String := paramNames.filter fun p => body.any (jsonMutatesName · p)
   for s in body do
-    if jsonNodeType? s == some "Assign" then
-      if let .ok name := (s.getObjVal? "target").bind (·.getObjValAs? String "id") then
-        if !acc.contains name then acc := acc.push name
+    for n in stmtDeclaredNames s do
+      if !acc.contains n then acc := acc.push n
   return acc
+
+/-- Names an expression binds itself: comprehension targets and lambda parameters. They shadow a
+same-named function local, so mentioning them is not an out-of-scope read. -/
+partial def jsonExprBoundNames (json : Json) : Array String :=
+  match json with
+  | .arr xs => xs.foldl (fun acc e => acc ++ jsonExprBoundNames e) #[]
+  | .obj fs =>
+    let here := match jsonNodeType? json with
+      | some "comprehension" =>
+        ((json.getObjVal? "target").toOption.map jsonNameIds).getD #[]
+      | some "Lambda" =>
+        ((json.getObjVal? "args").toOption.map jsonNameIds).getD #[]
+      | _ => #[]
+    fs.toList.foldl (fun acc (_, v) => acc ++ jsonExprBoundNames v) here
+  | _ => #[]
+
+/-- Every name the body ever assigns — `Assign`/`AugAssign`/`AnnAssign`/`For` targets, anywhere,
+including inside loops, branches and tuple unpacking. These are the `do`-block locals: a contract
+term elaborates in the *theorem's* context, where only the parameters exist, so a term naming one of
+them cannot elaborate unless mvcgen hands it back (a loop's state or index). -/
+partial def jsonAssignedNames (json : Json) : Array String :=
+  match json with
+  | .arr xs => xs.foldl (fun acc e => acc ++ jsonAssignedNames e) #[]
+  | .obj fs =>
+    let here := match jsonNodeType? json with
+      | some "Assign" | some "AugAssign" | some "AnnAssign" | some "For" =>
+        ((json.getObjVal? "target").toOption.map jsonNameIds).getD #[]
+      | _ => #[]
+    fs.toList.foldl (fun acc (_, v) => acc ++ jsonAssignedNames v) here
+  | _ => #[]
 
 /-- If accumulator `acc` is updated at the loop-body top level by `acc += e` or `acc = acc + e`,
 return the contribution `e` — used to auto-derive `acc = (cur.prefix.map (fun v => e)).sum` when the
@@ -229,6 +267,11 @@ structure LoopInv where
   invariants : Array Json
   accMutations : Array (String × Json)
   hasEarlyExit : Bool
+  /-- A `while` claims two holes (variant, then invariant) rather than a `for`'s one. -/
+  isWhile : Bool := false
+  /-- The loop's threaded state is not modelled (a `while`, or a loop nested inside one), so its
+  bullet is trivially `True` — it still has to be *there*, or the `invariants` clause is short. -/
+  trivial : Bool := false
 
 /-- All proof data for a monadic contracted function. -/
 structure MonadicContract where
@@ -237,6 +280,32 @@ structure MonadicContract where
   ensures : Array Json     -- `Ensures`/`Assert` args mentioning `Result()` → postcondition
   retName : Option String  -- name of the returned variable (`return x`), used to bind the post result
   loops : Array LoopInv
+  params : Array String    -- the function's parameters: the only names a contract term may read freely
+  locals : Array String    -- every name the body assigns — invisible outside the `do` block
+
+/-- Keep only the contract conjuncts that can actually elaborate where the term is placed: every
+name they read must be a parameter, one of `extra` (a loop's state and index, or the result binder),
+bound by the expression itself, or a global (anything that is not a `do`-block local). A conjunct
+naming any other local is dropped rather than emitted as an `unknown identifier`. -/
+def scopedConjuncts (mc : MonadicContract) (extra : Array String) (terms : Array Json) :
+    Array Json :=
+  terms.filter fun t =>
+    let bound := jsonExprBoundNames t
+    (jsonNameIds t).all fun n =>
+      mc.params.contains n || extra.contains n || bound.contains n || !mc.locals.contains n
+
+/-- The names an `Invariant(...)` marker may read in this loop's bullet. A `range` loop's bullet opens
+with `let i := cur.prefix.length`, so its index is available; over any other iterable the loop
+variable is the *current element*, which the loop head has no name for. -/
+def bulletScope (li : LoopInv) : Array String :=
+  if li.isRange then li.accumulators.push li.loopVar else li.accumulators
+
+/-- The `acc += e` updates whose contribution `e` can elaborate in a bullet. The loop variable is
+always in scope here — the auto-derived form binds it itself, as `fun v => e` under `map`. What is not
+in scope is a body-local: `ans += cur[k]`, where `cur` is declared inside the loop body. -/
+def scopedAccMutations (mc : MonadicContract) (li : LoopInv) : Array (String × Json) :=
+  li.accMutations.filter fun (_, contrib) =>
+    !(scopedConjuncts mc (li.accumulators.push li.loopVar) #[contrib]).isEmpty
 
 /-- Builds a LoopInv from one For node. Returns none only if the For lacks a target/iter. -/
 def loopInvOf (declaredOrder : Array String) (forNode : Json) : Option LoopInv :=
@@ -249,25 +318,86 @@ def loopInvOf (declaredOrder : Array String) (forNode : Json) : Option LoopInv :
       match contractArg? s with
       | some ("Invariant", arg) => some arg
       | _ => none
-    let accumulators := declaredOrder.filter fun v => loopBody.any (jsonAssignsName · v)
+    -- Must agree with the codegen's own notion of mutation (`.append`, `a[i] = v`, `op=`, …), not
+    -- just bare `Assign`: whatever the body reassigns is what mvcgen threads as the loop state.
+    let accumulators := declaredOrder.filter fun v => loopBody.any (jsonMutatesName · v)
     let accMutations := accumulators.filterMap fun a =>
       (accContribution? loopBody a).map (fun e => (a, e))
     let hasEarlyExit := loopBody.any jsonHasEarlyExit
     some { loopVar, isRange, accumulators, invariants, accMutations, hasEarlyExit }
   | _, _ => none
 
+/-- A loop whose state we do not model: it still claims its hole(s), filled with `True`. -/
+def opaqueLoop (isWhile : Bool) : LoopInv :=
+  { loopVar := "_", isRange := false, accumulators := #[], invariants := #[], accMutations := #[],
+    hasEarlyExit := false, isWhile, trivial := true }
+
+/-- Does control reach the end of `stmts`? A `return`/`break`/`continue`/`raise` diverts it, and an
+`if` diverts it only when *both* branches do (a missing `else` always falls through). -/
+partial def blockFallsThrough (stmts : Array Json) : Bool :=
+  stmts.all fun s =>
+    let block (key : String) : Array Json := (s.getObjValAs? (Array Json) key).toOption.getD #[]
+    match jsonNodeType? s with
+    | some "Return" | some "Break" | some "Continue" | some "Raise" => false
+    | some "If" =>
+      blockFallsThrough (block "body") ||
+        (block "orelse").isEmpty || blockFallsThrough (block "orelse")
+    | _ => true
+
+/-- Every invariant hole `mvcgen` opens for `stmts`, in the order it numbers them. A partial
+`invariants` clause is a hard error ("Lacking definitions for the following invariants"), so *every*
+hole needs a bullet, not just the loops carrying an `Invariant(...)` marker.
+
+`mvcgen` splits on each `if`, and the continuation is re-elaborated under *every* surviving branch —
+so a loop claims its holes once per path reaching it, which `mult` tracks. `if`/`try` branches share
+the enclosing `do` block's state, so a loop inside one is still a top-level loop; a loop nested inside
+another *loop* threads that loop's own state, which we don't model. Nested `def`s own their own holes
+and are not descended into. -/
+partial def collectLoops (declaredOrder : Array String) (nested : Bool) (mult : Nat)
+    (stmts : Array Json) : Array LoopInv := Id.run do
+  let mut acc : Array LoopInv := #[]
+  let mut mult := mult
+  for s in stmts do
+    let block (key : String) : Array Json := (s.getObjValAs? (Array Json) key).toOption.getD #[]
+    match jsonNodeType? s with
+    | some "For" =>
+      let li := (loopInvOf declaredOrder s).getD (opaqueLoop false)
+      for _ in [0:mult] do acc := acc.push (if nested then opaqueLoop false else li)
+      acc := acc ++ collectLoops declaredOrder true mult (block "body")
+      acc := acc ++ collectLoops declaredOrder nested mult (block "orelse")
+    | some "While" =>
+      for _ in [0:mult] do acc := acc.push (opaqueLoop true)
+      acc := acc ++ collectLoops declaredOrder true mult (block "body")
+      acc := acc ++ collectLoops declaredOrder nested mult (block "orelse")
+    | some "If" =>
+      acc := acc ++ collectLoops declaredOrder nested mult (block "body")
+      acc := acc ++ collectLoops declaredOrder nested mult (block "orelse")
+      let thenPaths := if blockFallsThrough (block "body") then 1 else 0
+      let elsePaths :=
+        if (block "orelse").isEmpty || blockFallsThrough (block "orelse") then 1 else 0
+      mult := mult * (thenPaths + elsePaths)
+    | some "Try" =>
+      for key in ["body", "orelse", "finalbody"] do
+        acc := acc ++ collectLoops declaredOrder nested mult (block key)
+      for h in block "handlers" do
+        acc := acc ++ collectLoops declaredOrder nested mult
+          ((h.getObjValAs? (Array Json) "body").toOption.getD #[])
+    | _ => pure ()
+  return acc
+
 /-- A *monadic* contracted function (has a `for` loop with `Invariant(...)`, or effects).
 Strips `Requires`/`Assume` (→ precondition), keeps everything else (so `Ensures` stay as in-body
 checkpoints and `Invariant` markers stay as provable checkpoints), and records per-loop invariant
 data. `none` when there is no contract marker. -/
-def monadicContractInfo? (body : Array Json) : Option MonadicContract := Id.run do
-  let declared := declaredMutOrder body
+def monadicContractInfo? (paramNames : Array String) (body : Array Json) :
+    Option MonadicContract := Id.run do
+  let declared := declaredMutOrder paramNames body
   let mut requires : Array Json := #[]
   let mut ensures : Array Json := #[]
   let mut clean : Array Json := #[]
-  let mut loops : Array LoopInv := #[]
+  let loops := collectLoops declared false 1 body
   let mut retName : Option String := none
-  let mut sawContract := false
+  let mut sawContract := loops.any (!·.invariants.isEmpty)
   for s in body do
     match contractArg? s with
     | some (member, arg) =>
@@ -282,10 +412,6 @@ def monadicContractInfo? (body : Array Json) : Option MonadicContract := Id.run 
         else clean := clean.push s
       | _ => clean := clean.push s
     | none =>
-      if jsonNodeType? s == some "For" then
-        if let some li := loopInvOf declared s then
-          sawContract := sawContract || !li.invariants.isEmpty
-          loops := loops.push li
       -- Record a `return <name>` so the postcondition can bind that variable as its result.
       if jsonNodeType? s == some "Return" then
         if let .ok v := s.getObjVal? "value" then
@@ -293,7 +419,8 @@ def monadicContractInfo? (body : Array Json) : Option MonadicContract := Id.run 
             if let .ok rid := v.getObjValAs? String "id" then retName := some rid
       clean := clean.push s
   if !sawContract then return none
-  return some { cleanBody := clean, requires, ensures, retName, loops }
+  return some { cleanBody := clean, requires, ensures, retName, loops,
+                params := paramNames, locals := jsonAssignedNames (Json.arr body) }
 
 /-- A contracted function whose loop is a single straight-line `while` carrying an `Invariant` and a
 `Decreases`. This is the shape we lower through `pyWhile` + `pyWhile_correct` (instead of mvcgen's
@@ -387,14 +514,15 @@ def conjoin (ps : Array (TSyntax `term)) : PygenM (TSyntax `term) :=
   | [] => `(True)
   | p :: rest => rest.foldlM (fun acc q => `($acc ∧ $q)) p
 
-/-- One invariant bullet for a loop. The predicate relates the accumulators to `cur.prefix`:
+/-- One invariant bullet for a modelled `for` loop. The predicate relates the accumulators to
+`cur.prefix`:
 * user `Invariant(...)` markers, conjoined — for a `range` loop the loop variable is bound to
   `cur.prefix.length` (the index), so index-style invariants work;
 * otherwise, **auto-derived** from each `acc += e` update: `acc = (cur.prefix.map (fun v => e)).sum`
   (only for non-`range` loops, where `cur.prefix` is the element list);
 * else `True`.
 The binder is `⇓ cur =>` with no accumulators, `⇓⟨cur, a, …⟩` with some. -/
-def buildBullet (li : LoopInv) : PygenM (TSyntax `term) := do
+def buildForBullet (mc : MonadicContract) (li : LoopInv) : PygenM (TSyntax `term) := do
   for a in li.accumulators do addVar a.toName
   addVar li.loopVar.toName
   -- A loop that `return`s/`break`s threads an early-return state; its invariant is supplied via
@@ -402,16 +530,26 @@ def buildBullet (li : LoopInv) : PygenM (TSyntax `term) := do
   -- `True` postcondition a trivial pair discharges it.
   if li.hasEarlyExit then
     return ← `(Invariant.withEarlyReturnNewDo (onReturn := fun _ _ => ⌜True⌝) (onContinue := fun _ _ => ⌜True⌝))
-  let cur := mkIdent `cur
+  -- A program variable literally named `cur` would be bound twice by the `⟨cur, …⟩` pattern, so the
+  -- cursor binder shifts to a name the loop's own state does not use.
+  let taken := li.accumulators.push li.loopVar ++ mc.params ++ mc.locals
+  let cur := mkIdent (Id.run do
+    let mut n := "cur"
+    for _ in [0:taken.size + 1] do
+      if taken.contains n then n := n ++ "'"
+    return n.toName)
   let loopVarId := mkIdent li.loopVar.toName
+  -- Only the loop's own state (accumulators + index) is in scope in a bullet; a marker mentioning
+  -- some other `do`-block local cannot elaborate here, so it is dropped rather than emitted.
+  let invariants := scopedConjuncts mc (bulletScope li) li.invariants
   let body ←
-    if !li.invariants.isEmpty then
-      let props ← li.invariants.mapM (fun inv => withPropCondition true (getCode inv `term))
+    if !invariants.isEmpty then
+      let props ← invariants.mapM (fun inv => withPropCondition true (getCode inv `term))
       let conj ← conjoin props
       if li.isRange then `(let $loopVarId := ($(cur).prefix.length : Int); $conj) else pure conj
-    else if !li.isRange && !li.accMutations.isEmpty then
+    else if !li.isRange && !(scopedAccMutations mc li).isEmpty then
       let mut autos : Array (TSyntax `term) := #[]
-      for (acc, contrib) in li.accMutations do
+      for (acc, contrib) in scopedAccMutations mc li do
         let cStx ← getCode contrib `term
         autos := autos.push
           (← `($(mkIdent acc.toName) = ($(cur).prefix.map (fun $loopVarId => $cStx)).sum))
@@ -421,20 +559,51 @@ def buildBullet (li : LoopInv) : PygenM (TSyntax `term) := do
   if li.accumulators.isEmpty then
     `(⇓ $cur => ⌜$body⌝)
   else
-    -- mvcgen threads the loop state as a right-nested `MProd` whose `.fst` is the *last*-declared
-    -- mutable variable, i.e. the tuple is in **reverse** declaration order.
-    let accIdents := li.accumulators.reverse.map (fun s => mkIdent s.toName)
+    -- The new `do` elaborator threads the loop state as a right-nested `Prod` in **declaration**
+    -- order, so `⟨cur, a, b⟩` binds the first-declared mutable variable to `a`.
+    let accIdents := li.accumulators.map (fun s => mkIdent s.toName)
     `(⇓⟨$cur, $accIdents,*⟩ => ⌜$body⌝)
+
+/-- Does this loop's bullet actually say anything? A `⌜True⌝`/`ULift.up 0` filler exists only to keep
+the `invariants` clause complete, so a function whose every bullet is filler needs no clause at all. -/
+def loopIsSubstantive (mc : MonadicContract) (li : LoopInv) : Bool :=
+  !li.isWhile && !li.trivial && !li.hasEarlyExit &&
+    (!(scopedConjuncts mc (bulletScope li) li.invariants).isEmpty ||
+      (!li.isRange && !(scopedAccMutations mc li).isEmpty))
+
+/-- The invariant bullet(s) one loop claims — one for a `for`, two for a `while` (the termination
+measure `WhileVariant`, then the `WhileInvariant`). An unmodelled loop still gets its bullet — a
+short `invariants` clause is a hard error — filled with `True`/`0`, leaving its VCs to `taste?`. -/
+def buildBullets (mc : MonadicContract) (li : LoopInv) : PygenM (Array (TSyntax `term)) := do
+  if li.isWhile then
+    return #[← `(fun _ => ULift.up 0), ← `(⇓ _ => ⌜True⌝)]
+  if li.trivial then
+    return #[← `(⇓ _ => ⌜True⌝)]
+  return #[← buildForBullet mc li]
 
 /-- Build the monadic spec theorem `⦃⌜Requires⌝⦄ fn params ⦃⇓ _ => ⌜True⌝⦄` proven by
 `mvcgen [fn] invariants …` + a trailing `taste?`. Only the precondition is lifted from `Requires`/
 `Assume`; the postcondition stays `True` (`Ensures`/`Assert` are proved as in-body checkpoints). -/
-def buildMonadicSpec (thmName fnName : TSyntax `ident) (paramIdents : Array (TSyntax `ident))
+def buildMonadicSpec (thmName fnName : TSyntax `ident)
+    (argInfos : Array (TSyntax `ident × Option (TSyntax `term)))
     (info : MonadicContract) : PygenM (TSyntax `command) := withFreshVariables do
-  for p in paramIdents do addVar p.getId
-  let preProps ← info.requires.mapM (fun r => withPropCondition true (getCode r `term))
+  let paramIdents := argInfos.map (·.1)
+  for (p, _) in argInfos do addVar p.getId
+  -- Bind the parameters explicitly. Left to `autoImplicit`, a Python parameter whose name matches a
+  -- Mathlib global (`dist`, `deg`, …) resolves to *that* constant instead of being generalised.
+  let binders ← argInfos.mapM fun (id, ty?) =>
+    match ty? with
+    | some ty => `(Lean.Parser.Term.bracketedBinderF| { $id : $ty })
+    | none => `(Lean.Parser.Term.bracketedBinderF| { $id })
+  let preProps ← (scopedConjuncts info #[] info.requires).mapM
+    (fun r => withPropCondition true (getCode r `term))
   let pre ← conjoin preProps
-  let bullets ← info.loops.mapM buildBullet
+  -- Predicting mvcgen's hole count is only worth the risk when some bullet carries real content:
+  -- an over-long clause is a hard error, whereas *no* clause just leaves the `inv<n>` goals to the
+  -- trailing `taste?`.
+  let bullets ← if info.loops.any (loopIsSubstantive info) then
+      (·.flatten) <$> info.loops.mapM (buildBullets info)
+    else pure #[]
   -- mvcgen lemma set is added here
   let lemmas ← #[(⟨fnName.raw⟩ : TSyntax `term), mkIdent ``PastaLean.pyRange_forIn,
       mkIdent ``PastaLean.pyRange_forIn_start].mapM
@@ -445,10 +614,14 @@ def buildMonadicSpec (thmName fnName : TSyntax `ident) (paramIdents : Array (TSy
   -- `c₁; c₂; …` sequence (one closer per goal, in order) — the prove-and-replace splice drops that in
   -- verbatim. If `mvcgen` already discharged every VC, `taste?` runs on no goals and records nothing,
   -- and the splice prunes the dangling `taste?` line, leaving a clean `mvcgen [...]`.
+  -- `invariants?`, not `invariants`: one loop can claim its holes *more than once*, because mvcgen
+  -- duplicates the continuation across the branches of a preceding `if`, so the hole count is not a
+  -- function of the AST. Under the `?` form a short list is merely a suggestion — the unassigned
+  -- `inv<n>` goals stay for `taste?` — while `invariants` rejects it outright.
   let mv ← if bullets.isEmpty then
       `(tactic| mvcgen [$lemmas,*])
     else
-      `(tactic| mvcgen [$lemmas,*] invariants $[· $bullets:term]*)
+      `(tactic| mvcgen [$lemmas,*] invariants? $[· $bullets:term]*)
 
   -- POSTCONDITION. With no `Result()`-bearing `Ensures` the postcondition stays `True` (any plain
   -- `Ensures`/`Assert` is proved as an in-body checkpoint instead). When the user wrote an
@@ -456,19 +629,20 @@ def buildMonadicSpec (thmName fnName : TSyntax `ident) (paramIdents : Array (TSy
   -- value), so we lift them into the spec *statement* (Nagini-style, modular `@[spec]` reuse): bind the
   -- returned variable as the result, lower each `Ensures` with `Result()` rewritten to that binder, and
   -- tag the theorem `@[spec]`.
-  if info.ensures.isEmpty then
-    `(command| theorem $thmName :
+  let retId := info.retName.getD "result"
+  let ensures := scopedConjuncts info #[retId] info.ensures
+  if ensures.isEmpty then
+    `(command| theorem $thmName $binders* :
         ⦃⌜$pre⌝⦄ $fnName $paramIdents* ⦃⇓ _ => ⌜True⌝⦄ := by
           $mv:tactic
           taste?)
   else
-    let retId := info.retName.getD "result"
     let retBinder := mkIdent retId.toName
     addVar retId.toName  -- so `Result()` (rewritten to the `retId` `Name`) lowers to the binder
-    let postProps ← info.ensures.mapM
+    let postProps ← ensures.mapM
       (fun e => withPropCondition true (getCode (substResult retId e) `term))
     let post ← conjoin postProps
-    `(command| @[spec] theorem $thmName :
+    `(command| @[spec] theorem $thmName $binders* :
         ⦃⌜$pre⌝⦄ $fnName $paramIdents* ⦃⇓ $retBinder => ⌜$post⌝⦄ := by
           $mv:tactic
           taste?)

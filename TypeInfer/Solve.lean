@@ -462,6 +462,33 @@ partial def usedInPyAnyPosition (name : String) (json : Json) : Bool :=
       | .obj fs => fs.toList.any (fun (_, v) => usedInPyAnyPosition name v)
       | _ => false)
 
+/-- Does parameter `name` appear where a `PyAny` box is itself stuck? The *index* side of `c[i]`,
+the bounds of a slice, and `range(...)` arguments are `Int`-only, so boxing there trades one compile
+error for another; the param is left bare and Lean unifies it from those uses. Mirror of
+`usedInPyAnyPosition`, and checked against it. -/
+partial def usedInPyAnyHostilePosition (name : String) (json : Json) : Bool :=
+  if nodeTypeOf json == some "FunctionDef" then false
+  else
+    let isName (field : String) : Bool := (getField json field).bind nameId? == some name
+    let hitHere : Bool := match nodeTypeOf json with
+      | some "Subscript" =>
+          (getField json "slice").any (fun s => nodeTypeOf s != some "Slice" && nameId? s == some name)
+      | some "Slice" => isName "lower" || isName "upper" || isName "step"
+      | some "Call" =>
+          (getField json "func").bind nameId? == some "range" &&
+            ((json.getObjValAs? (Array Json) "args").toOption.getD #[]).any (fun a => nameId? a == some name)
+      | _ => false
+    hitHere || (match json with
+      | .arr xs => xs.any (usedInPyAnyHostilePosition name)
+      | .obj fs => fs.toList.any (fun (_, v) => usedInPyAnyHostilePosition name v)
+      | _ => false)
+
+/-- Will an otherwise-untypeable parameter `name` be boxed to `PyAny`? One decision, read both by
+the `.any` re-inference seed and by the stamping itself — if they disagree, the body is inferred at
+one type and emitted at another. -/
+def paramBoxesToPyAny (name : String) (body : Array Json) : Bool :=
+  body.any (usedInPyAnyPosition name) && !body.any (usedInPyAnyHostilePosition name)
+
 /-- Add `_ty` to each unannotated parameter we could type (a nested capture, or a rare
 un-hinted param). An explicit annotation, or an existing `_ty`, always wins. -/
 private def stampParams (env : Env) (fn : Json) : Json :=
@@ -483,7 +510,7 @@ private def stampParams (env : Env) (fn : Json) : Json :=
                   -- container-dispatch position (else it would compile-error); otherwise it is left
                   -- bare for Lean's own body unification, which keeps it provable.
                   let boxIfStuck := fun () =>
-                    if body.any (usedInPyAnyPosition name) then arg.setObjVal! "_ty" pyAnyTy else arg
+                    if paramBoxesToPyAny name body then arg.setObjVal! "_ty" pyAnyTy else arg
                   match env.get? name with
                   -- A parameter used at genuinely different types (`.any`, e.g. `add(a,b)` called
                   -- with ints and strings) is always boxed so one definition dispatches on the tag.
@@ -642,7 +669,7 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json)
   -- otherwise `total` stays `Int` and the `total := <PyAny>` reassignment fails to type-check.
   let body := (fn.getObjValAs? (Array Json) "body").toOption.getD #[]
   let pyAnySeed : Env := (paramNames fn).foldl (fun m name =>
-    if (env1.get? name).getD .unknown == .unknown && body.any (usedInPyAnyPosition name)
+    if (env1.get? name).getD .unknown == .unknown && paramBoxesToPyAny name body
     then m.insert name .any else m) hints
   let env := if pyAnySeed.size == hints.size then env1 else inferFunction sigs outer pyAnySeed fn
   let fn := stampParams env fn
@@ -686,7 +713,8 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json)
       -- `_ref_class` is inert in value mode, so this cannot perturb byte-identical value-mode output.
       let moEnv := match selfClass with | some c => env.insert "self" (.cls c) | none => env
       fn.setObjVal! "body"
-        (Json.arr (((body.map (stampStmt sigs env body)).map (markTuples env)).map (markOptAttrs sigs moEnv)))
+        (Json.arr ((((body.map (stampStmt sigs env body)).map (markTuples env)).map
+          (markCompUnpacks sigs env)).map (markOptAttrs sigs moEnv)))
   | _ => fn
 
 /-- Stamp a (possibly nested) tuple-unpack target with the list-vs-`Prod` access mode at EVERY level,
@@ -719,6 +747,26 @@ partial def stampUnpackShape (target : Json) (ty : PyType) : Json :=
         | _ => return t
     | _ => target
   else target
+
+/-- Stamp the unpack shape of every comprehension generator (`all(0 <= v < n for _, v in edges)`).
+A comprehension lives inside an *expression*, so the statement-level `For`/`Assign` stamping never
+reaches it, and its lambda binder would project a `Prod` out of a list row. Skips nested defs. -/
+partial def markCompUnpacks (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" then json
+  else
+    let json :=
+      if nodeTypeOf json == some "comprehension" then
+        match getField json "target", getField json "iter" with
+        | some target, some iter =>
+            if nodeTypeOf target == some "Tuple" then
+              json.setObjVal! "target" (stampUnpackShape target (typeOfExpr sigs env iter).elemType)
+            else json
+        | _, _ => json
+      else json
+    match json with
+    | .arr xs => Json.arr (xs.map (markCompUnpacks sigs env))
+    | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markCompUnpacks sigs env v)))
+    | _ => json
 
 /-- Stamp `<typesKey>`: for each name a block leaks out (listed under `namesKey`, e.g.
 `if_assigned_names`) that we can type, its annotation — so codegen ascribes the hoisted
@@ -1042,6 +1090,7 @@ partial def stampUnpackShapes (sigs : Sigs) (env : Env) (s : Json) : Json :=
           if nodeTypeOf target == some "Tuple" then
             s := s.setObjVal! "target" (stampUnpackShape target (typeOfExpr sigs env value))
       | _, _ => pure ()
+    s := markCompUnpacks sigs env s
     for f in #["body", "orelse", "finalbody"] do
       if let .ok elems := s.getObjValAs? (Array Json) f then
         s := s.setObjVal! f (Json.arr (elems.map (stampUnpackShapes sigs env)))

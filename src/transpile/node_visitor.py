@@ -25,6 +25,15 @@ BOOLOP_MAP = {
     ast.Or: "or",
 }
 
+# Container methods the backend lowers as a rebuild of their receiver. Must agree with
+# `inPlaceMutatingMethods` in `PastaLean/PyGens/Core/Utils.lean`.
+IN_PLACE_MUTATING_METHODS = frozenset({
+    "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+    "add", "discard", "update", "setdefault", "popitem",
+    "intersection_update", "difference_update", "symmetric_difference_update",
+    "appendleft", "popleft", "appendright",
+})
+
 UNARYOP_MAP = {
     ast.USub: "neg",
     ast.UAdd: "pos",
@@ -335,6 +344,12 @@ class ASTToJsonLeanVisitorBase:
             stmt_line = getattr(stmt, "lineno", cursor_line)
             result.extend(self._body_comments_between(cursor_line, stmt_line - 1, body_indent))
             if isinstance(stmt, ast.AnnAssign) and stmt.value is None:
+                cursor_line = getattr(stmt, "end_lineno", stmt_line) + 1
+                continue
+            # A bare string-literal statement is a no-op wherever it sits — including a docstring
+            # displaced below a `Requires(...)`, which `allow_docstring` above cannot see.
+            if self._is_docstring_stmt(stmt):
+                result.append(self._make_docstring_node(stmt.value.value))
                 cursor_line = getattr(stmt, "end_lineno", stmt_line) + 1
                 continue
             translated = self._translate_body_stmt(stmt, top_level=top_level)
@@ -767,6 +782,18 @@ class ASTToJsonLeanVisitorBase:
             return target.attr
         return None
 
+    def _self_rooted_attr(self, target):
+        """The field name of the `self.X` at the root of an access path, peeling `[...]`/`.attr`
+        links: `self.c[x]`, `self.g[i][j]` and `self.a.b` all reach into `self.c`/`self.g`/`self.a`.
+        Under value semantics writing through such a path rebuilds `self`."""
+        node = target
+        while isinstance(node, (ast.Subscript, ast.Attribute)):
+            name = self._self_attr_name(node)
+            if name is not None:
+                return name
+            node = node.value
+        return None
+
     def _add_class_field(self, fields, seen, name, annotation, default, init=None):
         """Record a class field, merging type/default info if the name is already known.
 
@@ -829,19 +856,30 @@ class ASTToJsonLeanVisitorBase:
             for handler in getattr(stmt, "handlers", []):
                 self._collect_self_fields(handler.body, fields, seen, param_types)
 
+    def _mutates_self_in_place(self, stmt):
+        """True for `self.X.append(v)` / `self.X[i].add(v)` … — an in-place container method on a
+        `self`-rooted receiver, which value semantics lower to a rebuild of `self`."""
+        call = stmt.value if isinstance(stmt, ast.Expr) else stmt
+        return (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr in IN_PLACE_MUTATING_METHODS
+                and self._self_rooted_attr(call.func.value) is not None)
+
     def _method_mutates_self(self, funcdef):
-        """True iff any statement in the method (excluding nested scopes) assigns to self.X."""
+        """True iff any statement in the method (excluding nested scopes) writes through self.X."""
         def walk(body):
             for stmt in body:
                 if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     continue
-                if isinstance(stmt, ast.AnnAssign) and self._self_attr_name(stmt.target):
+                if isinstance(stmt, ast.AnnAssign) and self._self_rooted_attr(stmt.target):
                     return True
                 if isinstance(stmt, ast.Assign) and any(
-                    self._self_attr_name(t) for t in stmt.targets
+                    self._self_rooted_attr(t) for t in stmt.targets
                 ):
                     return True
-                if isinstance(stmt, ast.AugAssign) and self._self_attr_name(stmt.target):
+                if isinstance(stmt, ast.AugAssign) and self._self_rooted_attr(stmt.target):
+                    return True
+                if self._mutates_self_in_place(stmt):
                     return True
                 for block_attr in ("body", "orelse", "finalbody"):
                     block = getattr(stmt, block_attr, None)

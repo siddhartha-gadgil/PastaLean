@@ -207,6 +207,24 @@ def foldBinaryOverArgs (fn : TSyntax `term) (dir : BuiltinFoldDir) (args : Array
         acc ← `($fn $acc $(args[i]!))
       pure acc
 
+/-- The Python type names in an `isinstance` second argument — a builtin type name or a tuple of
+them. `none` for anything else (a user class, a variable), which the caller reports as unsupported
+rather than silently answering `false`. -/
+partial def pyIsInstanceTypeNames? (json : Json) : Option (List String) :=
+  match json.getObjValAs? String "node_type" with
+  | .ok "Name" =>
+      match json.getObjValAs? String "id" with
+      | .ok id =>
+          if ["int", "str", "float", "bool", "list", "dict", "tuple", "set"].contains id then
+            some [id]
+          else none
+      | _ => none
+  | .ok "Tuple" =>
+      match json.getObjValAs? Json "elts" with
+      | .ok (.arr elts) => elts.toList.foldrM (fun e acc => (· ++ acc) <$> pyIsInstanceTypeNames? e) []
+      | _ => none
+  | _ => none
+
 /-- Map a bare Python builtin function name to the Lean runtime symbol when it is used as a value. -/
 def mappedCallableValueCode (json : Json) : PygenM (TSyntax `term) := do
   match ← jsonLibraryMappedName? json with
@@ -219,7 +237,15 @@ def mappedCallableValueCode (json : Json) : PygenM (TSyntax `term) := do
           | some mappedName => pure (mkIdent mappedName : TSyntax `term)
           | none =>
               let mappedName ← leanName funcName.toName
-              pure (mkIdent mappedName : TSyntax `term)
+              let fnIdent : TSyntax `term := mkIdent mappedName
+              -- A Track-M function passed as a value (`sorted(xs, key=f)`) is `_ → Id τ`; eta-expand
+              -- through `Id.run` so the consumer sees `_ → τ` (`Ord (Id ℤ)` has no instance).
+              let arity? ← monadicDefArity? funcName
+              if let some ar := arity? then
+                if ar > 0 && !(← hasVar funcName.toName) then
+                  let binders : Array Ident := (Array.range ar).map fun i => mkIdent s!"_a{i}".toName
+                  return ← `(fun $binders* => Id.run ($fnIdent $binders*))
+              pure fnIdent
       | _, _ =>
           getCode json `term
 
@@ -366,6 +392,7 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
     if let some nonFinite ← nonFiniteFloatTerm? funcJson argsArray then
       return nonFinite
     let mut argsCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
+    argsCodes ← passtaMarkerArgCodes funcJson argsArray argsCodes
 
     let .ok keyWordsJson := json.getObjVal? "keywords" | throwError
       s!"Call node does not have a 'keywords' field or it is not json pairs: {json}"
@@ -635,6 +662,21 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
                 let pySortByIdent := mkIdent ``pySortBy
                 return ← buildIOPureApplicationFromArgs argsArray argsCodes fun resolvedArgs => do
                   `($pySortByIdent $keyCode $revCode $(resolvedArgs[0]!))
+        | .ok "Name", .ok "isinstance" => do
+            unless keyWordsMap.isEmpty do
+              throwError "isinstance() keyword arguments are not supported."
+            unless argsArray.size == 2 do
+              throwError "isinstance() expects exactly two arguments."
+            -- The second argument names *types*, not values, so it is read off the AST rather than
+            -- lowered: there is no runtime value for `int`.
+            let some tys := pyIsInstanceTypeNames? argsArray[1]! | throwError
+              s!"isinstance() second argument must be a type name or a tuple of them: {argsArray[1]!}"
+            let lits : Array (TSyntax `term) := (tys.map fun t => ⟨Syntax.mkStrLit t⟩).toArray
+            return ← buildIOPureApplicationFromArgs #[argsArray[0]!] #[argsCodes[0]!] fun r => do
+              if lits.size == 1 then
+                `($(mkIdent ``pyIsInstance) $(r[0]!) $(lits[0]!))
+              else
+                `($(mkIdent ``pyIsInstanceAny) $(r[0]!) [$lits,*])
         | .ok "Name", .ok "round" => do
             -- `round(x)` returns an `int` (banker's rounding); `round(x, n)` returns a `float`.
             unless keyWordsMap.isEmpty do
@@ -736,12 +778,24 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
       | .ok "Call", _ => allArgs := allArgs.push (← `(()))
       | _, _ => pure ()
 
+    -- A saturated call to a Track-M function yields `Id τ`, which is defeq to `τ` but not
+    -- *reducibly* so: every instance the caller then needs (`PyHSub ℤ (Id ℤ) _`, `Ord (Id ℤ)`)
+    -- fails to synthesize. Unwrap at the use site, not at the definition, so the emitted `_spec`
+    -- theorem still sees the `do` block.
+    let idRunWrap ← (do
+      unless (← getNumericMode) == .exact && keyWordsMap.isEmpty
+          && json.getObjValAs? Bool "_heap_call" != .ok true do return false
+      let .ok nm := funcJson.getObjValAs? String "id" | return false
+      let some ar ← monadicDefArity? nm | return false
+      return ar == allArgs.size && !(← hasVar nm.toName) : PygenM Bool)
+
     let buildApplied : Array (TSyntax `term) → PygenM (TSyntax `term) := fun resolvedArgs => do
       let mut t ← `($funcIdent $resolvedArgs*)
       for (kwName, kwValueJson) in keyWordsMap.toList do
         let kwValueCode ← getCode kwValueJson `term
         let kwId := mkIdent kwName.toName
         t ← `($t ($kwId:ident := $kwValueCode))
+      if idRunWrap then t ← `(Id.run $t)
       return t
 
     let applied ← if allArgJsons.toList.any basicJsonUsesIOEffect then
@@ -764,6 +818,7 @@ def callSyntax : (kind : SyntaxNodeKind) → Json →
       s!"Call node 'keywords' field is not a JSON object: {keyWordsJson}"
 
     let mut argsCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
+    argsCodes ← passtaMarkerArgCodes funcJson argsArray argsCodes
 
     let mut allArgs : Array (TSyntax `term) := #[]
     let mut allArgJsons : Array Json := #[]
