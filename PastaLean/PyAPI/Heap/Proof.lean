@@ -183,6 +183,10 @@ on the left — `apply sepConj_frame_l` before re-running `vcgen`). -/
 theorem sepConj_frame_l {pre₀ F R : HProp V} (h : pre₀ ⊑ R) : (F ∗ pre₀) ⊑ (F ∗ R) :=
   sepConj_mono_r h
 
+/-- `sepConj_mono_r` with every argument explicit, so `sl_cancel` can build it with `mkAppM`. -/
+theorem sepConj_cancel_le (C L R : HProp V) (h : L ⊑ R) : (C ∗ L) ⊑ (C ∗ R) :=
+  sepConj_mono_r h
+
 /-! ## Affine "garbage" assertion -/
 
 /-- Holds on any store; `Q ∗ ◇` = "`Q` holds on part of the heap, ignore the rest". -/
@@ -273,27 +277,38 @@ partial def stripOfProp (e : Expr) : Array Expr × Expr :=
     else (#[], e)
   else (#[], e)
 
-/-- Rebuild a right-nested `∗` from atoms (`emp` when empty) at value universe `V`; hash-consed for
-the split-VC builder. -/
+/-- Rebuild a right-nested `∗` from atoms (`emp` when empty) at value universe `V`. -/
+def sepConjOfAtomsE (V : Expr) (atoms : Array Expr) : Expr :=
+  if atoms.isEmpty then mkApp (mkConst ``emp) V
+  else atoms.pop.foldr (fun a acc => mkApp3 (mkConst ``sepConj) V a acc) atoms.back!
+
+/-- `sepConjOfAtomsE`, hash-consed for the split-VC builder. -/
 def sepConjOfAtoms (V : Expr) (atoms : Array Expr) : SymM Expr :=
-  if atoms.isEmpty then
-    shareCommon (mkApp (mkConst ``emp) V)
-  else
-    shareCommon (atoms.pop.foldr (fun a acc => mkApp3 (mkConst ``sepConj) V a acc) atoms.back!)
+  shareCommon (sepConjOfAtomsE V atoms)
+
+/-- Cancel `rhs` atoms against `lhs` atoms by `isDefEq`, returning the matched `lhs` atoms (in `rhs`
+order) and the two leftovers. `strip` matches against a candidate's spatial remainder only, so a
+pure-fact-carrying `lhs` atom still cancels. -/
+def cancelSepAtoms (lhs rhs : Array Expr) (strip : Bool) :
+    MetaM (Array Expr × Array Expr × Array Expr) := do
+  let mut restL := lhs
+  let mut matched : Array Expr := #[]
+  let mut restR : Array Expr := #[]
+  for atom in rhs do
+    match ← restL.findIdxM? (fun cand =>
+        withoutModifyingMCtx (isDefEq atom (if strip then (stripOfProp cand).2 else cand))) with
+    | some idx =>
+      matched := matched.push restL[idx]!
+      restL := restL.eraseIdxIfInBounds idx
+    | none => restR := restR.push atom
+  return (matched, restL, restR)
 
 /-- Cancel the `cancel` atoms from `pre`'s atoms by `isDefEq` against each candidate's spatial
 remainder (so a pure-fact-carrying `pre` atom still matches). Returns `(leftover, matched)`, or
 `none` if some `cancel` atom has no match. -/
 def matchSepAtoms (pre cancel : Expr) : MetaM (Option (Array Expr × Array Expr)) := do
-  let mut rest ← sepAtoms pre
-  let mut matched : Array Expr := #[]
-  for atom in (← sepAtoms cancel) do
-    let some idx ← rest.findIdxM? (fun cand =>
-        withoutModifyingMCtx (isDefEq atom (stripOfProp cand).2))
-      | return none
-    matched := matched.push rest[idx]!
-    rest := rest.eraseIdxIfInBounds idx
-  return some (rest, matched)
+  let (matched, restL, restR) ← cancelSepAtoms (← sepAtoms pre) (← sepAtoms cancel) (strip := true)
+  return if restR.isEmpty then some (restL, matched) else none
 
 /-- Prove `pre ⊑ rhs` when the two are defeq or AC-equal separating conjunctions: close `pre = rhs`
 by `∗`-AC-rearrangement, then lift through `PartialOrder.rel_of_eq`. `none` if AC can't normalize. -/
@@ -647,6 +662,10 @@ theorem le_sepConj_sepPure (P : HProp V) (φ : Prop) (hφ : φ) : P ⊑ P ∗ se
   rw [sepConj_comm]
   exact (sepPure_sepConj_iff φ P s).mpr ⟨hφ, hs⟩
 
+/-- Attach a provable pure fact as a *leading* separating conjunct. -/
+theorem le_sepPure_sepConj (φ : Prop) (hφ : φ) (P : HProp V) : P ⊑ sepPure φ ∗ P := by
+  rw [sepConj_comm]; exact le_sepConj_sepPure P φ hφ
+
 /-- Drop a separating pure conjunct (its fact is discarded). -/
 theorem sepConj_sepPure_le (P : HProp V) (φ : Prop) : (P ∗ sepPure φ) ⊑ P := by
   intro s hs
@@ -849,5 +868,78 @@ theorem Triple.iSup_sepConj_pre {ι : Type} {γ : Type} (P : ι → HProp V) (R 
   rw [iSup_hprop_apply] at hP
   obtain ⟨i, hPi⟩ := hP
   exact (h i).le_wp s ⟨s₁, s₂, hd, hun, hPi, hR⟩
+
+/-! ## Interactive separation-logic tactics -/
+
+section Tactics
+open Lean.Meta Lean.Elab.Tactic
+
+/-- The pure fact of a `sepPure φ` atom, folded or in its `⌜φ⌝ ⊓ emp` normal form. -/
+def sepPureProp? (e : Expr) : MetaM (Option Expr) := do
+  if let .app (.app (.const ``sepPure _) _) φ := e then return some φ
+  let_expr Lean.Order.meet _ _ a b := e | return none
+  let_expr Lean.Order.CompleteLattice.ofProp _ _ φ := a | return none
+  return if b.isAppOf ``emp then some φ else none
+
+/-- Cancel the separating conjuncts shared by both sides of an `HProp` entailment goal, discharge
+each `sepPure` on the right as its own side goal, and leave the residual entailment. -/
+scoped elab "sl_cancel" : tactic => liftMetaTactic fun goal => do
+  let target ← instantiateMVars (← goal.getType)
+  let_expr Lean.Order.PartialOrder.rel α _inst lhs rhs := target
+    | throwError "sl_cancel: goal is not an entailment{indentExpr target}"
+  let Vm ← mkFreshExprMVar (mkSort (.succ .zero))
+  unless ← isDefEq α (mkApp (mkConst ``HProp) Vm) do
+    throwError "sl_cancel: not an entailment between `HProp`s{indentExpr α}"
+  let V ← instantiateMVars Vm
+  let mut pures : Array (Expr × Expr) := #[]
+  let mut spatialR : Array Expr := #[]
+  for a in ← sepAtoms rhs do
+    match ← sepPureProp? a with
+    | some φ => pures := pures.push (a, φ)
+    | none => spatialR := spatialR.push a
+  -- Strict `isDefEq` here (unlike the frameproc): both AC rearrangements below must be provable.
+  let (common, restL, restR) ← cancelSepAtoms (← sepAtoms lhs) spatialR (strip := false)
+  if common.isEmpty && pures.isEmpty then
+    throwError "sl_cancel: no shared conjunct and no pure conjunct{indentExpr target}"
+  let commonE := sepConjOfAtomsE V common
+  let restLE := sepConjOfAtomsE V restL
+  let restRE := sepConjOfAtomsE V restR
+  let some h1 ← proveSepConjLe lhs (mkApp3 (mkConst ``sepConj) V commonE restLE)
+    | throwError "sl_cancel: cannot rearrange the left-hand side{indentExpr lhs}"
+  let mut goals : Array MVarId := #[]
+  let sub ← match ← proveSepConjLe restLE restRE with
+    | some p => pure p
+    | none =>
+      mkFreshExprSyntheticOpaqueMVar (← mkAppM ``Lean.Order.PartialOrder.rel #[restLE, restRE])
+  let h2 ← mkAppM ``sepConj_cancel_le #[commonE, restLE, restRE, sub]
+  let mut cur := mkApp3 (mkConst ``sepConj) V commonE restRE
+  let mut chain := h2
+  for (atom, φ) in pures.reverse do
+    let hφ ← mkFreshExprSyntheticOpaqueMVar φ
+    goals := goals.push hφ.mvarId!
+    chain ← mkAppM ``Lean.Order.PartialOrder.rel_trans
+      #[chain, ← mkAppM ``le_sepPure_sepConj #[φ, hφ, cur]]
+    cur := mkApp3 (mkConst ``sepConj) V atom cur
+  let some h3 ← proveSepConjLe cur rhs
+    | throwError "sl_cancel: cannot rearrange the right-hand side{indentExpr rhs}"
+  goal.assign (← mkAppM ``Lean.Order.PartialOrder.rel_trans
+    #[h1, ← mkAppM ``Lean.Order.PartialOrder.rel_trans #[chain, h3]])
+  if sub.isMVar then goals := goals.push sub.mvarId!
+  return goals.toList
+
+/-- Peel one `iSup` / `sepPure` layer off a heap-triple precondition per `rintro` pattern — the
+separation-logic analogue of `iIntros`. -/
+scoped syntax (name := slIntro) "sl_intro" (ppSpace colGt rintroPat)+ : tactic
+
+scoped macro_rules
+  | `(tactic| sl_intro $p:rintroPat) =>
+    `(tactic| first
+        | (refine Triple.iSup_pre _ _ _ ?_; rintro $p)
+        | (refine Triple.sepPure_pre _ _ _ _ ?_; rintro $p)
+        | (refine Triple.iSup_sepConj_pre _ _ _ _ ?_; rintro $p))
+  | `(tactic| sl_intro $p:rintroPat $p2:rintroPat $ps:rintroPat*) =>
+    `(tactic| (sl_intro $p; sl_intro $p2 $ps*))
+
+end Tactics
 
 end PastaLean
