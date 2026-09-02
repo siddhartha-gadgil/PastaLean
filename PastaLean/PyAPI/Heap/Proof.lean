@@ -653,6 +653,10 @@ theorem sepConj_sepPure_le (P : HProp V) (φ : Prop) : (P ∗ sepPure φ) ⊑ P 
   rw [sepConj_comm] at hs
   exact ((sepPure_sepConj_iff φ P s).mp hs).2
 
+/-- A refuted separating pure conjunct proves anything: the branch is unreachable. -/
+theorem sepPure_sepConj_le_of_not {φ : Prop} (hφ : ¬φ) (Q R : HProp V) : (sepPure φ ∗ Q) ⊑ R :=
+  fun s hs => absurd ((sepPure_sepConj_iff φ Q s).mp hs).1 hφ
+
 /-- Consume a separating pure conjunct, exposing its fact to prove the remainder. -/
 theorem sepPure_conj_elim {P Q : HProp V} {φ : Prop} (h : φ → P ⊑ Q) : (P ∗ sepPure φ) ⊑ Q := by
   intro s hs
@@ -725,6 +729,68 @@ theorem RepeatVariant.ofHeapRel_meet_le {α : Type} (real : α → Nat → HProp
   intro s hs
   rw [hprop_meet_apply] at hs
   exact ofHeapRel_pin real ((iSup_hprop_apply _ s).mp hs.2) hs.1
+
+/-! ### `Spec.forIn_loop` at a heap-resident measure
+
+`forIn_loop_heapRel` packages the `ofHeapRel` boilerplate every heap loop would otherwise repeat: the
+caller states only the measure relation `real` and the break assertion `done`, and the loop's
+in-progress invariant *is* `⨆ n, real b n`, so `ofHeapRel_meet_le` collapses the stock rule's
+`EvalsTo b n ⊓ inv (.inl b)` down to a bare `real b n` before the step ever sees it. -/
+
+/-- A heap-reading relational termination measure on a loop cursor: `real b n` asserts "at cursor `b`
+the measure is `n`". The first invariant hole of `forIn_loop_heapRel`. -/
+@[spec_invariant_type] def HeapRel (V : Type) (β : Type) : Type := β → Nat → HProp V
+
+/-- `HeapRel` as a function; see `PureMeasure.toFun` for why the coercion is spelled out. -/
+def HeapRel.toFun {β : Type} (real : HeapRel V β) : β → Nat → HProp V := real
+
+/-- What holds once a `forIn_loop_heapRel` loop breaks: the second invariant hole. -/
+@[spec_invariant_type] def HeapDone (V : Type) (β : Type) : Type := β → HProp V
+
+/-- `HeapDone` as a function; see `PureMeasure.toFun`. -/
+def HeapDone.toFun {β : Type} (done : HeapDone V β) : β → HProp V := done
+
+/-- Rebuild the yield postcondition of `forIn_loop_heapRel` at a strictly smaller measure value. -/
+theorem le_yieldBelow {β : Type} (real : β → Nat → HProp V) {b : β} {n' n : Nat} (h : n' < n) :
+    real b n' ⊑ ⨆ m : Nat, (real b m ⊓ (⌜m < n⌝ : HProp V)) := by
+  intro s hs
+  refine (iSup_hprop_apply _ s).mpr ⟨n', ?_⟩
+  exact (hprop_meet_apply _ _ s) ▸ ⟨hs, (hprop_ofProp_apply _ s) ▸ h⟩
+
+/-- The `RepeatInvariant` implied by a `HeapRel`/`HeapDone` pair. -/
+noncomputable def heapRelInv {β : Type} (real : β → Nat → HProp V) (done : β → HProp V) :
+    RepeatInvariant β β (HProp V)
+  | .inl b => iSup (real b)
+  | .inr b => done b
+
+/-- `Spec.forIn_loop` specialised to a heap-resident measure relation. -/
+theorem forIn_loop_heapRel {β : Type} {l : Lean.Loop} {init : β}
+    {f : Unit → β → HeapM V (ForInStep β)}
+    (real : HeapRel V β) (done : HeapDone V β) (einv : HeapEPred V)
+    (step : ∀ b n, Triple (f () b) (real b n)
+      (fun r => match r with
+        | .yield b' => ⨆ n' : Nat, (real b' n' ⊓ (⌜n' < n⌝ : HProp V))
+        | .done b' => done b') einv) :
+    Triple (forIn l init f) (iSup (real init)) (fun b => done b) einv := by
+  refine Spec.forIn_loop (measure := RepeatVariant.ofHeapRel real.toFun)
+    (inv := heapRelInv real.toFun done.toFun) einv ?_
+  intro b (n : Nat)
+  simp only [heapRelInv]
+  refine Triple.intro (Triple.entails_wp_of_pre_post (step b n)
+    (RepeatVariant.ofHeapRel_meet_le real.toFun b n) ?_)
+  intro r
+  cases r with
+  | done b' => exact PartialOrder.rel_refl
+  | yield b' =>
+    show (⨆ n' : Nat, (real b' n' ⊓ (⌜n' < n⌝ : HProp V)))
+      ⊑ (RepeatVariant.ofHeapRel real.toFun).EvalsBelow b' n ⊓ iSup (real.toFun b')
+    intro s hs
+    rw [iSup_hprop_apply] at hs
+    obtain ⟨n', hn'⟩ := hs
+    rw [hprop_meet_apply, hprop_ofProp_apply] at hn'
+    rw [hprop_meet_apply]
+    exact ⟨RepeatVariant.ofHeapRel_evalsBelow real.toFun hn'.2 hn'.1,
+      (iSup_hprop_apply _ s).mpr ⟨n', hn'.1⟩⟩
 
 /-! ## Pure loop measures under framing
 
