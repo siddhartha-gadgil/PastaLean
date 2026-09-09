@@ -179,12 +179,9 @@ theorem sepConj_frame_r {pre₀ F R : HProp V} (h : pre₀ ⊑ R) : (pre₀ ∗ 
   PartialOrder.rel_trans (PartialOrder.rel_of_eq (sepConj_comm pre₀ F)) (sepConj_mono_r h)
 
 /-- The mirror frame rule: cancel `F` off the **left** (used by hand when auto framing lands a frame
-on the left — `apply sepConj_frame_l` before re-running `vcgen`). -/
-theorem sepConj_frame_l {pre₀ F R : HProp V} (h : pre₀ ⊑ R) : (F ∗ pre₀) ⊑ (F ∗ R) :=
-  sepConj_mono_r h
-
-/-- `sepConj_mono_r` with every argument explicit, so `sl_cancel` can build it with `mkAppM`. -/
-theorem sepConj_cancel_le (C L R : HProp V) (h : L ⊑ R) : (C ∗ L) ⊑ (C ∗ R) :=
+on the left — `apply sepConj_frame_l` before re-running `vcgen`). Every argument is explicit so
+`sl_cancel` can also build it with `mkAppM`. -/
+theorem sepConj_frame_l (F pre₀ R : HProp V) (h : pre₀ ⊑ R) : (F ∗ pre₀) ⊑ (F ∗ R) :=
   sepConj_mono_r h
 
 /-! ## Affine "garbage" assertion -/
@@ -717,11 +714,6 @@ noncomputable def RepeatVariant.ofHeapRel {α : Type} (real : α → Nat → HPr
       exact ⟨m, Or.inl hm⟩
     · exact ⟨0, Or.inr (fun m hm => h ⟨m, hm⟩)⟩
 
-/-- Introduction: a pinned measure value satisfies `EvalsTo`. -/
-theorem RepeatVariant.ofHeapRel_evalsTo {α : Type} (real : α → Nat → HProp V)
-    {a : α} {n : Nat} {s : Store V} (h : real a n s) : (ofHeapRel real).EvalsTo a n s :=
-  Or.inl h
-
 /-- Elimination: where the measure *is* pinned somewhere, `EvalsTo a n` pins it at `n`. -/
 theorem RepeatVariant.ofHeapRel_pin {α : Type} (real : α → Nat → HProp V)
     {a : α} {n : Nat} {s : Store V} (hsome : ∃ m, real a m s)
@@ -734,12 +726,6 @@ theorem RepeatVariant.ofHeapRel_evalsBelow {α : Type} (real : α → Nat → HP
     (ofHeapRel real).EvalsBelow a n s := by
   refine (iSup_hprop_apply _ s).mpr ⟨n', ?_⟩
   exact (hprop_meet_apply _ _ s) ▸ ⟨Or.inl h, (hprop_ofProp_apply _ s) ▸ hlt⟩
-
-/-- Entailment form of `ofHeapRel_evalsBelow`, for rebuilding a step's yield postcondition. -/
-theorem RepeatVariant.ofHeapRel_le_evalsBelow {α : Type} (real : α → Nat → HProp V)
-    {a : α} {n' n : Nat} (hlt : n' < n) : real a n' ⊑ (ofHeapRel real).EvalsBelow a n := by
-  intro s h
-  exact ofHeapRel_evalsBelow real hlt h
 
 /-- Peel the step precondition of `Spec.forIn_loop` at `ofHeapRel`: an invariant of the shape
 `⨆ n, real a n` witnesses that the measure is pinned somewhere, which kills the default disjunct. -/
@@ -928,7 +914,7 @@ scoped elab "sl_cancel" : tactic => liftMetaTactic fun goal => do
     | some p => pure p
     | none =>
       mkFreshExprSyntheticOpaqueMVar (← mkAppM ``Lean.Order.PartialOrder.rel #[restLE, restRE])
-  let h2 ← mkAppM ``sepConj_cancel_le #[commonE, restLE, restRE, sub]
+  let h2 ← mkAppM ``sepConj_frame_l #[commonE, restLE, restRE, sub]
   let mut cur := mkApp3 (mkConst ``sepConj) V commonE restRE
   let mut chain := h2
   for (atom, φ) in pures.reverse do
