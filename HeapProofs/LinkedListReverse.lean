@@ -21,7 +21,8 @@ in-place linked-list reverse (`example_scripts/heap/37_linked_list_reverse.py`):
   `@[frameproc]` frames the untouched tail across each step, and the closing `example` frames an
   unrelated cell `l ↦ v` across the entire reverse.
 * The interactive glue is `sl_intro` (peel the `⨆`/`⌜⌝` layers off a precondition) and `sl_cancel`
-  (cancel the shared conjuncts of an entailment), both from `PastaLean/PyAPI/Heap/Proof.lean`.
+  (cancel the shared conjuncts of an entailment), both from `PastaLean/PyAPI/Heap/Proof.lean`;
+  `IsList_cases` below inverts the representation predicate, leaving only its two satisfiable shapes.
 
 This module stays at the root namespace (as the translator emits) and is built as an independent
 compilation unit (lakefile `globs`), so its `Val` never collides with another example's.
@@ -86,6 +87,27 @@ theorem IsList_cons_intro (node : Node) (r : Ref Node) (vs : List Int) :
   rw [IsList_cons_some]
   exact (iSup_hprop_apply _ _).mpr ⟨node.next, hs⟩
 
+/-- Inversion for `IsList` in precondition position: of the four `(rest, curr)` shapes only two are
+satisfiable, so a proof need only supply the empty and the cons case. -/
+theorem IsList_cases {γ : Type} (rest : List Int) (curr : Option (Ref Node)) (R : HProp Val)
+    (x : HeapM Val γ) (Q : γ → HProp Val) {einv : HeapEPred Val}
+    (hnil : rest = [] → curr = none → Triple x R Q einv)
+    (hcons : ∀ v vs r nptr, rest = v :: vs → curr = some r →
+      Triple x ((r ↦ { val := v, next := nptr } ∗ IsList vs nptr) ∗ R) Q einv) :
+    Triple x (IsList rest curr ∗ R) Q einv := by
+  cases rest with
+  | nil =>
+    cases curr with
+    | none => rw [IsList_nil_none, emp_sepConj]; exact hnil rfl rfl
+    | some r => exact Triple.intro (IsList_nil_eq (some r) ▸ sepPure_sepConj_le_of_not (by simp) _ _)
+  | cons v vs =>
+    cases curr with
+    | none => exact Triple.intro (IsList_cons_none v vs ▸ sepPure_sepConj_le_of_not (by simp) _ _)
+    | some r =>
+      rw [IsList_cons_some]
+      sl_intro nptr
+      exact hcons v vs r nptr rfl rfl
+
 /-! ## The loop measure
 
 `REAL b n` is the measure relation "at cursor `b = (prev, curr)` exactly `n` nodes remain": the heap
@@ -112,70 +134,51 @@ def reverse := fun (head : Option (PastaLean.Ref Node)) ↦
       return prev) :
     (PastaLean.HeapM Val) _)
 
-/-! ## The spec, proved on the translated `forIn` via `forIn_loop_heapRel` -/
+/-! ## The spec, proved on the translated `forIn` via `forIn_loop_heapRel_pure` -/
 
 theorem reverse_spec (xs : List Int) (head : Option (Ref Node)) :
     ⦃ IsList xs head ⦄ reverse head ⦃ fun r => IsList xs.reverse r ⦄ := by
   simp only [reverse]
-  refine Triple.bind _ _ (fun b => IsList xs.reverse b.1) ?hx ?hf
-  case hf => exact fun b => Triple.pure b.1 PartialOrder.rel_refl
-  case hx =>
-    refine Triple.intro (PartialOrder.rel_trans
-      (y := iSup (REAL xs (none, head))) ?hpre ?hloop)
-    case hloop =>
-      refine Triple.le_wp
-        (forIn_loop_heapRel (REAL xs) (fun b => IsList xs.reverse b.1) _ ?_)
-      -- `n`'s type is the measure's `γ`; ascribing it as `Nat` keeps `omega`/`<` usable below.
-      refine fun b (n : Nat) => ?_
-      obtain ⟨prev, curr⟩ := b
-      simp only [REAL]
-      sl_intro ⟨rest, acc⟩ ⟨hxs, hlen⟩
-      cases curr with
-      | none =>
-        rw [ite_eq_right (by decide)]
-        cases rest with
-        | nil =>
-          refine Triple.pure (ForInStep.done (prev, none)) ?_
-          show (IsList [] none ∗ IsList acc prev) ⊑ IsList xs.reverse prev
-          have hrev : xs.reverse = acc := by rw [hxs]; simp
-          rw [IsList_nil_none, emp_sepConj, hrev]
-        | cons v vs =>
-          exact Triple.pure _ (IsList_cons_none v vs ▸ sepPure_sepConj_le_of_not (by simp) _ _)
-      | some r =>
-        cases rest with
-        | nil =>
-          exact Triple.intro (IsList_nil_eq (some r) ▸ sepPure_sepConj_le_of_not (by simp) _ _)
-        | cons v vs =>
-          rw [ite_eq_left (show (!PastaLean.pyIsNone (some r)) = true from rfl)]
-          simp only [Option.getD_some]
-          rw [IsList_cons_some]
-          sl_intro nptr
-          vcgen [readRefM_spec, writeRefM_spec]
-          -- The read/write footprints frame off the `↦` atom the `iSup` peel just exposed.
-          case vc1 | vc2 | vc3 => grind
-          case vc4 =>
-            rename_i nd1 e1 nd2 e2 _u
-            subst e1
-            subst e2
-            have hlt : vs.length < n := by
-              have hlen' : (v :: vs).length = n := hlen
-              simp only [List.length_cons] at hlen'; omega
-            refine PartialOrder.rel_trans ?_ (le_yieldBelow (REAL xs) hlt)
-            simp only [REAL]
-            refine Std.Internal.Do.CompleteLattice.le_iSup_of_le
-              ((vs, v :: acc) : List Int × List Int) ?_
-            sl_cancel
-            case _ => exact ⟨by rw [List.reverse_cons, List.append_assoc]; exact hxs, rfl⟩
-            case _ =>
-              rw [sepConj_comm]
-              exact IsList_cons_intro { val := v, next := prev } r acc
-    case hpre =>
-      refine Std.Internal.Do.CompleteLattice.le_iSup_of_le xs.length ?_
-      simp only [REAL]
-      refine Std.Internal.Do.CompleteLattice.le_iSup_of_le ((xs, []) : List Int × List Int) ?_
-      sl_cancel
-      case _ => exact ⟨by simp, rfl⟩
-      case _ => exact PartialOrder.rel_of_eq IsList_nil_none.symm
+  refine forIn_loop_heapRel_pure (REAL xs) _ _ ?hpre ?step
+  case hpre =>
+    refine CompleteLattice.le_iSup_of_le xs.length ?_
+    refine CompleteLattice.le_iSup_of_le ((xs, []) : List Int × List Int) ?_
+    sl_cancel
+    case _ => exact ⟨by simp, rfl⟩
+    case _ => exact PartialOrder.rel_of_eq IsList_nil_none.symm
+  case step =>
+    -- `n`'s type is the measure's `γ`; ascribing it as `Nat` keeps `omega`/`<` usable below.
+    refine fun b (n : Nat) => ?_
+    obtain ⟨prev, curr⟩ := b
+    -- also normalises the `(prev, curr).1/.2` projections `obtain` leaves in the loop body
+    simp only [REAL]
+    sl_intro ⟨rest, acc⟩ ⟨hxs, hlen⟩
+    refine IsList_cases rest curr _ _ _ ?nil ?cons
+    case nil =>
+      rintro rfl rfl
+      rw [ite_eq_right (by decide)]
+      refine Triple.pure (ForInStep.done (prev, none)) ?_
+      show IsList acc prev ⊑ IsList xs.reverse prev
+      have hrev : xs.reverse = acc := by rw [hxs]; simp
+      rw [hrev]
+    case cons =>
+      rintro v vs r nptr rfl rfl
+      rw [ite_eq_left (show (!PastaLean.pyIsNone (some r)) = true from rfl)]
+      simp only [Option.getD_some]
+      vcgen [readRefM_spec, writeRefM_spec]
+      -- The read/write footprints frame off the `↦` atom `IsList_cases` just exposed.
+      case vc1 | vc2 | vc3 => grind
+      case vc4 =>
+        rename_i nd1 e1 nd2 e2 _u
+        subst e1 e2
+        have hlt : vs.length < n := by simp only [List.length_cons] at hlen; omega
+        refine PartialOrder.rel_trans ?_ (le_yieldBelow (REAL xs) hlt)
+        refine CompleteLattice.le_iSup_of_le ((vs, v :: acc) : List Int × List Int) ?_
+        sl_cancel
+        case _ => exact ⟨by rw [List.reverse_cons, List.append_assoc]; exact hxs, rfl⟩
+        case _ =>
+          rw [sepConj_comm]
+          exact IsList_cons_intro { val := v, next := prev } r acc
 
 /-- The `iFrame` moment at program scale: an unrelated cell `l ↦ v` is carried untouched across the
 entire reverse, framed automatically off `reverse_spec` by the registered `@[frameproc]`. -/

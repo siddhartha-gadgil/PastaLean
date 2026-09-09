@@ -811,6 +811,23 @@ theorem forIn_loop_heapRel {β : Type} {l : Lean.Loop} {init : β}
     exact ⟨RepeatVariant.ofHeapRel_evalsBelow real.toFun hn'.2 hn'.1,
       (iSup_hprop_apply _ s).mpr ⟨n', hn'.1⟩⟩
 
+/-- `forIn_loop_heapRel` at the shape a translated `--heap` `while`-function actually has: an entry
+entailment into the measure, the loop, and a trailing `return (k cursor)`. -/
+theorem forIn_loop_heapRel_pure {β γ : Type} {l : Lean.Loop} {init : β}
+    {f : Unit → β → HeapM V (ForInStep β)} {P : HProp V} {Q : γ → HProp V}
+    (real : HeapRel V β) (k : β → γ) (einv : HeapEPred V)
+    (hpre : P ⊑ iSup (real init))
+    (step : ∀ b n, Triple (f () b) (real b n)
+      (fun r => match r with
+        | .yield b' => ⨆ n' : Nat, (real b' n' ⊓ (⌜n' < n⌝ : HProp V))
+        | .done b' => Q (k b')) einv) :
+    Triple ((do let b ← forIn l init f; pure (k b)) : HeapM V γ) P Q einv := by
+  refine Triple.bind _ _ (fun b => Q (k b)) ?hx ?hf
+  case hf => exact fun b => Triple.pure (k b) PartialOrder.rel_refl
+  case hx =>
+    exact Triple.intro (PartialOrder.rel_trans hpre
+      (forIn_loop_heapRel real (fun b => Q (k b)) einv step).le_wp)
+
 /-! ## Pure loop measures under framing
 
 The stock `Spec.forIn_loop` hands the measure pin `⌜measure b = mb⌝` to the step *inside* the
