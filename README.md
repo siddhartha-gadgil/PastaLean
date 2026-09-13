@@ -18,12 +18,12 @@ This work was presented at [Summer School: LeanLang for Programming 2026](https:
 - [How it works?](#how-it-works)
 - [Type Inference (TypeInfer)](#type-inference-typeinfer)
 - [Libraries](#libraries)
-    - [How to add your own library](#how-to-add-your-own-library)
+  - [How to add your own library](#how-to-add-your-own-library)
 - [Install](#install)
 - [Using PastaLean everyday](#using-pastalean-everyday)
-    - [Command line](#command-line)
-    - [HTTP API](#http-api)
-    - [Python API](#python-api)
+  - [Command line](#command-line)
+  - [HTTP API](#http-api)
+  - [Python API](#python-api)
 - [Testing](#testing)
 - [Reproducing the paper results](#reproducing-the-paper-results)
 
@@ -36,7 +36,7 @@ This work was presented at [Summer School: LeanLang for Programming 2026](https:
 
 ## How it works?
 
-A nice explanation of how PastaLean works can be found in the [presentation](https://anirudhg07.github.io/presentations/pastalean/). Let's give a brief overview here. 
+A nice explanation of how PastaLean works can be found in the [presentation](https://anirudhg07.github.io/presentations/pastalean/). Let's give a brief overview here.
 
 ### Some Unique Python Features and How we handle them
 
@@ -47,7 +47,7 @@ Python has some unique features that make it hard to model in Lean because of th
 Python supports dynamic typing, while Lean is a statically typed language. The key to solving a lot of problems in modelling Python in Lean is to have a type system that can handle dynamic typing.
 Among all the problems, this has been the toughest one. The answer to this We found was something called [Gradual Typing](https://jsiek.github.io/home/WhatIsGradualTyping.html). The idea is to have a special total fallback type — we call it `PyAny` in the code which any Python value can box into.
 
-We constructed a [TypeInfer](./TypeInfer/) engine which can infer the types of the variables in the Python code, made a Lattice following the rules of gradual typing and fine-tuning it for Python's type system. It infers a *concrete* Lean type (`Int`, `List String`, ...) wherever it can, and only falls back to `PyAny` for the slots it genuinely can't pin — so `PyAny` is rare, not everywhere.
+We constructed a [TypeInfer](./TypeInfer/) engine which can infer the types of the variables in the Python code, made a Lattice following the rules of gradual typing and fine-tuning it for Python's type system. It infers a _concrete_ Lean type (`Int`, `List String`, ...) wherever it can, and only falls back to `PyAny` for the slots it genuinely can't pin — so `PyAny` is rare, not everywhere.
 
 For example: `int` and `bool` in Python can be used interchangeably in some cases(like `if 1 = True`), so we have to make sure that the type inference engine can handle this. `PyAny` has given us a lot of flexibility in modelling Python's dynamic typing in Lean.
 
@@ -64,7 +64,7 @@ def classify(n):
     return 0                # int   ->  the whole function returns PyAny
 ```
 
-*Why don't we make something like `Int | String` Union type?*
+_Why don't we make something like `Int | String` Union type?_
 Well, we can do that, but then Python doesn't even follow that. A function saying it will return `int` in the signature can return a `str` in some cases. Dealing with that is a nightmare, rather simply returning `PyAny` is a better idea. It might not be precise, but it is sound, and it works.
 
 </details>
@@ -72,9 +72,9 @@ Well, we can do that, but then Python doesn't even follow that. A function sayin
 <details><summary>Mutations, not just Values but also Types</summary>
 
 We use simply `do` notation (with `let mut`) to model mutations in Lean. As long as the Type doesn't change, no fancy tricks needed.
-But Python lets a variable *change type* mid-function, so `TypeInfer` tracks each variable's type and, the moment two incompatible types meet in one slot, marks it `PyAny`.
+But Python lets a variable _change type_ mid-function, so `TypeInfer` tracks each variable's type and, the moment two incompatible types meet in one slot, marks it `PyAny`.
 
-Now `PyAny` is a *tagged union* (`.int`, `.str`, `.list`, ...), and its operators are single delegating functions that **dispatch on the runtime tag**:
+Now `PyAny` is a _tagged union_ (`.int`, `.str`, `.list`, ...), and its operators are single delegating functions that **dispatch on the runtime tag**:
 
 ```python
 x = 5        # x : PyAny (holds .int 5)
@@ -82,7 +82,7 @@ x = x + 1        # boxes 1 to PyAny, then +ₚ inspects both tags:
              #   both .int  ->  unwrap, do the Int addition, re-box as PyAny
 ```
 
-So `x + 1` is *one* operator (`PyAny.add`) looking at the tags — `.int + .int` does integer addition, `.str + .str` concatenates, `1 + "a"` softly yields `.none` — and re-boxing. The `Int` addition happens *inside* on the unwrapped tag, not on a statically-typed `Int` we cast to and from. Container ops (`x[i]`, `len(x)`, `for e in x`) work the same way: they **delegate** to the boxed value's own `List`/`String` instance rather than reimplement anything.
+So `x + 1` is _one_ operator (`PyAny.add`) looking at the tags — `.int + .int` does integer addition, `.str + .str` concatenates, `1 + "a"` softly yields `.none` — and re-boxing. The `Int` addition happens _inside_ on the unwrapped tag, not on a statically-typed `Int` we cast to and from. Container ops (`x[i]`, `len(x)`, `for e in x`) work the same way: they **delegate** to the boxed value's own `List`/`String` instance rather than reimplement anything.
 
 </details>
 
@@ -99,7 +99,8 @@ def add(x, y):
 add(1, 2)              # 3
 add("Hello", "World")  # HelloWorld
 ```
-If no types are given (or can't be inferred), we box the params to `PyAny` so *one* definition works at every type. `add(1,2)` and `add("Hi","!")` both run off the same `def add (x : PyAny) (y : PyAny) := x +ₚ y` — the `+ₚ` (`PyAny.add`) dispatches on the runtime tags, exactly as above. Again: tag dispatch, not a cast round-trip.
+
+If no types are given (or can't be inferred), we box the params to `PyAny` so _one_ definition works at every type. `add(1,2)` and `add("Hi","!")` both run off the same `def add (x : PyAny) (y : PyAny) := x +ₚ y` — the `+ₚ` (`PyAny.add`) dispatches on the runtime tags, exactly as above. Again: tag dispatch, not a cast round-trip.
 
 </details>
 
@@ -112,13 +113,13 @@ xs.append(3)          #  ->  xs := pyAppend xs 3
 d[k] = v              #  ->  d  := pySetItem d k v
 ```
 
-The runtime helper returns a *new* container, and codegen stores it back into the `let mut` variable. Library functions that mutate their argument (`heapq.heappush(h, x)`) declare this in `Libraries/`, and the core lowers them the same way (`h := pyHeappush h x`) — no library names live in the codegen.
+The runtime helper returns a _new_ container, and codegen stores it back into the `let mut` variable. Library functions that mutate their argument (`heapq.heappush(h, x)`) declare this in `Libraries/`, and the core lowers them the same way (`h := pyHeappush h x`) — no library names live in the codegen.
 
 </details>
 
 <details><summary>Function Scoping vs Block Scoping</summary>
 
-Python is **function-scoped**: a name assigned *anywhere* in a function body — inside `if`/`elif`/`else`, `for`, `while`, `try`/`except`/`finally`, `with`, and **any depth of nested loop** — lives in the one enclosing function scope and stays visible after the block. Lean is **block-scoped**: a `let`/`let mut` inside a branch or loop body dies with that block. So a variable first bound inside a block and read outside it is **hoisted**: codegen pre-declares one enclosing `let mut x : T := default` before the block, and each branch/body assignment becomes a reassignment of that single variable.
+Python is **function-scoped**: a name assigned _anywhere_ in a function body — inside `if`/`elif`/`else`, `for`, `while`, `try`/`except`/`finally`, `with`, and **any depth of nested loop** — lives in the one enclosing function scope and stays visible after the block. Lean is **block-scoped**: a `let`/`let mut` inside a branch or loop body dies with that block. So a variable first bound inside a block and read outside it is **hoisted**: codegen pre-declares one enclosing `let mut x : T := default` before the block, and each branch/body assignment becomes a reassignment of that single variable.
 
 ```python
 for i in range(n):
@@ -127,7 +128,7 @@ for i in range(n):
 return y               # ...still visible here (hoisted to `let mut y : Int := default` before the OUTER loop)
 ```
 
-The type `T` comes from `TypeInfer`; a variable bound at *different* types across branches becomes `PyAny` (initialised to `emptyPyAny`, i.e. `None`), so the branches box into one slot. The only constructs that get **their own** scope — matching Python 3 — are `def`, `lambda`, and comprehensions/generators; everything else shares the function scope. 
+The type `T` comes from `TypeInfer`; a variable bound at _different_ types across branches becomes `PyAny` (initialised to `emptyPyAny`, i.e. `None`), so the branches box into one slot. The only constructs that get **their own** scope — matching Python 3 — are `def`, `lambda`, and comprehensions/generators; everything else shares the function scope.
 
 </details>
 
@@ -159,7 +160,7 @@ Similarly other functions behaving differently for different types but have the 
 
 <details><summary>Default Arguments</summary>
 
-Yes, we support it. 
+Yes, we support it.
 
 ```lean
 def add (a : Int) (b : Int := (10 : Int)) :=
@@ -172,7 +173,7 @@ Moreover, if the input types are not given, we can infer them using the `TypeInf
 
 <details><summary>Two twins — one to prove, one to run</summary>
 
-Every function is emitted twice: a **provable** version (exact `ℚ` for floats, `ℝ` for transcendentals, `noncomputable` where needed) and a **runnable** `'rn` twin (`Float`, fast). This is why Python's `/` — which is *always* float division — shows up as `ℚ` in the prove twin and `Float` in the run twin.
+Every function is emitted twice: a **provable** version (exact `ℚ` for floats, `ℝ` for transcendentals, `noncomputable` where needed) and a **runnable** `'rn` twin (`Float`, fast). This is why Python's `/` — which is _always_ float division — shows up as `ℚ` in the prove twin and `Float` in the run twin.
 
 ```python
 7 / 2     # prove twin: (7 : ℚ) /ₚ 2 = 7/2 exactly;   run twin: 3.5 : Float
@@ -182,20 +183,20 @@ Every function is emitted twice: a **provable** version (exact `ℚ` for floats,
 
 <details><summary>Numeric coercion — bottom-up, never top-down</summary>
 
-Python's numeric tower is `bool <: int <: float`: a value coerces *up* only at the operator that mixes it with a wider type, driven by the **operands**, never by the surrounding context. `3 + 0.5` is `float` because `0.5` is; `3` on its own stays `int`. So `TypeInfer` promotes an int only where it actually meets a float (`int ⊔ float = float`), and a variable becomes `float` only if it is genuinely *assigned* a float — a `-> float` return annotation (context) never forces it. This mirrors Lean: an `Int` stays `Int` and is cast to `ℚ`/`Float` at the mixed operation, not smeared everywhere.
+Python's numeric tower is `bool <: int <: float`: a value coerces _up_ only at the operator that mixes it with a wider type, driven by the **operands**, never by the surrounding context. `3 + 0.5` is `float` because `0.5` is; `3` on its own stays `int`. So `TypeInfer` promotes an int only where it actually meets a float (`int ⊔ float = float`), and a variable becomes `float` only if it is genuinely _assigned_ a float — a `-> float` return annotation (context) never forces it. This mirrors Lean: an `Int` stays `Int` and is cast to `ℚ`/`Float` at the mixed operation, not smeared everywhere.
 
 ```python
 def avg(a: int, b: int):
     return (a + b) / 2   # `/` is float division -> ℚ (prove) / Float (run); a and b stay Int
 ```
 
-`/` is *always* float division; `//` is floor division; `%` and `**` follow Python's mixed-numeric rules.
+`/` is _always_ float division; `//` is floor division; `%` and `**` follow Python's mixed-numeric rules.
 
 </details>
 
 <details><summary>`PyAny` can't be proved - `pyany_cases` tactic</summary>
 
-`PyAny` makes us *total* (everything runs), but it is **not** a commutative ring, so `ring`/`nlinarith`/`taste?` die on it — a boxed function can't be proved. That's why boxing is a *last resort*: infer a concrete type wherever possible, box only the residue, and in prove mode a linter warns at every `PyAny` binder ("annotate the type to prove"). Provability is the whole point of the project, so we protect it.
+`PyAny` makes us _total_ (everything runs), but it is **not** a commutative ring, so `ring`/`nlinarith`/`taste?` die on it — a boxed function can't be proved. That's why boxing is a _last resort_: infer a concrete type wherever possible, box only the residue, and in prove mode a linter warns at every `PyAny` binder ("annotate the type to prove"). Provability is the whole point of the project, so we protect it.
 
 </details>
 
@@ -209,7 +210,7 @@ We donot support a lot of OOP features like polymorphism, very basic inheritance
 
 <details><summary>Exceptional Handling and IO</summary>
 
-`try`/`except`/`raise` live in the `PyExcept` monad, and `print`/`input` are `IO`. You'll notice the wrapper often carries a `_` blank return type — that's on purpose: Lean *infers* it. When the returns agree it becomes the concrete type (provable); when they disagree the function is boxed and the `_` becomes `PyAny`, so `try: return 1 / except: return "err"` just works (each branch coerces to `PyAny`).
+`try`/`except`/`raise` live in the `PyExcept` monad, and `print`/`input` are `IO`. You'll notice the wrapper often carries a `_` blank return type — that's on purpose: Lean _infers_ it. When the returns agree it becomes the concrete type (provable); when they disagree the function is boxed and the `_` becomes `PyAny`, so `try: return 1 / except: return "err"` just works (each branch coerces to `PyAny`).
 
 ```python
 def describe(x):
@@ -223,7 +224,7 @@ def describe(x):
 
 <details><summary>Nested Functions & Closures</summary>
 
-A **closure** is a nested function that reads a variable from the enclosing one — a *free variable* it "closes over":
+A **closure** is a nested function that reads a variable from the enclosing one — a _free variable_ it "closes over":
 
 ```python
 def make_adder(n):
@@ -237,9 +238,9 @@ make_adder(5)(3)         # 8 — the returned `add` still remembers n = 5
 
 **How we deal — lambda lifting.** Every captured variable becomes an extra parameter of a **sibling `private partial def`** — `_make_adder'add := fun x n ↦ x + n` — passed at each call site (what's lifted is exactly `(names the inner reads) ∩ (names the outer binds)`; builtins/globals fall outside it). When the closure **escapes as a value** — returned, or a decorator's wrapper — we emit a genuine Lean closure that partial-applies the sibling with the captures baked in: `make_adder := fun n ↦ fun x ↦ _make_adder'add x n`. So returned closures, **currying**, and **decorators** all work, and stay **provable** — the sibling keeps its `[simp, taste_ingr]` tag, so `assert make_adder(5)(3) == 8` is proved automatically on conversion. (An un-inferable returned-closure param falls back to `PyAny`.)
 
-**Mutation** (`nonlocal ans; ans += 1`) is *threaded*: the capture is both a parameter and part of the return, each call rebinding it. The one genuinely hard case is a closure that mutates a captured cell **and escapes** (a stateful `counter()`), which needs a real reference cell — still to come.
+**Mutation** (`nonlocal ans; ans += 1`) is _threaded_: the capture is both a parameter and part of the return, each call rebinding it. The one genuinely hard case is a closure that mutates a captured cell **and escapes** (a stateful `counter()`), which needs a real reference cell — still to come.
 
-We use a sibling `private partial def` (not `where`/`let rec`, which would force the *outer* def `partial` and lose its provability). It all lives in `PyGens/Transform/ClosureConvert.lean`.
+We use a sibling `private partial def` (not `where`/`let rec`, which would force the _outer_ def `partial` and lose its provability). It all lives in `PyGens/Transform/ClosureConvert.lean`.
 
 </details>
 
@@ -254,15 +255,15 @@ def squares(n):
 list(squares(4))             # [0, 1, 4, 9]
 ```
 
-Per generator, `yield e` → `acc.append(e)`, `yield from it` → `acc.extend(it)`, and `return` → `return acc` (in a generator, `return` just *stops*); the body is wrapped with `acc = []` … `return acc`. The `append`/`for`/`while` value-semantics threading is reused as-is. It lives in `PyGens/Transform/GeneratorLower.lean` and runs *before* type inference, so the accumulator gets a real element type — which is what makes **recursive** generators (`yield from inorder(node.left)`, backtracking `subsets`/`permutations`) and generator **pipelines** (`for x in doubled(evens(data))`) work. (Materialisation is eager, so an *infinite* generator consumed lazily won't terminate.)
+Per generator, `yield e` → `acc.append(e)`, `yield from it` → `acc.extend(it)`, and `return` → `return acc` (in a generator, `return` just _stops_); the body is wrapped with `acc = []` … `return acc`. The `append`/`for`/`while` value-semantics threading is reused as-is. It lives in `PyGens/Transform/GeneratorLower.lean` and runs _before_ type inference, so the accumulator gets a real element type — which is what makes **recursive** generators (`yield from inorder(node.left)`, backtracking `subsets`/`permutations`) and generator **pipelines** (`for x in doubled(evens(data))`) work. (Materialisation is eager, so an _infinite_ generator consumed lazily won't terminate.)
 
 </details>
 
 <details><summary>Sequence backing: <code>List</code> to prove, <code>Array</code> to run</summary>
 
-A Python `list` is a dynamic array — O(1) amortized `append`, O(1) index — but a `List α`-backed `xs = xs ++ [v]` is O(n) and `xs[i]` is O(i), so an append/index loop becomes **O(n²)**. We keep *both* backings and use each where it wins. The **provable** twin (`fn`) stays `List α`: it is an inductive type with a free induction principle, so `taste?`/`mvcgen`, `omega`, and Mathlib's lemma library work naturally. The **runnable** twin (`fn'rn`) backs a `list` with `Array α` wherever every use is Array-portable, giving **O(1)** append/index.
+A Python `list` is a dynamic array — O(1) amortized `append`, O(1) index — but a `List α`-backed `xs = xs ++ [v]` is O(n) and `xs[i]` is O(i), so an append/index loop becomes **O(n²)**. We keep _both_ backings and use each where it wins. The **provable** twin (`fn`) stays `List α`: it is an inductive type with a free induction principle, so `taste?`/`mvcgen`, `omega`, and Mathlib's lemma library work naturally. The **runnable** twin (`fn'rn`) backs a `list` with `Array α` wherever every use is Array-portable, giving **O(1)** append/index.
 
-That O(1) is Lean 4's reference-counting model — "functional but in-place" (FBIP): `Array.push`/`set!`/`get!` mutate in place when the array is uniquely owned, which the codegen's threaded mutation (`xs := pyArrayAppend xs v`, rebinding the same name) guarantees. See Ullrich & de Moura, *[Counting Immutable Beans](https://arxiv.org/abs/1908.05647)* (IFL 2019) and Reinking, Xie, de Moura & Leijen, *[Perceus: Garbage Free Reference Counting with Reuse](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)* (PLDI 2021). Because `Array α` is *defined as* `{ toList : List α }`, the two twins are the same value in two representations — not divergent implementations.
+That O(1) is Lean 4's reference-counting model — "functional but in-place" (FBIP): `Array.push`/`set!`/`get!` mutate in place when the array is uniquely owned, which the codegen's threaded mutation (`xs := pyArrayAppend xs v`, rebinding the same name) guarantees. See Ullrich & de Moura, _[Counting Immutable Beans](https://arxiv.org/abs/1908.05647)_ (IFL 2019) and Reinking, Xie, de Moura & Leijen, _[Perceus: Garbage Free Reference Counting with Reuse](https://www.microsoft.com/en-us/research/uploads/prod/2020/11/perceus-tr-v1.pdf)_ (PLDI 2021). Because `Array α` is _defined as_ `{ toList : List α }`, the two twins are the same value in two representations — not divergent implementations.
 
 The choice is **per value**, decided at compile time (`List.toArray`/`Array.toList` are each O(n), so flipping per-operation would reintroduce O(n²)): `Array` by default (wins build-by-`append` + random index), `List` fallback for a value dominated by prepend / `insert(0,·)` / `pop(0)` (where `List` is O(n) and `Array` O(n²)) or by any op not ported to `Array`. Details in [`PastaLean/README.md`](./PastaLean/README.md#sequence-backing-list-prove-vs-array-run).
 
@@ -302,7 +303,7 @@ partial def fib'memo'rn : Int → StateM (Std.HashMap Int Int) Int := fun (n : I
 def fib'rn : Int → Int := fun (n : Int) => (fib'memo'rn n).run' ∅
 ```
 
-Recursive self-calls in the body are lowered to `(← fib'memo'rn …)`, so the recursion threads the shared cache; `do`-notation hoists each `(←…)` to a bind. This is pure (no `unsafe`/global ref, so it runs under `lean --run` and native alike). It turns exponential recomputation into linear — the complexity-theoretic backing for memoization is Avanzini & Dal Lago, *[On Sharing, Memoization, and Polynomial Time](https://arxiv.org/abs/1501.00894)* (Information and Computation, 2017).
+Recursive self-calls in the body are lowered to `(← fib'memo'rn …)`, so the recursion threads the shared cache; `do`-notation hoists each `(←…)` to a bind. This is pure (no `unsafe`/global ref, so it runs under `lean --run` and native alike). It turns exponential recomputation into linear — the complexity-theoretic backing for memoization is Avanzini & Dal Lago, _[On Sharing, Memoization, and Polynomial Time](https://arxiv.org/abs/1501.00894)_ (Information and Computation, 2017).
 
 **Coverage.** Params of type `int`/`bool`/`str` (a `Hashable`/`BEq` key); one param keys directly, several key on the tuple `(a, b, …) : A × B × …`. The common competitive-programming shape — a **nested `@cache dfs(i, j, …)`** (multi-arg, often capturing the grid/array) — works: closure-conversion lifts the `dfs` to a sibling def whose captures become trailing params, and the cache is keyed on the **original** params only (a capture is constant across the recursion and may be a non-hashable container, so it's threaded through but not keyed). What isn't memoised **falls back to the plain recursive def** (correct, just not faster): a self-call inside a ternary / `and` / `or` / lambda / comprehension (a `(←…)` can't hoist out of a lazily-evaluated position) or a param whose type isn't inferred. `example_scripts/general/decorators.py` exercises the memoised path.
 
@@ -335,11 +336,11 @@ PastaLean turns it into a Hoare-triple spec on the provable twin:
 
 - **precondition** = the conjunction of every `Requires`/`Assume`,
 - **postcondition** = the conjunction of every `Ensures` (and every `Result()`-bearing `Assert`),
-- a bare `Assert(...)` about *intermediate* state stays an in-body checkpoint (a no-op), and
+- a bare `Assert(...)` about _intermediate_ state stays an in-body checkpoint (a no-op), and
   `Invariant`/`Decreases` drive the loop's `mvcgen` proof,
 - the postcondition is `True` **only** when the function declares no `Ensures`/`Result`-`Assert` at all
-  — and a `True` postcondition asserts *nothing*, so it proves trivially and verifies nothing.
-- `Ensures`/`Result`-`Assert` must sit at the start/end of the body, never sandwiched *between loops*
+  — and a `True` postcondition asserts _nothing_, so it proves trivially and verifies nothing.
+- `Ensures`/`Result`-`Assert` must sit at the start/end of the body, never sandwiched _between loops_
   (that would be a program-point checkpoint, not a postcondition) — PastaLean rejects that.
 
 The transpiler emits the spec and tries to discharge it automatically (`taste?`/`mvcgen`). **But a
@@ -358,7 +359,7 @@ def missingNumber(arr: list[int]) -> int:
 
 For `arr = [0, 50, -99]` both `Requires` hold (`len == 3`, `(-99 - 0) % 3 == 0`), but the function
 returns **-149**, while `min(0, -99) == -99` — so `-99 <= -149` is false. The postcondition is
-unprovable because it is *not true*. PastaLean will happily generate the `_spec` theorem and it will
+unprovable because it is _not true_. PastaLean will happily generate the `_spec` theorem and it will
 sit there with a `sorry` forever: **the contract, not the prover, is the bug.**
 
 Two lessons:
@@ -366,7 +367,7 @@ Two lessons:
 1. **Strengthen the precondition** to the domain where the property holds ("`arr` is an arithmetic
    progression"), or **weaken the postcondition** to something true (e.g. the direct
    `Ensures(Result() == (arr[0] + arr[-1]) * (len(arr) + 1) // 2 - sum(arr))`).
-2. Even a *true* postcondition can be out of automated reach — a functional characterization like
+2. Even a _true_ postcondition can be out of automated reach — a functional characterization like
    `Ensures(Result() == number_of_pairs(i, j) with i < j and words[i] == reverse(words[j]))` is true
    but needs a bespoke inductive proof; `taste?`/`mvcgen` will leave a `sorry`, and that is expected.
 
@@ -465,13 +466,14 @@ pastalean serve --no-ip         # localhost only
 
 This provides the below features for you to use PastaLean -
 
-*Web UI*:
+_Web UI_:
+
 - Paste Python and press **Translate** to see generated Lean with syntax highlighting and compile errors, if any.
 - **Insert contracts** runs the `--contracts` LLM pre-pass and shows the annotated Python in its own box, ready to use as the source.
 - Provide an API key and select model to use for contracts. You can also write a custom prompt as a goal for LLM for what you want the contracts to achieve. The settings are available under **Settings**.
 - You can see the generated Lean code and the contracts in their own boxes, with syntax highlighting and compile errors, if any.
 
-*HTTP API*:
+_HTTP API_:
 In one shell, you can run:
 
 ```bash
@@ -515,14 +517,16 @@ and shell out to `lake env lean`.
 
 ## Testing
 
-PastaLeanCheck (PALC) (pronounced - "pal" + "ack" like PAL Acknowledge) is the testing framework for PastaLean. It is used to check that the generated Lean code matches the expected output. 
+PastaLeanCheck (PALC) (pronounced - "pal" + "ack" like PAL Acknowledge) is the testing framework for PastaLean. It is used to check that the generated Lean code matches the expected output.
 
 To run all tests:
+
 ```bash
 lake test
 ```
 
 If you want to run a specific test case, you can do so with:
+
 ```bash
 lake exe palc <case_file.py>
 ```
@@ -558,6 +562,3 @@ python3 PastaBench/typybench_bench/score.py <dataset_dir> --tool pastalean
 
 See [`REPRODUCE.md`](./REPRODUCE.md) for dataset setup, exact flags, the LLM baseline, and the contracts/proofs.
 
-## Acknowledgements
-
-This project was made possible by the support of collaboration of IISc Bengaluru and Emergence AI.
