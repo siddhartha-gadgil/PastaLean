@@ -39,7 +39,7 @@ pastalean = "pastalean.main:main"
 # repo root either: `PastaLean/` (the Lean library) is already there, and the two collide on the
 # case-insensitive filesystems macOS and Windows default to.
 package-dir = { "pastalean" = "src" }
-packages = ["pastalean", "pastalean.backend", "pastalean.transpile"]
+packages = ["pastalean", "pastalean.backend", "pastalean.transpile", "pastalean.typeinfer"]
 
 [tool.setuptools.package-data]
 # The web UI `pastalean serve` hands out. Without this it is absent from a built wheel.

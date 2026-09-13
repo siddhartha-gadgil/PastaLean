@@ -1,0 +1,2619 @@
+{
+  "breakdown": {
+    "Function Return Type": {
+      "matched": 187,
+      "total": 230
+    },
+    "Function Parameter Type": {
+      "matched": 67,
+      "total": 95
+    },
+    "Local Variable Type": {
+      "matched": 353,
+      "total": 525
+    },
+    "Total": {
+      "matched": 607,
+      "total": 850
+    }
+  },
+  "overall": {
+    "return": {
+      "total": 230,
+      "covered": 191,
+      "matched": 187,
+      "sim": 187.5
+    },
+    "param": {
+      "total": 95,
+      "covered": 68,
+      "matched": 67,
+      "sim": 67.0
+    },
+    "var": {
+      "total": 525,
+      "covered": 390,
+      "matched": 353,
+      "sim": 356.3
+    }
+  },
+  "grand": {
+    "total": 850,
+    "covered": 649,
+    "matched": 607,
+    "sim": 610.8
+  },
+  "by_category": {
+    "args": {
+      "return": {
+        "total": 17,
+        "covered": 13,
+        "matched": 13,
+        "sim": 13.0
+      },
+      "param": {
+        "total": 10,
+        "covered": 7,
+        "matched": 7,
+        "sim": 7.0
+      },
+      "var": {
+        "total": 16,
+        "covered": 11,
+        "matched": 10,
+        "sim": 10.0
+      }
+    },
+    "assignments": {
+      "return": {
+        "total": 21,
+        "covered": 21,
+        "matched": 21,
+        "sim": 21.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 59,
+        "covered": 57,
+        "matched": 56,
+        "sim": 56.6
+      }
+    },
+    "builtins": {
+      "var": {
+        "total": 61,
+        "covered": 56,
+        "matched": 40,
+        "sim": 41.0
+      },
+      "return": {
+        "total": 3,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 4,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes": {
+      "return": {
+        "total": 40,
+        "covered": 33,
+        "matched": 32,
+        "sim": 32.0
+      },
+      "param": {
+        "total": 8,
+        "covered": 7,
+        "matched": 7,
+        "sim": 7.0
+      },
+      "var": {
+        "total": 74,
+        "covered": 68,
+        "matched": 63,
+        "sim": 63.0
+      }
+    },
+    "decorators": {
+      "return": {
+        "total": 23,
+        "covered": 15,
+        "matched": 14,
+        "sim": 14.0
+      },
+      "param": {
+        "total": 17,
+        "covered": 12,
+        "matched": 11,
+        "sim": 11.0
+      },
+      "var": {
+        "total": 12,
+        "covered": 10,
+        "matched": 5,
+        "sim": 5.0
+      }
+    },
+    "dicts": {
+      "return": {
+        "total": 23,
+        "covered": 22,
+        "matched": 22,
+        "sim": 22.0
+      },
+      "var": {
+        "total": 81,
+        "covered": 64,
+        "matched": 58,
+        "sim": 58.5
+      },
+      "param": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "direct_calls": {
+      "return": {
+        "total": 10,
+        "covered": 9,
+        "matched": 9,
+        "sim": 9.0
+      },
+      "var": {
+        "total": 9,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      },
+      "param": {
+        "total": 5,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "dynamic": {
+      "var": {
+        "total": 8,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "exceptions": {
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "external": {
+      "var": {
+        "total": 12,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "return": {
+        "total": 3,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "functions": {
+      "return": {
+        "total": 10,
+        "covered": 7,
+        "matched": 7,
+        "sim": 7.0
+      },
+      "var": {
+        "total": 18,
+        "covered": 14,
+        "matched": 13,
+        "sim": 13.6
+      },
+      "param": {
+        "total": 9,
+        "covered": 8,
+        "matched": 8,
+        "sim": 8.0
+      }
+    },
+    "generators": {
+      "return": {
+        "total": 13,
+        "covered": 13,
+        "matched": 12,
+        "sim": 12.5
+      },
+      "param": {
+        "total": 6,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      },
+      "var": {
+        "total": 51,
+        "covered": 24,
+        "matched": 24,
+        "sim": 24.0
+      }
+    },
+    "imports": {
+      "var": {
+        "total": 22,
+        "covered": 15,
+        "matched": 14,
+        "sim": 14.6
+      },
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "kwargs": {
+      "return": {
+        "total": 8,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      },
+      "param": {
+        "total": 6,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      },
+      "var": {
+        "total": 8,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "lambdas": {
+      "var": {
+        "total": 11,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "param": {
+        "total": 16,
+        "covered": 7,
+        "matched": 7,
+        "sim": 7.0
+      },
+      "return": {
+        "total": 7,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "lists": {
+      "return": {
+        "total": 17,
+        "covered": 16,
+        "matched": 16,
+        "sim": 16.0
+      },
+      "var": {
+        "total": 39,
+        "covered": 21,
+        "matched": 21,
+        "sim": 21.0
+      },
+      "param": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "mro": {
+      "return": {
+        "total": 16,
+        "covered": 16,
+        "matched": 16,
+        "sim": 16.0
+      },
+      "var": {
+        "total": 18,
+        "covered": 16,
+        "matched": 15,
+        "sim": 15.0
+      }
+    },
+    "returns": {
+      "return": {
+        "total": 15,
+        "covered": 13,
+        "matched": 13,
+        "sim": 13.0
+      },
+      "var": {
+        "total": 24,
+        "covered": 16,
+        "matched": 16,
+        "sim": 16.0
+      },
+      "param": {
+        "total": 4,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    }
+  },
+  "per_snippet": {
+    "args/assigned_call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "args/call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "args/default": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "args/imported_assigned_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "args/imported_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "args/multiple": {
+      "return": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 4,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "args/nested_call": {
+      "return": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "args/param_call": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "assignments/augmented": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "assignments/chained": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 6,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      }
+    },
+    "assignments/generators": {
+      "var": {
+        "total": 4,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "assignments/nested_unpack": {
+      "return": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "assignments/recursive_tuple": {
+      "return": {
+        "total": 6,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      },
+      "var": {
+        "total": 18,
+        "covered": 18,
+        "matched": 18,
+        "sim": 18.0
+      }
+    },
+    "assignments/starred": {
+      "return": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "var": {
+        "total": 11,
+        "covered": 11,
+        "matched": 10,
+        "sim": 10.6
+      }
+    },
+    "assignments/tuple": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 8,
+        "covered": 8,
+        "matched": 8,
+        "sim": 8.0
+      }
+    },
+    "assignments/walrus": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      }
+    },
+    "builtins/functions": {
+      "var": {
+        "total": 10,
+        "covered": 10,
+        "matched": 10,
+        "sim": 10.0
+      }
+    },
+    "builtins/functools": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "builtins/itertools": {
+      "var": {
+        "total": 22,
+        "covered": 20,
+        "matched": 11,
+        "sim": 11.0
+      }
+    },
+    "builtins/map": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.5
+      }
+    },
+    "builtins/switch": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "builtins/types": {
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "builtins/zip": {
+      "var": {
+        "total": 14,
+        "covered": 14,
+        "matched": 11,
+        "sim": 11.5
+      }
+    },
+    "classes/abstract_class": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "classes/assigned_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/assigned_self_call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "classes/base_class_attr": {
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/base_class_calls_child": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 6,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "classes/call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/class_variable": {
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/direct_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/imported_attr_access": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/imported_call": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/imported_call_without_init": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/imported_nested_attr_access": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/inheritance": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "classes/inheritance_overriding": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/nested_call": {
+      "return": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/nested_class_calls": {
+      "return": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 5,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "classes/parameter_call": {
+      "return": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/return_call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "classes/return_call_direct": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/self_assign_func": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "classes/self_assignment": {
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "return": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "classes/self_call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "classes/static_method_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "classes/super_class_return": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "classes/tuple_assignment": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 8,
+        "covered": 8,
+        "matched": 8,
+        "sim": 8.0
+      }
+    },
+    "decorators/assigned": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "decorators/call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "decorators/classes": {
+      "return": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "decorators/nested": {
+      "return": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "decorators/nested_decorators": {
+      "return": {
+        "total": 4,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "decorators/param_call": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "decorators/return": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "decorators/return_different_func": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "dicts/add_key": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/assign": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 6,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "dicts/ext_key": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/merge": {
+      "var": {
+        "total": 11,
+        "covered": 11,
+        "matched": 11,
+        "sim": 11.0
+      }
+    },
+    "dicts/merge_pipe": {
+      "var": {
+        "total": 11,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      }
+    },
+    "dicts/nested": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 5,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "dicts/new_key_param": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "dicts/param": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/param_key": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/return": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "dicts/return_assign": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/type_coercion": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "dicts/update": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "dicts/zip": {
+      "var": {
+        "total": 12,
+        "covered": 12,
+        "matched": 8,
+        "sim": 8.5
+      }
+    },
+    "direct_calls/assigned_call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "direct_calls/imported_return_call": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "direct_calls/lambda": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "direct_calls/return_call": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "direct_calls/single_argument": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "direct_calls/with_parameters": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "dynamic/compile": {
+      "var": {
+        "total": 4,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "dynamic/eval": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "dynamic/exec": {
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "exceptions/raise_assigned": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "exceptions/raise_attr": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "external/attribute": {
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "external/attribute_assigned": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "external/cls_parent": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "external/cls_parent_init": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "external/function": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "external/function_asname": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "external/function_assigned": {
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "functions/assigned_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "functions/assigned_call_lit_param": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "functions/call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "functions/composition": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.6
+      }
+    },
+    "functions/default": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "functions/imported_call": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "functions/nested": {
+      "return": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "functions/recursive_function": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "functions/static": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "generators/iter_param": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 13,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      }
+    },
+    "generators/iter_return": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 8,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      }
+    },
+    "generators/iterable": {
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 9,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      },
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "generators/iterable_assigned": {
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 10,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      },
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "generators/yield_function": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.5
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "generators/yield_next": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 6,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "imports/chained_import": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/import_all": {
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "imports/import_as": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "imports/import_from": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/init_func_import": {
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/init_import": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "imports/parent_import": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 2,
+        "sim": 2.6
+      }
+    },
+    "imports/relative_import": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "imports/relative_import_with_name": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/simple_import": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/submodule_import": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "imports/submodule_import_all": {
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "imports/submodule_import_as": {
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "imports/submodule_import_from": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "kwargs/assigned_call": {
+      "return": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "kwargs/call": {
+      "return": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "kwargs/chained_call": {
+      "return": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "kwargs/multiple": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "lambdas/call": {
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "lambdas/calls_parameter": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "lambdas/chained_calls": {
+      "return": {
+        "total": 3,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 9,
+        "covered": 6,
+        "matched": 6,
+        "sim": 6.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "lambdas/composition": {
+      "var": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "lambdas/parameter_call": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lambdas/return_call": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/comprehension_if": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/comprehension_val": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/copy": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "lists/ext_index": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/nested": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 4,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/nested_comprehension": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/param_index": {
+      "return": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "lists/simple": {
+      "return": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "var": {
+        "total": 11,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      }
+    },
+    "lists/slice": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 8,
+        "covered": 7,
+        "matched": 7,
+        "sim": 7.0
+      }
+    },
+    "lists/unpacking": {
+      "var": {
+        "total": 4,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "mro/basic": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "mro/basic_init": {
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "mro/parents_same_superclass": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "mro/self_assignment": {
+      "return": {
+        "total": 4,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "var": {
+        "total": 5,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "mro/super_call": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "mro/two_parents": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "mro/two_parents_method_defined": {
+      "return": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "returns/call": {
+      "return": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "returns/imported_call": {
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "returns/multiple_types": {
+      "return": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "var": {
+        "total": 2,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      }
+    },
+    "returns/nested_import_call": {
+      "var": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      }
+    },
+    "returns/object": {
+      "param": {
+        "total": 2,
+        "covered": 2,
+        "matched": 2,
+        "sim": 2.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      },
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "returns/return_complex": {
+      "return": {
+        "total": 5,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 3,
+        "matched": 3,
+        "sim": 3.0
+      }
+    },
+    "returns/return_lambda": {
+      "return": {
+        "total": 1,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      },
+      "param": {
+        "total": 1,
+        "covered": 0,
+        "matched": 0,
+        "sim": 0.0
+      },
+      "var": {
+        "total": 3,
+        "covered": 1,
+        "matched": 1,
+        "sim": 1.0
+      }
+    },
+    "returns/return_types": {
+      "return": {
+        "total": 5,
+        "covered": 4,
+        "matched": 4,
+        "sim": 4.0
+      },
+      "var": {
+        "total": 7,
+        "covered": 5,
+        "matched": 5,
+        "sim": 5.0
+      }
+    }
+  },
+  "errors": 0
+}

@@ -450,6 +450,14 @@ partial def inferFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Env :=
       env := next
       break
     env := next
+  -- A decisive scalar body use (`ord(p)`, `p.isdigit()`, `p << 1`) is authoritative: the body would
+  -- `TypeError` on any other type, so it overrides an `.any`/`.unknown` a call site forced (a nested
+  -- helper reached via `map(f, <PyAny>)` or a loop over an untyped source).
+  for name in paramNames fn do
+    let cur := (env.get? name).getD .unknown
+    if cur == .any || cur == .unknown then
+      let d := decisiveScalarType name (Json.arr body)
+      if d.isKnown then env := env.insert name d
   return env
 
 /-- The return type given an ALREADY-inferred body env — the half of `returnTypeOf` after

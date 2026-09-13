@@ -1135,6 +1135,13 @@ class CPastaEval:
         self.exclude_file = Path(exclude_file)
         self._session = None
         self._warm = None
+        # Problems that require reference (`--heap`) semantics: an explicit, curatable list under the
+        # dataset (`heap_problems.txt`, one problem name per line). Value semantics silently drops cursor
+        # writes for these trie / linked-list problems, so the harness translates them with `heap=True`.
+        hf = self.dataset / "heap_problems.txt"
+        self._heap_problems = set(
+            ln.strip() for ln in hf.read_text().splitlines() if ln.strip() and not ln.startswith("#")
+        ) if hf.exists() else set()
 
     # -- lifecycle ---------------------------------------------------------------------
 
@@ -1487,8 +1494,9 @@ class CPastaEval:
         status_path = lean_dir / f"{name}.status"
         log_path = lean_dir / f"{name}.log"
 
+        use_heap = sol_path.parent.parent.name in self._heap_problems
         try:
-            result = self.session.translate_file(src_path)
+            result = self.session.translate_file(src_path, heap=use_heap)
         except Exception as e:  # noqa: BLE001  (a backend crash must not kill the sweep)
             result = None
             error_text = f"{type(e).__name__}: {e}"
@@ -1549,11 +1557,17 @@ class CPastaEval:
                 units.append((prob_dir.name, sol_path.name, sol_path.stem, lean_dir, source, src_path))
 
         # Phase 2 — batch-translate (PastaLean parallelises internally over its own backend pool).
+        # Problems on the dataset's heap list get reference semantics (`heap=True`); the rest use the
+        # default value semantics. Two batches keep each worker shard's heap mode uniform.
         by_src = {str(Path(u[5]).resolve()): u for u in units}
         translated = {}
-        for r in self.session.translate_files([u[5] for u in units]):
-            key = str(Path(r.source_path).resolve()) if r.source_path else None
-            translated[key] = r
+        for batch, use_heap in ((([u for u in units if u[0] not in self._heap_problems]), False),
+                                (([u for u in units if u[0] in self._heap_problems]), True)):
+            if not batch:
+                continue
+            for r in self.session.translate_files([u[5] for u in batch], heap=use_heap):
+                key = str(Path(r.source_path).resolve()) if r.source_path else None
+                translated[key] = r
 
         # Phase 3 — write `.lean` for the ones that translated; record skipped / convert_fail for the
         # rest; collect the ones that still need compiling.

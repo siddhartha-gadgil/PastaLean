@@ -1,11 +1,11 @@
-HumanEval compile report — 164 problems
-  ok=152  degraded=0  compile_fail=12  convert_fail=0
+HumanEval compile report — 14 problems
+  ok=1  degraded=0  compile_fail=13  convert_fail=0
 
 == failure clusters (by first error line) ==
-[6] failed to synthesize instance of type class
-      CountUpper, HexKey, Iscube, RemoveVowels, SortedListSum, StrongestExtension
+[7] failed to synthesize instance of type class
+      CountUpper, Encode, HexKey, Iscube, RemoveVowels, SortedListSum, StrongestExtension
 [3] Application type mismatch: The argument
-      DoAlgebra, Encode, Solve161
+      DoAlgebra, Solve161, TriangleArea71
 [2] typeclass instance problem is stuck
       ClosestInteger, ReverseDelete
 [1] invalid reassignment, value has type
@@ -52,103 +52,15 @@ in the application
   pyEval exp
 
 ----- Encode  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:18:45: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:18:66: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:19:39: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:21:47: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:21:68: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:22:41: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:25:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:55:53: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:55:84: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:56:39: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:58:55: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:58:86: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:59:41: error: Application type mismatch: The argument
-  ch
-has type
-  PyAny
-but is expected to have type
-  String
-in the application
-  pyOrd ch
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:47:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+  PyIterable PyAny String
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:50:11: warning: declaration uses `sorry`
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:79:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+  PyIterable PyAny String
+
+Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- FindZero  [compile_fail] -----
 /home/anirudhgupta/PastaLean/PastaBench/_report_gen/FindZero.lean:78:13: error: invalid reassignment, value has type
@@ -277,3 +189,22 @@ but is expected to have type
   String
 in the application
   _Strongest_Extension'strength'rn e
+
+----- TriangleArea71  [compile_fail] -----
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:33:45: error: Application type mismatch: The argument
+  (p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5
+has type
+  PyAny
+but is expected to have type
+  ℝ
+in the application
+  pyRoundDigits ((p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5)
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:35:11: warning: declaration uses `sorry`
+/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:54:45: error: Application type mismatch: The argument
+  (p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5
+has type
+  PyAny
+but is expected to have type
+  Float
+in the application
+  pyRoundDigits ((p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5)

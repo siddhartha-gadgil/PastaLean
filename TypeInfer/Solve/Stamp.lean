@@ -325,6 +325,47 @@ partial def collectNoneTested (json : Json) : Std.HashSet String := Id.run do
   | .obj fs => fs.foldl (fun a _ v => collectNoneTested v |>.fold (·.insert ·) a) acc
   | _ => acc
 
+/-- Stamp an int-literal numeric expression (`Constant`, or a `UnaryOp`/`-1` over one) with
+`_ty = float`, so codegen emits it at the numeric-mode float type (`(1 : ℚ)`) instead of `Int`. Used to
+coerce an int branch of a ternary whose sibling is float (`-1 if ans == inf else ans`, `ans : ℚ`). -/
+partial def stampFloatLit (e : Json) : Json :=
+  match nodeTypeOf e with
+  | some "Constant" =>
+      if (getField e "_ty").isNone
+         && (e.getObjValAs? String "python_literal_kind").toOption != some "float"
+         && (match (e.getObjVal? "value").toOption with | some (.num ⟨_, 0⟩) => true | _ => false) then
+        match toAnnotation? .float with | some ann => e.setObjVal! "_ty" ann | none => e
+      else e
+  | some "UnaryOp" => (getField e "operand").elim e (fun o => e.setObjVal! "operand" (stampFloatLit o))
+  | _ => e
+
+/-- In a numeric list literal (or `[…]*n` repeat) assigned/appended to a `list[τ]` slot, stamp each
+`float('inf')`/`float('nan')` element's `Call` node with `_ty = annTy` so codegen ascribes the
+polymorphic sentinel to the container's element type (`(pyNonFinite "inf" : ℤ)`), instead of letting the
+`PyNonFinite ℚ` default fire and produce a `List ℚ` that clashes with the `list[int]` slot. -/
+partial def stampNonFiniteElems (annTy : Json) (v : Json) : Json :=
+  match nodeTypeOf v with
+  | some "Call" =>
+      let isNF := (getField v "func").any (fun f => nameId? f == some "float")
+        && (match (v.getObjValAs? (Array Json) "args").toOption.bind (·[0]?) with
+            | some c => nodeTypeOf c == some "Constant"
+                && (match (c.getObjVal? "value").toOption with
+                    | some (.str s) => let t := s.toLower
+                                       t == "inf" || t == "-inf" || t == "nan" || t == "infinity" || t == "-infinity"
+                    | _ => false)
+            | none => false)
+      if isNF && (getField v "_ty").isNone then v.setObjVal! "_ty" annTy else v
+  | some "List" | some "Set" =>
+      match v.getObjValAs? (Array Json) "elts" with
+      | .ok elts => v.setObjVal! "elts" (Json.arr (elts.map (stampNonFiniteElems annTy)))
+      | _ => v
+  | some "BinOp" =>
+      let descend (side : String) (b : Json) : Json :=
+        (getField b side).elim b fun o =>
+          if nodeTypeOf o == some "List" then b.setObjVal! side (stampNonFiniteElems annTy o) else b
+      descend "right" (descend "left" v)
+  | _ => v
+
 /-- Mark every `x.attr` whose receiver `x` is `Option`-typed with
 `_unwrap_opt`, so the field codegen emits `(x.getD default).attr` instead of the invalid
 `Option.attr` projection. Covers the tree/linked-list traversal case (`root.val`, `root.left`).
@@ -352,10 +393,34 @@ partial def markOptAttrs (sigs : Sigs) (env : Env) (noneTested : Std.HashSet Str
         let branchOpt := fun (side : String) => match (getField json side).map (typeOfExpr sigs env) with
           | some (.opt _) => true
           | _ => false
-        if ((getField json "orelse").any isNoneConst && branchOpt "body")
-            || ((getField json "body").any isNoneConst && branchOpt "orelse") then
-          json.setObjVal! "_branch_opt" (Json.bool true)
+        let json :=
+          if ((getField json "orelse").any isNoneConst && branchOpt "body")
+              || ((getField json "body").any isNoneConst && branchOpt "orelse") then
+            json.setObjVal! "_branch_opt" (Json.bool true)
+          else json
+        -- Numeric reconcile: `X if c else Y` whose two branches join to `float` (a `float('inf')`
+        -- sibling makes one branch `ℚ`) but where the other is a bare int literal (`-1 if … else ans`)
+        -- — coerce the int-literal branch to the float type so the `ite`'s arms agree.
+        let bty := (getField json "body").map (typeOfExpr sigs env)
+        let oty := (getField json "orelse").map (typeOfExpr sigs env)
+        let isIntish := fun (t : Option PyType) => t == some .int || t == some .bool
+        if oty == some .float && isIntish bty then
+          (getField json "body").elim json (fun b => json.setObjVal! "body" (stampFloatLit b))
+        else if bty == some .float && isIntish oty then
+          (getField json "orelse").elim json (fun o => json.setObjVal! "orelse" (stampFloatLit o))
         else json
+      -- `nums += [float('inf')]`: a numeric-list slot getting a `float('inf')` element. Pin the sentinel
+      -- to the slot's element type so it does not default to `ℚ` and widen the list to `List ℚ`.
+      else if nodeTypeOf json == some "AugAssign" then
+        let tgt := getField json "target"
+        match (tgt.map (typeOfExpr sigs env)), getField json "value" with
+        | some (.list τ), some val =>
+            if (τ == .int || τ == .bool || τ == .float) then
+              match toAnnotation? τ with
+              | some ann => json.setObjVal! "value" (stampNonFiniteElems ann val)
+              | none => json
+            else json
+        | _, _ => json
       -- `node = node.children[idx]` — the trie/linked cursor WALK: a var reassigned from a SUBSCRIPT of
       -- its OWN attribute (`node.<field>[idx]`), where that element is `Optional[Node]`. The value is
       -- guarded non-`None` (a preceding `is None` check creates/returns), and the cursor's slot is a
@@ -844,8 +909,15 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
         -- known type is stamped as `_ret_ty` so codegen can ascribe it (a recursive or effectful def
         -- needs its return type in the signature — this is what annotate_python's `-> T` provided).
         let annotated := match getField fn "returns" with | some r => !r.isNull | none => false
+        -- A NESTED def is absent from the interprocedural `sigs` (`collectSigs` walks only top level), so
+        -- `sigs.get? name` is `unknown` for it; recover its return type from THIS body's inferred `env`
+        -- (which has its locals) via `returnTypeFromEnv`. This is what lets a nested helper returning a
+        -- `float('inf')` sentinel plus an `int` accumulator get `_ret_ty = int` — pinning `return inf` to
+        -- `Int` in its `Id.run do` block instead of the `ℚ` default.
         let retType := if annotated then ofAnnotation ((getField fn "returns").getD Json.null)
-                       else (sigs.get? name).getD .unknown
+                       else match sigs.get? name with
+                            | some t => if t == .unknown then returnTypeFromEnv sigs env fn else t
+                            | none => returnTypeFromEnv sigs env fn
         -- Flag a body that mixes `int` and `float` return statements (types read under the
         -- *global-seeded* `env` — `sigs`/`returnTypeOf` run globals-free and miss a global `inf`).
         -- ONLY a mix needs it: the first `return <int>` would pin the `Id.run` codomain to `ℤ`, then a
@@ -896,6 +968,15 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
   let eligible := arrayEligibleVars env fn
   match fn.getObjValAs? (Array Json) "body" with
   | .ok body =>
+    -- Recurse into each nested def under THIS body's `env`/call sites, so it gets full inference and its
+    -- own `_ret_ty`/`_ret_float` codomain ascription (the other stamp passes skip `FunctionDef` nodes).
+    let body := body.map (fun s =>
+      if nodeTypeOf s == some "FunctionDef" then
+        let nh := nestedParamHints sigs env s #[Json.arr body]
+        let nh := (keyCallbackHints sigs env s #[Json.arr body]).fold
+          (fun m k v => m.insert k (((m.get? k).getD .unknown).join v)) nh
+        stampFunction sigs env nh s
+      else s)
     let noneTested := collectNoneTested (Json.arr body)
     fn.setObjVal! "body"
       (Json.arr ((((((body.map (stampStmt sigs env body)).map (markTuples sigs env)).map (markOptAttrs sigs env noneTested)).map

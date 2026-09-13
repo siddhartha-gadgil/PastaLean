@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Build / run logs
+*.log
+
 # Virtual Environments
 venv/
 .venv/
@@ -34,3 +37,4 @@ _slides
 cp_harness/.native/
 PastaBench/_eval_out
 PastaBench/_report_gen/
+PastaBench/llm_bench

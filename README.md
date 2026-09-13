@@ -16,6 +16,7 @@ This work was presented at [Summer School: LeanLang for Programming 2026](https:
 
 - [Features](#features)
 - [How it works?](#how-it-works)
+- [Type Inference (TypeInfer)](#type-inference-typeinfer)
 - [Libraries](#libraries)
     - [How to add your own library](#how-to-add-your-own-library)
 - [Install](#install)
@@ -24,6 +25,7 @@ This work was presented at [Summer School: LeanLang for Programming 2026](https:
     - [HTTP API](#http-api)
     - [Python API](#python-api)
 - [Testing](#testing)
+- [Reproducing the paper results](#reproducing-the-paper-results)
 
 ## Features
 
@@ -308,6 +310,24 @@ Recursive self-calls in the body are lowered to `(← fib'memo'rn …)`, so the 
 
 any many more... like many many many more small annoying features...
 
+## Type Inference (TypeInfer)
+
+Python is dynamically typed, but Lean needs types. `TypeInfer` is PastaLean's type-inference engine: it runs over the Python AST before code generation and assigns every parameter, return, variable and field a type from a single `PyType` lattice, so untyped Python can be lowered to well-typed Lean. It also runs over a whole repository, flowing types across files and imports.
+
+It is built as its own Mathlib-free Lean binary, so you can use it on its own — as a fast static type annotator for Python, independent of the transpiler:
+
+```bash
+lake build typeinfer
+
+pastalean typeinfer script.py                 # print the source with inferred annotations
+pastalean typeinfer script.py -o out.py       # write annotated source to a file
+pastalean typeinfer script.py --format stub   # emit a .pyi stub instead
+pastalean typeinfer script.py --coverage      # per-dimension type-coverage report
+pastalean typeinfer my_project/               # repo mode: annotate a whole project
+```
+
+**On benchmarks.** On the file-level TypeEvalPy benchmark, TypeInfer is the top-scoring static tool on the micro set and leads on return and parameter facts on the autogen set. On the repository-level TypyBench benchmark (50 real projects with their annotations stripped) it leads every accuracy metric against the other inference-capable tools (pyrefly, pyre, pytype), while being the fastest at repository scale and using the least memory. See [Reproducing the paper results](#reproducing-the-paper-results).
+
 ## Verifying with contracts (and how postcondition proving can fail)
 
 You annotate a Python function with `Requires`/`Ensures` (plus `Invariant`/`Decreases`/`Assert`), and
@@ -401,6 +421,7 @@ pastalean translate prog.py
 pastalean translate prog.py              # Python -> Lean on stdout, then compile-check it
 pastalean run       prog.py < input.txt  # translate, compile, execute
 pastalean json      prog.py              # dump the intermediate JSON IR
+pastalean typeinfer prog.py              # infer Python types (no Lean compile)
 pastalean batch     example_scripts/commands -o out/ --check   # many files, one warm backend
 pastalean serve                          # web playground + HTTP API
 pastalean libraries                      # Python libs with a Lean shim
@@ -409,6 +430,29 @@ pastalean libraries                      # Python libs with a Lean shim
 `translate` and `run` also accept the LLM source rewrites `-r/--redesign` (restructure for
 provability) and `-c/--contracts` (insert Requires/Ensures/Invariant). Both write the transformed
 program to a sibling `.py` so you can read what the model produced.
+
+`typeinfer` runs the standalone TypeInfer engine (a compiled Lean binary, no Mathlib boot) over a
+file and infers types for parameters, returns, local variables, and class fields — inference only,
+no code generation. By default it prints the source back with PEP 484 annotations injected (bare
+`Any` included, with `from typing import Any` added); `--format` switches the output shape:
+
+```bash
+pastalean typeinfer prog.py                    # annotated Python on stdout (default)
+pastalean typeinfer prog.py --no-any           # ...but skip bare `Any` (list[Any] etc. kept)
+pastalean typeinfer prog.py --format json      # machine-readable type map
+pastalean typeinfer prog.py --format list      # human-readable listing grouped by scope
+pastalean typeinfer prog.py -r                 # + a summary: counts per dimension and time taken
+```
+
+Give it a **directory** and it infers the whole repository in one Lean fixpoint — resolving imports
+so types flow across files — and writes an annotated copy (default `<dir>_typed`, or `-o <dir>`):
+
+```bash
+pastalean typeinfer myrepo/ -o myrepo_typed -r
+```
+
+Inference is parallel inside the engine: a batch or a repo fans out across the machine's cores in a
+single process (no per-file backend boot).
 
 ### HTTP API
 
@@ -482,6 +526,37 @@ If you want to run a specific test case, you can do so with:
 ```bash
 lake exe palc <case_file.py>
 ```
+
+## Reproducing the paper results
+
+Every table and figure in the paper can be regenerated from this repo. [`REPRODUCE.md`](./REPRODUCE.md) has the full guide: one command per experiment, each naming the paper artifact it produces and the file it writes.
+
+After the setup in [Install](#install), build the Lean targets the harnesses need:
+
+```bash
+lake build py2lean      # transpiler backend
+lake build typeinfer    # standalone Mathlib-free inference binary
+lake build PastaBench   # verification library (proving experiment)
+```
+
+Then the main experiments:
+
+```bash
+# Code generation and execution (HumanEval / LeetCode / LiveCodeBench)
+python3 PastaBench/pastaeval.py humaneval --run
+python3 PastaBench/pastaeval.py cp --source leetcode --num max
+
+# Type inference (TypeEvalPy micro + autogen, and the production checkers)
+python3 PastaBench/pastaeval.py typeinfer
+bash PastaBench/typeinfer_bench/run_autogen.sh
+uv run python PastaBench/typeinfer_bench/bench_checkers.py
+
+# Repository-level type inference (TypyBench, vs pyrefly/pyre/pytype)
+python3 PastaBench/typybench_bench/score.py <dataset_dir> --tool pastalean
+#   swap --tool for pyrefly | pyre | pytype to score the baselines
+```
+
+See [`REPRODUCE.md`](./REPRODUCE.md) for dataset setup, exact flags, the LLM baseline, and the contracts/proofs.
 
 ## Acknowledgements
 

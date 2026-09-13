@@ -99,6 +99,10 @@ class ASTToJsonLeanVisitorBase:
                  type_only_modules=frozenset(), module_dir=None, infer_only=False):
         self.source_code = source_code
         self.source_lines = source_code.splitlines()
+        # keepends copy for O(segment) source-slice extraction: `ast.get_source_segment` re-splits the
+        # whole file on every call, which is O(constants x filesize) on a data blob of thousands of
+        # numeric literals (minutes on a 700KB pixel-array module).
+        self._source_lines_ke = source_code.splitlines(keepends=True)
         self.comment_entries = self._extract_comment_entries(source_code)
         self._next_comment_id = 0
         # Best-effort fallback: when on, statements that use a foreign (unsupported) library or
@@ -211,7 +215,7 @@ class ASTToJsonLeanVisitorBase:
         assigned variable *declared* (no unconstrained `Inhabited ?m`). A bare statement becomes
         `let _ := pyUnsupported ...`; at top level it is kept as a synthetic `def __py_unsup_N`
         rather than removed."""
-        src = ast.get_source_segment(self.source_code, stmt) or "<unsupported>"
+        src = self._node_segment(stmt) or "<unsupported>"
         src = " ".join(src.split())  # collapse to one line for a clean Lean string literal
         self.unsupported_log.append(src)
 
@@ -414,8 +418,6 @@ class ASTToJsonLeanVisitorBase:
             visitor = self._visit_auto_serialized_node
         if visitor is None:
             visitor = self.generic_visit
-        # print(f"Visiting node type: {type(node).__name__} with visitor method: {visitor.__name__}", file=sys.stderr)  # Debugging output
-        
         return visitor(node)
 
     def generic_visit(self, node):
@@ -484,6 +486,25 @@ class ASTToJsonLeanVisitorBase:
             "values": comparisons,
         }
     
+    def _node_segment(self, node):
+        """The source text a node spans, sliced from the cached line list (O(segment length)). Mirrors
+        `ast.get_source_segment` — col offsets are UTF-8 byte offsets — but never re-splits the file."""
+        lineno = getattr(node, "lineno", None)
+        end_lineno = getattr(node, "end_lineno", None)
+        col = getattr(node, "col_offset", None)
+        end_col = getattr(node, "end_col_offset", None)
+        lines = self._source_lines_ke
+        if lineno is None or end_lineno is None or col is None or end_col is None:
+            return None
+        if not (0 < lineno <= len(lines) and 0 < end_lineno <= len(lines)):
+            return None
+        if end_lineno == lineno:
+            return lines[lineno - 1].encode()[col:end_col].decode(errors="replace")
+        first = lines[lineno - 1].encode()[col:].decode(errors="replace")
+        middle = lines[lineno:end_lineno - 1]
+        last = lines[end_lineno - 1].encode()[:end_col].decode(errors="replace")
+        return first + "".join(middle) + last
+
     def visit_Constant(self, node):
         """Translates ast.Constant (e.g., 42, "hello") to a JSON IR node."""
         result = {
@@ -494,7 +515,7 @@ class ASTToJsonLeanVisitorBase:
             result["python_literal_kind"] = "float"
             # Preserve how the float was written: a source `1e5` keeps the scientific
             # `Float.ofScientific` form; a plain decimal becomes a readable `(0.25 : Float)`.
-            segment = ast.get_source_segment(self.source_code, node) or ""
+            segment = self._node_segment(node) or ""
             if "e" in segment or "E" in segment:
                 result["float_notation"] = "scientific"
         return result

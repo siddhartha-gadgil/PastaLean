@@ -149,15 +149,15 @@ python3 PastaBench/pastaeval.py typeinfer -- --bench <TypeEvalPy autogen dir>   
 ### `typeinfer` — TypeInfer engine vs TypeEvalPy
 
 `pastaeval typeinfer` runs PastaLean's `inferTypes` pass over the [TypeEvalPy](https://github.com/secure-software-engineering/TypeEvalPy)
-micro-benchmark (150+ core-Python snippets, 845 ground-truth type facts) and reports exact-match
+micro-benchmark (153 core-Python snippets, 850 ground-truth type facts) and reports exact-match
 counts in TypeEvalPy's leaderboard columns:
 
 ```
     Dimension                   Exact match
-    Function Return Type         169 / 230    (73.5%)
-    Function Parameter Type       62 / 95     (65.3%)
-    Local Variable Type          314 / 525    (59.8%)
-    Total                        545 / 850    (64.1%)
+    Function Return Type         187 / 230    (81.3%)
+    Function Parameter Type       67 / 95     (70.5%)
+    Local Variable Type          353 / 525    (67.2%)
+    Total                        607 / 850    (71.4%)
 ```
 
 Inference-only (no codegen/compile), so the whole micro set finishes in seconds off one warm backend.

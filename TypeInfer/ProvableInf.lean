@@ -11,9 +11,9 @@ reals — gives a real top and bottom **constructed from ℝ, with NO axiom**, a
 theorems below hold by construction. (These are `noncomputable` — they live in specs/proofs; the
 runtime keeps the computable Float/`ℚ` representations.)
 
-This lives in its own file (not `TypeInfer/Theorems.lean`) so that the lattice-correctness theorems,
-which need only Lean core, are not slowed by compiling Mathlib's `EReal`. Like `Theorems.lean` it is
-off the default build path — check it with `lake build TypeInfer.ProvableInf`. -/
+This lives in its own file (not the `TypeInfer/Theorem/` proofs) so that the lattice-correctness
+theorems, which need only Lean core, are not slowed by compiling Mathlib's `EReal`. Like the `Theorem/`
+files it is off the default build path — check it with `lake build TypeInfer.ProvableInf`. -/
 
 namespace PastaLean
 

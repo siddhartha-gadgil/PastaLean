@@ -840,8 +840,8 @@ Transpiled, compiled, and *run* across two full benchmarks — the Lean twin's a
 
 ```html
 <div class="stats">
-  <div class="stat">&gt;90%<small>~2,370 problems compile</small></div>
-  <div class="stat">&gt;95%<small>test cases pass</small></div>
+  <div class="stat">&gt;92%<small>2,391 problems compile</small></div>
+  <div class="stat">&gt;97%<small>test cases pass</small></div>
 </div>
 ```
 
@@ -849,8 +849,8 @@ Transpiled, compiled, and *run* across two full benchmarks — the Lean twin's a
 
 ```html
 <div class="stats">
-  <div class="stat">98.9%<small>test cases pass · 4,773 / 4,827</small></div>
-  <div class="stat">95<small>solutions fully correct</small></div>
+  <div class="stat">92.1%<small>151 / 164 compile</small></div>
+  <div class="stat">100%<small>test cases pass · 7,007 / 7,007</small></div>
 </div>
 ```
 

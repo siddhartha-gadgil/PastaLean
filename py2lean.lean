@@ -53,16 +53,8 @@ def runTranslateTask (jsonTask : Json) (ctx : Core.Context) (env : Environment) 
   -- failure to codegen, which then reports a confusing "no 'node_type' field" instead.
   let .ok json := jsonTask.getObjVal? "ast"
     | return errorResponse "Invalid JSON: missing 'ast' field"
-  -- Reference semantics (`--heap`): explicit via the task flag, OR best-effort AUTO-DETECTED when the
-  -- program mutates a recursive structure through a cursor (trie / linked list / tree) — value
-  -- semantics copies the cursor and silently drops those writes, so heap is the only correct lowering.
-  -- Off otherwise keeps the value-semantics path byte-identical.
-  -- Auto-detect only on a WHOLE module (a one-shot `translate`); the driver sends per-statement tasks
-  -- where the cursor pattern lives only in the class, so it detects on the whole module Python-side and
-  -- passes `heap` consistently to every statement — a per-statement auto-detect would be inconsistent.
-  let explicitHeap := jsonTask.getObjValAs? Bool "heap" |>.toOption.getD false
-  let autoHeap := TypeInfer.nodeTypeOf json == some "Module" && TypeInfer.astNeedsHeap json
-  PastaLean.heapModeRef.set (explicitHeap || autoHeap)
+  -- Reference semantics (`--heap`): opt-in via the task flag only. Off keeps the value-semantics path.
+  PastaLean.heapModeRef.set (jsonTask.getObjValAs? Bool "heap" |>.toOption.getD false)
   -- The whole-module `inferTypes` pass (run by the driver) marks each statement `_inferred`; only fall
   -- back to the context-free per-statement stamp when it did not run (a bare term, or on failure).
   let alreadyInferred := (json.getObjVal? "_inferred").toOption.isSome

@@ -82,9 +82,9 @@ COMMENT_PLACEHOLDER_RE = re.compile(
 )
 
 class ASTToJsonLeanVisitor(ASTToJsonLeanVisitorBase):
-    """Concrete visitor that implements the translation logic for a specific subset of Python syntax."""
-    pass  # For now, we only have BinOp, Constant, and Expr. We can add more visit methods as needed.
-        
+    """Concrete visitor; all translation logic lives in the base class."""
+    pass
+
 def configure_logging(verbose: bool) -> None:
     """Configure CLI logging, keeping normal runs quiet unless verbose is enabled."""
     level = logging.DEBUG if verbose else logging.WARNING
@@ -1629,7 +1629,8 @@ def translate_to_json(source_code, filepath=None, best_effort=False, infer_only=
         annotate_main_entrypoint(data)
     annotate_toplevel_state(data)
     annotate_if_assigned_names(data)        # inference reads if_assigned_names (hoist ascription)
-    logger.debug("Generated JSON IR: %s", json.dumps(data))
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Generated JSON IR: %s", json.dumps(data))
     return json.dumps(data)
 
 # Process-wide default backend, started lazily on first use. Callers that want an explicit
@@ -2077,11 +2078,9 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
     _RUN_SUFFIX, _USER_NAMES = "", []
     json_ir = translate_to_json(source_code, filepath, best_effort=best_effort)
     ast_json = json.loads(json_ir)
-    # Best-effort: if not explicitly on, auto-enable reference (`--heap`) semantics when the program
-    # mutates a recursive structure through a cursor (trie / linked list / tree). Value semantics copies
-    # the cursor and silently drops those writes; heap threads them through the shared structure.
-    if not heap and _module_needs_heap(ast_json):
-        heap = True
+    # Reference (`--heap`) semantics are opt-in only. `_module_needs_heap` is kept as a discovery tool
+    # (a caller/harness can pass `heap=True` for the trie/linked-list problems it flags), but it never
+    # flips the mode on its own: auto-enabling surprised value-semantics programs.
     _HEAP_MODE = heap
     _stamp_class_dispatch(ast_json)
     client = client or _LEAN_BACKEND

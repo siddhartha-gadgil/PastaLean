@@ -259,6 +259,12 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def cmd_typeinfer(args) -> int:
+    from .typeinfer.cli import run
+
+    return run(args)
+
+
 def cmd_libraries(args) -> int:
     from .api import supported_libraries
 
@@ -345,6 +351,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_translation_flags(p_serve)
     p_serve.set_defaults(func=cmd_serve)
+
+    p_typeinfer = sub.add_parser(
+        "typeinfer",
+        help="Infer Python types with the TypeInfer engine (no Lean compile).",
+        description="Run the standalone `typeinfer` engine over a Python file — or a whole directory "
+                    "— and emit the inferred types for parameters, returns, local variables, and "
+                    "class fields. Inference only: no code generation, no Mathlib boot, and the "
+                    "engine batches/repo-infers across cores in one process. Default output is the "
+                    "source with PEP 484 annotations injected. Give a DIRECTORY to cross-file-infer "
+                    "the whole repo (one Lean fixpoint, imports resolved) and write an annotated copy.",
+    )
+    from .typeinfer.cli import add_arguments as _typeinfer_args
+    _typeinfer_args(p_typeinfer)
+    p_typeinfer.set_defaults(func=cmd_typeinfer)
 
     p_libs = sub.add_parser("libraries", help="List Python libraries with a Lean shim.")
     p_libs.set_defaults(func=cmd_libraries)

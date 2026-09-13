@@ -10,10 +10,14 @@ maps go to the exe's `scoreRepo` task, which computes TypeSim / exact / missing 
 
 Function params and returns align exactly (signatures survive desugar/SSA); locals are matched by name
 (SSA `x'v1`→`x`), a best-effort subset. Usage:
-    python typybench_bench/score.py <dataset_dir> [--workers 32] [--repo NAME]
+    python typybench_bench/score.py <dataset_dir> [--parallel-repos N] [--repo NAME]
+
+`--parallel-repos` is how many PROJECTS run at once (default 1: one at a time, each using the whole
+machine); it is NOT a thread count. Threads-per-project are sized automatically.
 """
 from __future__ import annotations
 import argparse, json, os, subprocess, sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from multiprocessing import Pool
 
@@ -376,10 +380,16 @@ def extract_types(ir: dict, module: str, gt: bool) -> dict:
     return out
 
 
-def _exe_call(task: dict, timeout: int = 180) -> dict:
+# Threads each exe gets, sized in main() as cores/active-projects: with N projects scored in
+# parallel, each spawns its own exe, so a fixed 64 would oversubscribe cores N-fold and thrash. Full
+# core count when only one project is in flight.
+EXE_THREADS = min(os.cpu_count() or 8, 64)
+
+
+def _exe_call(task: dict, timeout: int = 180, threads: int | None = None) -> dict:
     """One request to the exe (server mode; EOF after the request makes it exit), timeout-guarded."""
     proc = subprocess.Popen([EXE, "--server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                            text=True, env={**os.environ, "LEAN_NUM_THREADS": str(min(os.cpu_count() or 8, 64))})
+                            text=True, env={**os.environ, "LEAN_NUM_THREADS": str(threads or EXE_THREADS)})
     try:
         out, _ = proc.communicate(json.dumps(task) + "\n", timeout=timeout)
         return json.loads(out.splitlines()[0]) if out.strip() else {}
@@ -388,14 +398,28 @@ def _exe_call(task: dict, timeout: int = 180) -> dict:
         return {}
 
 
+# When one repo is in flight (across-repo Pool of size 1) we have the whole machine, so a big repo's
+# chunks run as parallel exe processes — a single inferRepo call caps at ~7-8 cores (Lean's task
+# scheduler contends on one heap), several processes scale past that. Off when repos run in parallel
+# (each worker already owns a core slice; within-repo fan-out would oversubscribe). Chunk boundaries
+# are unchanged, so results are identical either way.
+WITHIN_REPO_PARALLEL = False
+
+
 def infer_repo(mods: dict, chunk: int = 120) -> dict:
     """Infer in chunks so one module that crashes/overflows the exe only loses its chunk, not the
     whole repo. Per-module inference is chunk-independent, so this changes nothing but robustness."""
     items = list(mods.items())
+    subs = [dict(items[i:i + chunk]) for i in range(0, len(items), chunk)]
     out = {}
-    for i in range(0, len(items), chunk):
-        sub = dict(items[i:i + chunk])
-        out.update(_exe_call({"task": "inferRepo", "modules": sub}).get("modules", {}))
+    if WITHIN_REPO_PARALLEL and len(subs) > 1:
+        threads = max(2, EXE_THREADS // len(subs))
+        with ThreadPoolExecutor(max_workers=len(subs)) as ex:
+            for r in ex.map(lambda s: _exe_call({"task": "inferRepo", "modules": s}, threads=threads), subs):
+                out.update(r.get("modules", {}))
+    else:
+        for sub in subs:
+            out.update(_exe_call({"task": "inferRepo", "modules": sub}).get("modules", {}))
     return out
 
 
@@ -460,6 +484,153 @@ def pred_pyre(untyped: Path) -> dict:
     return pred
 
 
+def pred_pytype(untyped: Path) -> dict:
+    """Prediction from Google's `pytype`: run `pytype-single` per file (whole-repo mode collides on
+    duplicate module names in real projects), `merge-pyi` the inferred stub back into the source copy,
+    then read the annotations back the same way ground truth is read. Per-file with a pythonpath at the
+    repo root so sibling imports resolve as far as pytype can without a prebuilt import graph."""
+    import tempfile, shutil
+    from concurrent.futures import ThreadPoolExecutor
+    tmp = Path(tempfile.mkdtemp())
+    dst = tmp / "repo"
+    shutil.copytree(untyped, dst)
+    root = dst
+    for sub in ("src", "lib"):
+        if (root / sub).is_dir():
+            root = root / sub
+    pt = str(Path(sys.executable).parent / "pytype-single")
+    if not Path(pt).exists():
+        import shutil as _sh
+        pt = _sh.which("pytype-single") or "pytype-single"
+    env = {**os.environ, "PYTHONPATH": str(root)}
+
+    def annotate(py: Path):
+        stub = py.with_suffix(".pyi.pt")
+        try:
+            r = subprocess.run([pt, str(py), "-o", str(stub), "-V", "3.10", "-P", str(root)],
+                               capture_output=True, timeout=120, env=env)
+            if stub.exists():
+                subprocess.run(["merge-pyi", "-i", str(py), str(stub)], capture_output=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            pass
+        finally:
+            if stub.exists():
+                stub.unlink()
+
+    files = list(dst.rglob("*.py"))
+    with ThreadPoolExecutor(max_workers=min(EXE_THREADS, 32)) as ex:
+        list(ex.map(annotate, files))
+    pred = {}
+    for py in files:
+        m = module_name(py.relative_to(dst))
+        if not m or m.startswith("."):
+            continue
+        ir = raw_ir(py)
+        if ir:
+            pred.update(extract_types(ir, m, gt=True))
+    shutil.rmtree(tmp, ignore_errors=True)
+    return pred
+
+
+def pred_hityper(untyped: Path) -> dict:
+    """Prediction from HiTyper (static, hybrid) type inference. HiTyper writes a per-file
+    `*_INFERREDTYPES.json` (function→{arg,local,return}→type STRING) rather than annotating source, so
+    we parse those JSONs and convert each type string to an IR type-node via `_type_node`, keyed like
+    `extract_types` (module::func@arg / ::return / module::scope::var)."""
+    import tempfile, shutil, re as _re
+    tmp = Path(tempfile.mkdtemp())
+    dst = tmp / "repo"
+    shutil.copytree(untyped, dst)
+    out = tmp / "hityper_out"
+    out.mkdir()
+    import shutil as _sh
+    hityper = os.environ.get("HITYPER_BIN") or _sh.which("hityper") or "hityper"
+    try:
+        subprocess.run([hityper, "infer", "-p", str(dst), "-d", str(out), "-n", "1"],
+                       capture_output=True, timeout=3600)
+    except subprocess.TimeoutExpired:
+        pass
+    pred = {}
+    for jf in out.rglob("*_INFERREDTYPES.json"):
+        try:
+            data = json.loads(jf.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        # HiTyper keys files by absolute path; recover module from the path under dst.
+        for fpath, funcs in data.items():
+            try:
+                m = module_name(Path(fpath).resolve().relative_to(dst.resolve()))
+            except ValueError:
+                m = module_name(Path(fpath).name and Path(fpath))
+            if not m or m.startswith("."):
+                continue
+            _hityper_file(pred, m, funcs)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return pred
+
+
+def _hityper_file(pred: dict, module: str, funcs) -> None:
+    """Fold one HiTyper file entry ({func-scope-key: [ {category, name, type}, ... ]}) into `pred`.
+    Scope keys look like `funcname@lineno` or `global@global`; we take the function name before `@`."""
+    if not isinstance(funcs, dict):
+        return
+    for scope_key, slots in funcs.items():
+        fn = scope_key.split("@")[0]
+        is_global = fn in ("global", "")
+        if not isinstance(slots, list):
+            continue
+        for s in slots:
+            if not isinstance(s, dict):
+                continue
+            cat, name, tystr = s.get("category"), s.get("name"), s.get("type")
+            node = _type_node(tystr[0] if isinstance(tystr, list) and tystr else tystr)
+            if node is None or _is_unknown(node):
+                continue
+            if cat == "arg" and not is_global and name not in (None, "self", "cls"):
+                pred[f"{module}::{fn}@{name}"] = node
+            elif cat == "return" and not is_global:
+                pred[f"{module}::{fn}::return"] = node
+            elif cat == "local" and name:
+                scope = "" if is_global else fn
+                pred[f"{module}::{scope}::{name}"] = node
+
+
+_TYPE_NODE_CACHE: dict = {}
+
+
+def _type_node(tystr):
+    """Convert a type STRING (e.g. `List[int]`, `str`, `Optional[Foo]`) to the same IR type-node the
+    scorer compares, by annotating a throwaway var and reading its `annotation` back through raw_ir.
+    Cached; returns None for empty/None/unparseable strings."""
+    if not tystr or not isinstance(tystr, str):
+        return None
+    s = tystr.strip()
+    if s in ("", "None", "Any", "typing.Any", "nan"):
+        return None
+    if s in _TYPE_NODE_CACHE:
+        return _TYPE_NODE_CACHE[s]
+    node = None
+    try:
+        import ast as _ast
+        _ast.parse(f"def _f() -> {s}: ...")  # reject anything that isn't a valid annotation
+        ir = raw_ir_text(f"def _f() -> {s}:\n    pass\n")
+        if ir:
+            got = extract_types(ir, "_m", gt=True)
+            node = got.get("_m::_f::return")
+    except Exception:  # noqa: BLE001
+        node = None
+    _TYPE_NODE_CACHE[s] = node
+    return node
+
+
+def raw_ir_text(text: str):
+    try:
+        return json.loads(driver.translate_to_json(text, "<syn>", best_effort=True,
+                                                    infer_only=True, resolve_imports=False))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def score_repo(repo: Path) -> dict:
     orig, untyped = repo / "original_repo", repo / "repo_without_types"
     for sub in ("src", "lib"):  # get_repo_similarity descends into src/lib — do it for BOTH so the
@@ -478,11 +649,18 @@ def score_repo(repo: Path) -> dict:
             gt.update(extract_types(ir, m, gt=True))
     if not gt:
         return {"repo": repo.name, "total": 0}
-    # prediction
+    # prediction (timed: this is the only tool-dependent work; GT-gen and scoring are identical
+    # across tools, so the fair per-tool time is the sum of these prediction spans over all repos).
+    import time as _time
+    _t0 = _time.perf_counter()
     if TOOL == "pyrefly":
         pred = pred_pyrefly(untyped)
     elif TOOL == "pyre":
         pred = pred_pyre(untyped)
+    elif TOOL == "pytype":
+        pred = pred_pytype(untyped)
+    elif TOOL == "hityper":
+        pred = pred_hityper(untyped)
     else:
         mods = {}
         for py in untyped.rglob("*.py"):
@@ -502,11 +680,12 @@ def score_repo(repo: Path) -> dict:
         # (a predicate `X == Y and Z` is `bool`, etc.) — the RIGHT fix for spurious `None`s: infer the
         # correct type rather than drop the prediction.
         apply_structural_returns(pred, structural_returns(untyped))
+    pred_time = _time.perf_counter() - _t0
     res = score_maps(gt, pred)
     total = res.get("total", 0)
     sim = float(res.get("sum_sim", "0"))
     return {"repo": repo.name, "total": total, "exact": res.get("exact", 0),
-            "missing": res.get("missing", 0),
+            "missing": res.get("missing", 0), "pred_time": pred_time,
             "typesim": round(sim / total, 4) if total else 0.0,
             "exact_score": round(res.get("exact", 0) / total, 4) if total else 0.0,
             "coverage": round((total - res.get("missing", 0)) / total, 4) if total else 0.0}
@@ -515,20 +694,41 @@ def score_repo(repo: Path) -> dict:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dataset", type=Path)
-    ap.add_argument("--workers", type=int, default=32)
+    # How many PROJECTS to score at once (NOT threads: each project internally uses all cores it can).
+    # Default 1 = one project at a time, each with the whole machine (full throttle), which is the
+    # linear-sum timing the paper reports. `--workers` kept as a backward-compatible alias.
+    ap.add_argument("--parallel-repos", "--workers", dest="parallel_repos", type=int, default=1,
+                    metavar="N", help="Number of projects to score concurrently (default 1: one at a "
+                                      "time, each project using the whole machine). NOT a thread count.")
     ap.add_argument("--repo", default=None)
-    ap.add_argument("--tool", choices=("pastalean", "pyrefly", "pyre"), default="pastalean")
+    ap.add_argument("--tool", choices=("pastalean", "pyrefly", "pyre", "pytype", "hityper"),
+                    default="pastalean")
     args = ap.parse_args()
-    global TOOL
+    global TOOL, EXE_THREADS, WITHIN_REPO_PARALLEL
     TOOL = args.tool
-    repos = sorted(p for p in args.dataset.iterdir()
-                   if (p / "repo_without_types").is_dir() and (args.repo is None or p.name == args.repo))
+    repos = [p for p in args.dataset.iterdir()
+             if (p / "repo_without_types").is_dir() and (args.repo is None or p.name == args.repo)]
+    # Largest repo first (by untyped source bytes) so the longest pole starts in the first wave and
+    # never tails the run; and size each exe's thread pool to cores/active-projects to avoid N-fold
+    # thread oversubscription when N projects infer concurrently.
+    def _bytes(p: Path) -> int:
+        return sum(f.stat().st_size for f in (p / "repo_without_types").rglob("*.py"))
+    repos.sort(key=_bytes, reverse=True)
+    n_active = min(args.parallel_repos, len(repos)) or 1
+    EXE_THREADS = max(1, (os.cpu_count() or 8) // n_active)
+    # One project at a time (linear-sum timing): give each project the whole machine by fanning its
+    # chunks across parallel exe processes. With projects already parallel, leave it off.
+    WITHIN_REPO_PARALLEL = (n_active == 1)
     results = ([score_repo(repos[0])] if len(repos) == 1
-               else Pool(args.workers).map(score_repo, repos))
+               else Pool(args.parallel_repos).map(score_repo, repos, chunksize=1))
     results = [r for r in results if r.get("total")]
-    print(f"\n{'repo':<22}{'vars':>7}{'TypeSim':>9}{'Exact':>8}{'Cover':>8}")
+    print(f"\n{'repo':<22}{'vars':>7}{'TypeSim':>9}{'Exact':>8}{'Cover':>8}{'Time(s)':>9}")
     for r in sorted(results, key=lambda r: -r["total"]):
-        print(f"{r['repo']:<22}{r['total']:>7}{r['typesim']:>9.3f}{r['exact_score']:>8.3f}{r['coverage']:>8.3f}")
+        print(f"{r['repo']:<22}{r['total']:>7}{r['typesim']:>9.3f}{r['exact_score']:>8.3f}"
+              f"{r['coverage']:>8.3f}{r.get('pred_time', 0.0):>9.2f}")
+    time_sum = sum(r.get("pred_time", 0.0) for r in results)
+    print(f"\nTOTAL prediction time (sum over {len(results)} projects, each full throttle): "
+          f"{time_sum:.1f} s")
     tot = sum(r["total"] for r in results)
     if tot:
         wsim = sum(r["typesim"] * r["total"] for r in results) / tot

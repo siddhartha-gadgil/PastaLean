@@ -480,7 +480,12 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
       | .arr arr => pure arr
       | _ => throwError s!"Call node 'args' field is not an array: {argsJson}"
     if let some nonFinite ← nonFiniteFloatTerm? funcJson argsArray then
-      return nonFinite
+      -- Ascribe the polymorphic sentinel to its inferred `_ty` when TypeInfer pinned one (e.g. a
+      -- `float('inf')` element of a list appended to a `list[int]` slot → `(pyNonFinite "inf" : ℤ)`),
+      -- so it does not default to `ℚ`.
+      match ← (jsonFieldOption json "_ty").mapM (fun ann => pyTypeSyntax? (TypeInfer.ofAnnotation ann)) with
+      | some (some tyStx) => return ← `(($nonFinite : $tyStx))
+      | _ => return nonFinite
     let mut argsCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
 
     let .ok keyWordsJson := json.getObjVal? "keywords" | throwError

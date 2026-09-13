@@ -1,7 +1,8 @@
 import TypeInfer
--- The lattice-law verification (model `Ty` + its universal proofs) is kept off the `lake build`/
--- py2lean path (see `TypeInfer.lean`); import it here so `lake test` still checks it.
-import TypeInfer.Lattice
+-- The lattice-law verification (`TypeInfer.Theorem`: join is a bounded semilattice, `consistent` is a
+-- gradual-typing relation, `reconcile` is total — all proved on the real `PyType`) is kept off the
+-- `lake build`/py2lean path (see `TypeInfer.lean`); import it here so `lake test` still checks it.
+import TypeInfer.Theorem
 
 /-! Unit checks for the type lattice. Each `#guard` fails the build if it is false. -/
 

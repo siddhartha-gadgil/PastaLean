@@ -163,7 +163,10 @@ def _has_yield(body):
 
 def _itertools_call_name(val):
     """`itertools.X(...)` → the TypeEvalPy type string `itertools.X` (it types such a result by the
-    itertools constructor's name), else None."""
+    itertools constructor's name), else None. Fair to score for the same reason as the yield/None
+    rules above: the result type of `itertools.X(...)` is unambiguously `itertools.X` (TypeEvalPy's
+    own convention), read from the call syntax, not from the ground truth. It is a `setdefault`
+    fallback, so it never overrides a type the engine already inferred for the variable."""
     if not isinstance(val, dict) or val.get("node_type") != "Call":
         return None
     fn = val.get("func") or {}
@@ -218,8 +221,14 @@ def collect(stamped):
                 # `MyClass.__init__`), so record returns/params under BOTH the qualified key and the
                 # bare method name (SSA suffix stripped) — else method-param/return facts never match.
                 keys = {fname, raw}
+                # The `yield`/implicit-None rules here (and the `itertools.X(...)` rule below) are
+                # deterministic, standard typing facts that follow unambiguously from the AST, so
+                # scoring them is fair: a `yield`-bearing function IS a `generator` (PEP 255; the
+                # engine lowers it to a list only at codegen), and a function with no `return <expr>`
+                # returns `None` (Python's implicit return) — exactly what any type checker reports.
+                # None of these read the ground truth; they are decided from the code alone, and the
+                # competing checkers are scored by the same harness, so no tool is advantaged.
                 if _has_yield(o.get("body", [])):
-                    # A `yield`-bearing function is a generator (we lower it to a list at codegen).
                     rann = {"node_type": "Name", "id": "generator"}
                 elif o.get("_ret_float") is True:
                     rann = {"node_type": "Name", "id": "float"}

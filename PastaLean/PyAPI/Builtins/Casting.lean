@@ -130,6 +130,8 @@ instance : PyFloatCast Int where pyFloat x := floatOfInt x
 instance : PyFloatCast Nat where pyFloat x := Float.ofNat x
 instance : PyFloatCast Bool where
   pyFloat | true => 1.0 | false => 0.0
+-- `float(q)` on a rational (`float(float('inf'))`, or a run twin whose value stayed `ℚ`): its `Float`.
+instance : PyFloatCast Rat where pyFloat x := x.toFloat
 /-- `10.0 ^ n` built by repeated multiplication (avoids `Nat` overflow for the exponent). -/
 private def tenPowNat : Nat → Float
   | 0 => 1.0

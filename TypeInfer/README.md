@@ -268,7 +268,8 @@ the papers that say they are the ones that matter, drive exactly which theorems 
 | **`join` is the least upper bound** of the induced precision order `a ⊑ b := a⊔b = b` — the canonical, information-minimal merge | Davey & Priestley (2002) | `le_join_left`, `le_join_right` (upper bound) + `join_le` (least); order is a partial order: `le_refl`, `le_trans`, `le_antisymm` |
 | **`join` is monotone** ⇒ by Knaster–Tarski the fixpoint is a *least* fixpoint, so it exists, is unique, and terminates at bounded lattice height | Tarski, *A lattice-theoretical fixpoint theorem* (1955); Cousot & Cousot (1977) | `join_mono_left`, `join_mono_right`, `join_mono` |
 | **Semantic soundness** — an inferred type never lies about the runtime: every value the program produces lies in the inferred type's denotation (the inference analogue of "well-typed programs can't go wrong") | Milner, *A Theory of Type Polymorphism* (1978); Wright & Felleisen, *A Syntactic Approach to Type Soundness* (1994) | `HasType` + `hasType_join_tower`, `hasType_join_any` (the join over-approximates) — **numeric tower proven; general containers are the open frontier** |
-| **Gradual-typing consistency** for the dynamic type `PyAny` — reflexive, symmetric, and *non-transitive* (what separates gradual typing from subtyping) | Siek & Taha, *Gradual Typing for Functional Languages* (2006); Siek, Vitousek, Cimini & Boyland, *Refined Criteria for Gradual Typing* (2015) | `consistent_refl`, `consistent_symm`, `consistent_unknown`, `consistent_not_trans` (in `Lattice.lean`, on the model `Ty`) |
+| **Gradual-typing consistency** for the dynamic type `PyAny` — reflexive, symmetric, and *non-transitive* (what separates gradual typing from subtyping) | Siek & Taha, *Gradual Typing for Functional Languages* (2006); Siek, Vitousek, Cimini & Boyland, *Refined Criteria for Gradual Typing* (2015) | `consistent_refl`, `consistent_symm`, `consistent_unknown`, `consistent_not_trans` |
+| **`reconcile` is total** — every (expected, actual) pair maps to one of the finite intended coercions, so a value never gets "stuck" with no way to reach its slot | — | `reconcile_refl`, `reconcile_total` |
 
 **Two honest caveats, both surfaced *by* the proofs:**
 
@@ -281,13 +282,14 @@ the papers that say they are the ones that matter, drive exactly which theorems 
 - Semantic soundness is proved for the numeric tower `bool <: int <: float`; extending it to a general
   denotation over every container shape is the deepest remaining piece.
 
-**Model vs. production.** The semilattice, LUB and monotonicity laws (`Theorems.lean`) are proved on the
-**real** `PyType.join` — the one the engine runs, recursing over the actual `List PyType` in `tuple`/`fn`
-(via well-founded recursion and `grind`). The gradual-consistency laws (`Lattice.lean`) are proved on a
-faithful **model** type `Ty` (one subterm per constructor, so equations reduce cheaply); the same facts
-are cross-checked on the production functions with `native_decide`. `Theorems.lean` is deliberately **not
-imported into the default build** (its full-lattice associativity proof runs `grind` over every
-constructor triple, which is slow); build and re-check it on demand with `lake build TypeInfer.Theorems`.
+**All on the production functions.** Every law — the semilattice, LUB and monotonicity laws, the
+gradual-consistency laws, and `reconcile`'s totality — is proved on the **real** `PyType.join` /
+`consistent` / `reconcile` the engine runs, recursing over the actual `List PyType` in `tuple`/`fn` (the
+diagonal facts by well-founded recursion, the symmetric ones by each function's `.induct` principle, and
+full-lattice associativity by strong induction plus `grind`). There is no stand-in model. `Theorems.lean`
+is deliberately **not imported into the default build** (that associativity proof runs `grind` over every
+constructor triple, which is slow); it is compiled by `lake test` (via `TestLattice.lean`) and can be
+re-checked on demand with `lake build TypeInfer.Theorems`.
 
 ## Algorithm, complexity & prior art
 
@@ -307,7 +309,7 @@ climbs the lattice, it provably settles). Types are recovered three ways, in a f
    just to `list[unknown]`. This is the flow-/usage-driven inference of **Shed Skin** and Agesen's
    **Cartesian Product Algorithm** (Starkiller), specialised to the shapes PastaLean emits.
 3. **Gradual fallback** — a slot that stays `unknown` boxes to `PyAny`, the *Dynamic* type of **Siek &
-   Taha**'s gradual typing; `consistent` (proved non-transitive in `Lattice.lean`) is its consistency
+   Taha**'s gradual typing; `consistent` (proved non-transitive in `Theorems.lean`) is its consistency
    relation.
 
 **Complexity is deliberately linear-ish and cheap.** The reflow is capped at a small constant number
@@ -337,7 +339,7 @@ J. Palsberg & M. Schwartzbach, *Object-Oriented Type Inference* (OOPSLA 1991); a
 | `Emit.lean` | `toTypeSyntax?` — `PyType` → Lean type text |
 | `Rules.lean` | `typeOfExpr` / `applyStmt` — the type of an expression, and how a statement updates what's known |
 | `Solve.lean` | `inferFunction` (the per-function fixpoint), `collectSigs` / `inferModule` (the cross-function pass), and `stampNode` (write `_ty` back onto the IR) |
-| `Lattice.lean` | the proofs: the lattice laws, the partial order, and gradual-typing consistency |
+| `Theorems.lean` | the proofs: the lattice laws, the partial order, monotonicity, semantic soundness, gradual-typing consistency, and `reconcile` totality — all on the real `PyType` |
 
 The `PyAny` runtime fallback lives in `PastaLean/PyAPI/PyAny.lean`. Tests are in
 `PastaLeanTest/TypeInfer/TestLattice.lean` and `TestInfer.lean` (unit checks on the lattice and the
