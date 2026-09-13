@@ -19,7 +19,7 @@ Pipeline:
         - an ASCII report in the terminal (the 8x8 grid the net actually sees), and
         - `gallery.png`, a montage of the real digits annotated with truth / Python / Lean.
 
-    source /home/anirudhgupta/PastaLean/.venv/bin/activate
+    source PastaLean/.venv/bin/activate
     python3 example_scripts/showcase/cnn/run_showcase.py
 """
 

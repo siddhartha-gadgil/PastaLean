@@ -5,7 +5,7 @@ We grab a handful of genuine "0" and "1" digit images from the `ylecun/mnist` da
 the Hugging Face Hub (streamed, so we never pull the whole 60k-image archive) and save each
 one as an actual PNG under `data/`. Subsequent runs reuse the cached PNGs offline.
 
-    source /home/anirudhgupta/PastaLean/.venv/bin/activate
+    source PastaLean/.venv/bin/activate
     python3 example_scripts/showcase/cnn/fetch_data.py
 """
 

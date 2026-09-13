@@ -13,27 +13,27 @@ HumanEval compile report — 14 problems
 
 == per-problem (full errors) ==
 ----- ClosestInteger  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/ClosestInteger.lean:42:29: error: typeclass instance problem is stuck
+PastaLean/PastaBench/_report_gen/ClosestInteger.lean:42:29: error: typeclass instance problem is stuck
   PyRatCast ?m.6
 
 Note: Lean will not try to resolve this typeclass instance problem because the type argument to `PyRatCast` is a metavariable. This argument must be fully determined before Lean will try to resolve the typeclass.
 
 Hint: Adding type annotations and supplying implicit arguments to functions can give Lean more information for typeclass resolution. For example, if you have a variable `x` that you intend to be a `Nat`, but Lean reports it as having an unresolved type like `?m`, replacing `x` with `(x : Nat)` can get typeclass resolution un-stuck.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/ClosestInteger.lean:44:29: error(lean.unknownIdentifier): Unknown constant `closest_integer`
+PastaLean/PastaBench/_report_gen/ClosestInteger.lean:44:29: error(lean.unknownIdentifier): Unknown constant `closest_integer`
 
 ----- CountUpper  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/CountUpper.lean:31:17: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/CountUpper.lean:31:17: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyContains String PyAny
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/CountUpper.lean:35:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/CountUpper.lean:52:17: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/CountUpper.lean:35:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/CountUpper.lean:52:17: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyContains String PyAny
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- DoAlgebra  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/DoAlgebra.lean:49:39: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/DoAlgebra.lean:49:39: error: Application type mismatch: The argument
   exp
 has type
   PyAny
@@ -41,8 +41,8 @@ but is expected to have type
   String
 in the application
   pyEval exp
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/DoAlgebra.lean:52:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/DoAlgebra.lean:87:39: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/DoAlgebra.lean:52:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/DoAlgebra.lean:87:39: error: Application type mismatch: The argument
   exp
 has type
   PyAny
@@ -52,65 +52,65 @@ in the application
   pyEval exp
 
 ----- Encode  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:47:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/Encode.lean:47:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:50:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Encode.lean:79:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/Encode.lean:50:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/Encode.lean:79:39: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- FindZero  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/FindZero.lean:78:13: error: invalid reassignment, value has type
+PastaLean/PastaBench/_report_gen/FindZero.lean:78:13: error: invalid reassignment, value has type
   PyAny
 but is expected to have type
   ℤ
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/FindZero.lean:81:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/FindZero.lean:112:13: error: invalid reassignment, value has type
+PastaLean/PastaBench/_report_gen/FindZero.lean:81:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/FindZero.lean:112:13: error: invalid reassignment, value has type
   PyAny
 but is expected to have type
   ℤ
 
 ----- HexKey  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/HexKey.lean:36:37: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/HexKey.lean:36:37: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/HexKey.lean:38:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/HexKey.lean:60:37: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/HexKey.lean:38:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/HexKey.lean:60:37: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- Iscube  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Iscube.lean:32:38: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/Iscube.lean:32:38: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyHPow ℤ ℚ Float
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Iscube.lean:34:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/Iscube.lean:34:11: warning: declaration uses `sorry`
 
 ----- RemoveVowels  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/RemoveVowels.lean:37:23: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/RemoveVowels.lean:37:23: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/RemoveVowels.lean:39:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/RemoveVowels.lean:62:23: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/RemoveVowels.lean:39:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/RemoveVowels.lean:62:23: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- ReverseDelete  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/ReverseDelete.lean:29:71: error: typeclass instance problem is stuck
+PastaLean/PastaBench/_report_gen/ReverseDelete.lean:29:71: error: typeclass instance problem is stuck
   PyContains (?m.32 s) PyAny
 
 Note: Lean will not try to resolve this typeclass instance problem because the first type argument to `PyContains` contains metavariables. This argument must be fully determined before Lean will try to resolve the typeclass.
 
 Hint: Adding type annotations and supplying implicit arguments to functions can give Lean more information for typeclass resolution. For example, if you have a variable `x` that you intend to be a `Nat`, but Lean reports it as having an unresolved type like `?m`, replacing `x` with `(x : Nat)` can get typeclass resolution un-stuck.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/ReverseDelete.lean:32:29: error(lean.unknownIdentifier): Unknown constant `reverse_delete`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/ReverseDelete.lean:47:71: error: typeclass instance problem is stuck
+PastaLean/PastaBench/_report_gen/ReverseDelete.lean:32:29: error(lean.unknownIdentifier): Unknown constant `reverse_delete`
+PastaLean/PastaBench/_report_gen/ReverseDelete.lean:47:71: error: typeclass instance problem is stuck
   PyContains (?m.32 s) PyAny
 
 Note: Lean will not try to resolve this typeclass instance problem because the first type argument to `PyContains` contains metavariables. This argument must be fully determined before Lean will try to resolve the typeclass.
@@ -118,7 +118,7 @@ Note: Lean will not try to resolve this typeclass instance problem because the f
 Hint: Adding type annotations and supplying implicit arguments to functions can give Lean more information for typeclass resolution. For example, if you have a variable `x` that you intend to be a `Nat`, but Lean reports it as having an unresolved type like `?m`, replacing `x` with `(x : Nat)` can get typeclass resolution un-stuck.
 
 ----- Solve161  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Solve161.lean:35:59: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/Solve161.lean:35:59: error: Application type mismatch: The argument
   ch
 has type
   PyAny
@@ -126,7 +126,7 @@ but is expected to have type
   String
 in the application
   pyIsAlpha ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Solve161.lean:37:53: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/Solve161.lean:37:53: error: Application type mismatch: The argument
   ch
 has type
   PyAny
@@ -134,8 +134,8 @@ but is expected to have type
   String
 in the application
   pyStringSwapcase ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Solve161.lean:45:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Solve161.lean:66:59: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/Solve161.lean:45:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/Solve161.lean:66:59: error: Application type mismatch: The argument
   ch
 has type
   PyAny
@@ -143,7 +143,7 @@ but is expected to have type
   String
 in the application
   pyIsAlpha ch
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/Solve161.lean:68:53: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/Solve161.lean:68:53: error: Application type mismatch: The argument
   ch
 has type
   PyAny
@@ -153,22 +153,22 @@ in the application
   pyStringSwapcase ch
 
 ----- SortedListSum  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/SortedListSum.lean:39:2: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/SortedListSum.lean:39:2: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable (List PyAny) String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/SortedListSum.lean:42:29: error(lean.unknownIdentifier): Unknown constant `sorted_list_sum`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/SortedListSum.lean:65:2: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/SortedListSum.lean:42:29: error(lean.unknownIdentifier): Unknown constant `sorted_list_sum`
+PastaLean/PastaBench/_report_gen/SortedListSum.lean:65:2: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable (List PyAny) String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
 
 ----- StrongestExtension  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/StrongestExtension.lean:53:49: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/StrongestExtension.lean:53:49: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/StrongestExtension.lean:55:49: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/StrongestExtension.lean:55:49: error: Application type mismatch: The argument
   e
 has type
   PyAny
@@ -176,12 +176,12 @@ but is expected to have type
   String
 in the application
   _Strongest_Extension'strength e
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/StrongestExtension.lean:60:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/StrongestExtension.lean:97:49: error(lean.synthInstanceFailed): failed to synthesize instance of type class
+PastaLean/PastaBench/_report_gen/StrongestExtension.lean:60:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/StrongestExtension.lean:97:49: error(lean.synthInstanceFailed): failed to synthesize instance of type class
   PyIterable PyAny String
 
 Hint: Type class instance resolution failures can be inspected with the `set_option trace.Meta.synthInstance true` command.
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/StrongestExtension.lean:99:52: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/StrongestExtension.lean:99:52: error: Application type mismatch: The argument
   e
 has type
   PyAny
@@ -191,7 +191,7 @@ in the application
   _Strongest_Extension'strength'rn e
 
 ----- TriangleArea71  [compile_fail] -----
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:33:45: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/TriangleArea71.lean:33:45: error: Application type mismatch: The argument
   (p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5
 has type
   PyAny
@@ -199,8 +199,8 @@ but is expected to have type
   ℝ
 in the application
   pyRoundDigits ((p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5)
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:35:11: warning: declaration uses `sorry`
-/home/anirudhgupta/PastaLean/PastaBench/_report_gen/TriangleArea71.lean:54:45: error: Application type mismatch: The argument
+PastaLean/PastaBench/_report_gen/TriangleArea71.lean:35:11: warning: declaration uses `sorry`
+PastaLean/PastaBench/_report_gen/TriangleArea71.lean:54:45: error: Application type mismatch: The argument
   (p *ₚ (p -ₚ a) *ₚ (p -ₚ b) *ₚ (p -ₚ c)) ^ₚ 0.5
 has type
   PyAny

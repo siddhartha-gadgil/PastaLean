@@ -6,7 +6,7 @@
 #   bash PastaBench/pastaeval.sh numpy
 # Do NOT run a concurrent `lake build`/`regen` — a warm backend + parallel `lake env lean` share oleans.
 set -euo pipefail
-cd /home/anirudhgupta/PyAstLean
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source .venv/bin/activate
 lake build py2lean >/dev/null 2>&1 || true
 exec python3 PastaBench/pastaeval.py "$@"

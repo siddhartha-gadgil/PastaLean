@@ -1,5 +1,5 @@
 {
-  "source_dataset": "/home/anirudhgupta/PyAstLean/cp_harness/dataset_leetcode",
+  "source_dataset": "PyAstLean/cp_harness/dataset_leetcode",
   "source_hf_repo": "newfacade/LeetCodeDataset",
   "seed": 20260722,
   "curated": {

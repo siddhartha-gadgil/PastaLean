@@ -7,8 +7,6 @@
 
 PastaLean is a tool that transpiles and verifies Python code into Lean 4. As the name suggests, this tool is not just for a small use-case but for all(not actually all, but as much as possible) Python code and it's behaviors. Modelling Python code in Lean 4 can be extremely annoying since it's a dynamically typed and, well, Python trying to make life easy for everyday users, harder for us.
 
-For an overview of the project, see this [presentation](https://anirudhg07.github.io/presentations/pastalean/).
-This work was presented at [Summer School: LeanLang for Programming 2026](https://east.emergence.ai/summerschool-july2026.html).
 
 > PastaLean originates from "PyAstLean"(which mean Python to Lean via AST). Who doesn't love Pasta. It's Pasta for all, which if you didn't yet guess, comes from the Lean's "for all" logo.
 
@@ -36,7 +34,7 @@ This work was presented at [Summer School: LeanLang for Programming 2026](https:
 
 ## How it works?
 
-A nice explanation of how PastaLean works can be found in the [presentation](https://anirudhg07.github.io/presentations/pastalean/). Let's give a brief overview here.
+Let's give a brief overview of how PastaLean works here.
 
 ### Some Unique Python Features and How we handle them
 
@@ -389,8 +387,8 @@ If you would like to use this as a Library, you can install it by adding it in y
 
 ```toml
 [[require]]
-name = "PyAstLean"
-scope = "siddhartha-gadgil"
+name = "PastaLean"
+scope = "<scope>"
 rev = "v4.31.0"
 ```
 

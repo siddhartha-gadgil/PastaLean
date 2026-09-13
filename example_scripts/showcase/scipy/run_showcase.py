@@ -6,7 +6,7 @@ This orchestrator streams the parameters on stdin, runs the model two ways (CPyt
 SciPy, and transpiled to Lean 4 by PastaLean), checks the two trajectories agree, and animates
 the drug accumulating to steady state -- with the Python and Lean curves overlaid.
 
-    source /home/anirudhgupta/PastaLean/.venv/bin/activate
+    source PastaLean/.venv/bin/activate
     python3 example_scripts/showcase/scipy/run_showcase.py
 """
 
