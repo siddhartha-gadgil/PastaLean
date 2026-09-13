@@ -39,22 +39,9 @@ state := "title"
 _Transpiling_ and _Verifying_ Python in Lean 4 — without LLMs
 :::
 
-:::class "byline"
-*Anirudh Gupta* · IISc Bengaluru
-
-*Petros Markopoulos* · UC San Diego
-
-*Swarnava Chakraborty* · IISc Bengaluru
-
-*Siddhartha Gadgil* · Professor · IISc Bengaluru
-:::
 
 :::class "timeDay"
 {timeDay}`·`
-:::
-
-:::class "links"
-[GitHub PyAstLean](https://github.com/siddhartha-gadgil/PyAstLean)
 :::
 
 # Overview
@@ -861,7 +848,6 @@ state := "showcase"
 vertical := some true
 %%%
 
-Real programs — _transpiled_, _type-checked_, and (for the pure parts) _proved_. Full code on [_GitHub_](https://github.com/AnirudhG07/PyAstLean/tree/master/example_scripts/showcase).
 
 ```html
 <div class="stats">
