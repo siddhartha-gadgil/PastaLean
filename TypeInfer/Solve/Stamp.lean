@@ -274,6 +274,44 @@ def stampCallableParams (fn : Json) : Json :=
       | _ => fn
   | _ => fn
 
+/-- Benchmark-only: a parameter whose DEFAULT is `None` is nullable, so its inferred type `T` is
+really `Optional[T]` (`def show(flag=None)` called as `show(True)` is `Optional[bool]`). Recorded as
+`_bench_ty`, never `_ty` — widening the param itself would make every body use of it an Option unwrap
+that codegen has no evidence for, whereas the *type* of the slot genuinely is the union. An explicit
+annotation wins, and an already-`Optional` / `None` type is left alone. -/
+def stampNoneDefaultOptional (fn : Json) : Json :=
+  let isNoneDefault (d : Json) : Bool :=
+    nodeTypeOf d == some "Constant" && (getField d "value") == some Json.null
+  let widen (arg : Json) (d : Json) : Json :=
+    if !isNoneDefault d then arg
+    else if (match getField arg "annotation" with | some a => !a.isNull | none => false) then arg
+    else
+      let cur := match (getField arg "_bench_ty").orElse (fun _ => getField arg "_ty") with
+        | some a => ofAnnotation a
+        | none => PyType.unknown
+      match cur with
+      | .opt _ | .none | .unknown => arg
+      | t => match toAnnotation? (PyType.opt (containerFillAny t)) with
+             | some ann => arg.setObjVal! "_bench_ty" ann
+             | none => arg
+  let widenGroup (args : Json) (argsKey defaultsKey : String) (tailAligned : Bool) : Json :=
+    let arr := (args.getObjValAs? (Array Json) argsKey).toOption.getD #[]
+    let defs := (args.getObjValAs? (Array Json) defaultsKey).toOption.getD #[]
+    if arr.isEmpty || defs.isEmpty then args else
+    -- `defaults` covers the TAIL of the positional params; `kw_defaults` is index-aligned (with
+    -- `null` where a keyword-only param has none).
+    let offset := if tailAligned then arr.size - defs.size else 0
+    args.setObjVal! argsKey (Json.arr (arr.mapIdx fun i a =>
+      match defs[i - offset]? with
+      | some d => if i ≥ offset then widen a d else a
+      | none => a))
+  match fn.getObjVal? "args" with
+  | .ok args =>
+      let args := widenGroup args "args" "defaults" true
+      let args := widenGroup args "kwonlyargs" "kw_defaults" false
+      fn.setObjVal! "args" args
+  | _ => fn
+
 /-- Mark every `t[k]` where `t` is a tuple-typed name (`tuple[a, b, …]`) with its arity
 (`_PastaLean_tuple_arity`), so the subscript codegen static-projects the exact slot instead of
 `pyGetItem` (which has no instance for a heterogeneous product). Does not descend into a nested `def`
@@ -844,6 +882,179 @@ partial def stampArraySeqs (eligible : Std.HashSet String) (json : Json) : Json 
       else recurse
     else recurse
 
+/-! ### In-bounds refinement: `for i in range(len(xs))` proves `xs[i]` safe
+
+The lowering itself lives in `PastaLean.PyAPI.Refinement`; this pass only decides WHERE it is sound.
+Everything below is a disqualifier, because the refinement is a claim about the whole loop: if `xs`
+can change length, or `i` can stop being the loop's index, the proof the generator emits is about the
+wrong value. -/
+
+/-- Does anything in `json` change `name`'s VALUE — a rebinding (`xs = …`, `for xs in …`, `del xs`),
+a method call on it (`xs.append(v)`; any method, since a user class could mutate through one), or an
+indexed store (`xs[i] = v`)? Descends into nested defs on purpose: being wrong here is unsound, and
+a false alarm only costs the refinement. -/
+partial def nameMutatedAnywhere (name : String) (json : Json) : Bool :=
+  -- Peel a store target's `Subscript`/`Attribute` spine: `xs[i][j] = v` and `xs.f = v` both write
+  -- through `xs`, so the base name is what matters, not just a one-level `xs[i]`.
+  let rec targetRoot? (t : Json) (fuel : Nat) : Option String :=
+    match fuel with
+    | 0 => none
+    | fuel + 1 =>
+      match nodeTypeOf t with
+      | some "Name" => nameId? t
+      | some "Subscript" | some "Attribute" | some "Starred" =>
+          (getField t "value").bind (targetRoot? · fuel)
+      | _ => none
+  let rec storeHit (t : Json) (fuel : Nat) : Bool :=
+    match fuel, nodeTypeOf t with
+    | 0, _ => false
+    -- A tuple/list unpack target writes each of its leaves.
+    | fuel + 1, some "Tuple" | fuel + 1, some "List" =>
+        ((t.getObjValAs? (Array Json) "elts").toOption.getD #[]).any (storeHit · fuel)
+    | _, _ => targetRoot? t 32 == some name
+  let anyTarget (j : Json) : Bool := match j with
+    | .arr ts => ts.any (storeHit · 32)
+    | t => storeHit t 32
+  let here : Bool := match nodeTypeOf json with
+    | some "Assign" =>
+        (getField json "targets").any anyTarget || (getField json "target").any anyTarget
+    | some "AugAssign" | some "AnnAssign" | some "For" | some "AsyncFor" =>
+        (getField json "target").any anyTarget
+    | some "Delete" => (getField json "targets").any anyTarget
+    | some "Call" =>
+        match getField json "func" with
+        | some f => nodeTypeOf f == some "Attribute" && ((getField f "value").bind nameId?) == some name
+        | none => false
+    | _ => false
+  here || (match json with
+    | .arr xs => xs.any (nameMutatedAnywhere name)
+    | .obj fs => fs.toList.any (fun (_, v) => nameMutatedAnywhere name v)
+    | _ => false)
+
+/-- Does `json` BIND `name` afresh, shadowing an enclosing binding — a `def`/`lambda` parameter or a
+comprehension target? A loop variable shadowed inside its own body is no longer the index the loop
+hypothesis speaks about. -/
+partial def bindsName (name : String) (json : Json) : Bool :=
+  let here : Bool := match nodeTypeOf json with
+    | some "FunctionDef" | some "AsyncFunctionDef" | some "Lambda" => (paramNames json).contains name
+    | some "ListComp" | some "SetComp" | some "GeneratorExp" | some "DictComp" =>
+        ((json.getObjValAs? (Array Json) "generators").toOption.getD #[]).any
+          (fun g => (getField g "target").any (fun t => nameId? t == some name))
+    | _ => false
+  here || (match json with
+    | .arr xs => xs.any (bindsName name)
+    | .obj fs => fs.toList.any (fun (_, v) => bindsName name v)
+    | _ => false)
+
+/-- `len(<name>)`. -/
+def lenOfName? (e : Json) : Option String := do
+  guard (nodeTypeOf e == some "Call")
+  guard ((getField e "func").bind nameId? == some "len")
+  let args ← (e.getObjValAs? (Array Json) "args").toOption
+  guard (args.size == 1)
+  nameId? args[0]!
+
+/-- Every value `name` is ever bound to, as `some container` for `name = len(container)` and `none`
+for any other binding (a different RHS, an `AugAssign`/`for` target, a `del`). `none` anywhere means
+the name is not a stable length alias. -/
+partial def lenAliasBindings (name : String) (json : Json) : Array (Option String) :=
+  let hitsName (t : Json) : Bool := nameId? t == some name
+  let anyTarget (j : Json) : Bool := match j with
+    | .arr ts => ts.any hitsName
+    | t => hitsName t
+  let here : Array (Option String) := match nodeTypeOf json with
+    | some "Assign" | some "AnnAssign" =>
+        if (getField json "targets").any anyTarget || (getField json "target").any anyTarget then
+          #[(getField json "value").bind lenOfName?]
+        else #[]
+    | some "AugAssign" | some "For" | some "AsyncFor" =>
+        if (getField json "target").any anyTarget then #[none] else #[]
+    | some "Delete" => if (getField json "targets").any anyTarget then #[none] else #[]
+    | _ => #[]
+  here ++ (match json with
+    | .arr xs => xs.flatMap (lenAliasBindings name)
+    | .obj fs => (fs.toList.toArray).flatMap (fun (_, v) => lenAliasBindings name v)
+    | _ => #[])
+
+/-- `range(len(<name>))`, or `range(<n>)` where `<n>` is a stable alias for `len(<name>)` — the two
+shapes `pyRange_len_bound_of_eq` covers (in both, the emitted `pyRange` argument is `rfl`-equal to
+`pyLen <name>`). Any extra argument (`range(1, len(xs))`, a step) is a different `pyRange` call. -/
+def rangeOverLenOf? (fnBody : Json) (iter : Json) : Option String := do
+  -- `Range` is the desugared form of the `Call` to `range`; both reach codegen's `rangeIterSyntax`.
+  guard (nodeTypeOf iter == some "Call" || nodeTypeOf iter == some "Range")
+  guard ((getField iter "func").bind nameId? == some "range")
+  let args ← (iter.getObjValAs? (Array Json) "args").toOption
+  guard (args.size == 1)
+  match lenOfName? args[0]! with
+  | some c => pure c
+  | none => do
+      let alias ← nameId? args[0]!
+      guard (!bindsName alias fnBody)
+      -- Exactly one binding, and it is a STATEMENT of the function body: two assignments (or one
+      -- inside a branch) would make codegen emit a `let mut`, whose `rfl` the proof cannot use.
+      let binds := lenAliasBindings alias fnBody
+      guard (binds.size == 1)
+      let c ← binds[0]!
+      let stmts := match fnBody with | .arr ss => ss | _ => #[]
+      guard (stmts.any fun s =>
+        (nodeTypeOf s == some "Assign" || nodeTypeOf s == some "AnnAssign")
+          && ((getField s "targets").any (fun t => match t with
+                | .arr ts => ts.any (fun x => nameId? x == some alias)
+                | t => nameId? t == some alias)
+              || (getField s "target").any (fun t => nameId? t == some alias)))
+      pure c
+
+/-- Mark every `xs[i]` read inside the marked loop with the hypothesis name that proves it in range.
+The stamp goes on the SLICE node (the index expression), which is the one place the subscript
+generator is guaranteed to see; a `Name` elsewhere in the body is a different JSON node and keeps its
+plain lowering. Stops at a nested `def`/`lambda`, whose body is a separate scope. -/
+partial def markInBoundsReads (container idx hyp : String) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" || nodeTypeOf json == some "Lambda" then json
+  else
+    let json :=
+      if nodeTypeOf json == some "Subscript"
+         && ((getField json "value").bind nameId?) == some container
+         && ((getField json "slice").bind nameId?) == some idx then
+        match getField json "slice" with
+        | some s => json.setObjVal! "slice" (s.setObjVal! "_inbounds_h" (Json.str hyp))
+        | none => json
+      else json
+    match json with
+    | .arr xs => Json.arr (xs.map (markInBoundsReads container idx hyp))
+    | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markInBoundsReads container idx hyp v)))
+    | _ => json
+
+/-- Stamp `for i in range(len(xs)): … xs[i] …` with the name of the membership hypothesis Lean's
+`for h : i in …` binds, so codegen can index through the proof instead of the panicking
+`pyGetItem`. `fnBody` is the whole enclosing function (mutation is disqualifying wherever it
+happens). Fires only for a genuine `List` — an array-backed local (`eligible`) and every other
+container keep the defaulting lowering. -/
+partial def stampInBounds (env : Env) (eligible : Std.HashSet String) (fnBody : Json) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" || nodeTypeOf json == some "ClassDef" then json
+  else
+    let json :=
+      if nodeTypeOf json == some "For" then
+        match (getField json "target").bind nameId?,
+              (getField json "iter").bind (rangeOverLenOf? fnBody) with
+        | some idx, some container =>
+            let isList := match env.get? container with | some (.list _) => true | _ => false
+            let body := (getField json "body").getD (Json.arr #[])
+            if isList && !eligible.contains container
+               && !nameMutatedAnywhere container fnBody
+               && !nameMutatedAnywhere idx body && !bindsName idx body then
+              -- Contains `'`, so it can never collide with a Python identifier.
+              let hyp := s!"hb'{idx}"
+              let marked := markInBoundsReads container idx hyp body
+              -- No `xs[i]` read to prove: leave the loop alone rather than binding an unused hypothesis.
+              if marked == body then json
+              else (json.setObjVal! "body" marked).setObjVal! "_inbounds_h" (Json.str hyp)
+            else json
+        | _, _ => json
+      else json
+    match json with
+    | .arr xs => Json.arr (xs.map (stampInBounds env eligible fnBody))
+    | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, stampInBounds env eligible fnBody v)))
+    | _ => json
 
 mutual
 
@@ -901,7 +1112,7 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
       rt := rt'
       sgn := sgn.insert nm rt'
     return match rt with | .unknown => sg | t => sg.insert nm t) sigs
-  let fn := stampCallableParams (stampParams env fn)
+  let fn := stampNoneDefaultOptional (stampCallableParams (stampParams env fn))
   let fn := match fn.getObjValAs? String "name" with
     | .ok name =>
         -- The return type from its annotation if it has one (a union like `int | str` reads as
@@ -979,8 +1190,9 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
       else s)
     let noneTested := collectNoneTested (Json.arr body)
     fn.setObjVal! "body"
-      (Json.arr ((((((body.map (stampStmt sigs env body)).map (markTuples sigs env)).map (markOptAttrs sigs env noneTested)).map
-        (stampArraySeqs eligible)).map (stampCompTargets sigs env)).map (stampKeyLambdas sigs env)))
+      (Json.arr (((((((body.map (stampStmt sigs env body)).map (markTuples sigs env)).map (markOptAttrs sigs env noneTested)).map
+        (stampArraySeqs eligible)).map (stampCompTargets sigs env)).map (stampKeyLambdas sigs env)).map
+        (stampInBounds env eligible (Json.arr body))))
   | _ => fn
 
 /-- Stamp a (possibly nested) tuple-unpack target with the list-vs-`Prod` access mode at EVERY level,

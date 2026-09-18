@@ -85,6 +85,19 @@ class TypeInferServer:
         on a pre-pass failure the exe returns the original AST unchanged, not an error."""
         return self.run({"task": "inferTypes", "ast": ast}).get("ast", ast)
 
+    def check_ast(self, ast: dict) -> dict:
+        """Infer, then CHECK one module (the `checkTypes` task): returns `{"ok": bool,
+        "diagnostics": [...]}`, where each diagnostic carries both its Lean and Python types plus a
+        Lean-style `render`."""
+        resp = self.run({"task": "checkTypes", "ast": ast})
+        return {"ok": resp.get("ok", True), "diagnostics": resp.get("diagnostics", [])}
+
+    def check_batch(self, asts: list[dict]) -> list[dict]:
+        """Check a list of independent modules in one call, fanned across cores in the exe. Returns
+        one `{"ok", "diagnostics"}` per input, in order."""
+        results = self.run({"task": "checkBatch", "asts": asts}).get("results", [])
+        return [{"ok": r.get("ok", True), "diagnostics": r.get("diagnostics", [])} for r in results]
+
     def infer_batch(self, asts: list[dict]) -> list[dict]:
         """Infer a list of independent modules in one call, fanned across cores in the exe (no
         cross-file resolution — use `infer_repo` for that)."""
@@ -143,6 +156,11 @@ def infer_ast(ast: dict) -> dict:
 def infer_batch(asts: list[dict]) -> list[dict]:
     with TypeInferServer() as srv:
         return srv.infer_batch(asts)
+
+
+def check_ast(ast: dict) -> dict:
+    with TypeInferServer() as srv:
+        return srv.check_ast(ast)
 
 
 def infer_repo(modules: dict[str, dict]) -> dict[str, dict]:

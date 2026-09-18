@@ -28,9 +28,9 @@ def count_beautiful_pairs := fun (nums : List Int) ↦
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n)do
         for j in (PastaLean.pyRange i)do
-          ans := ans +ₚ chk nums⦋j⦌ nums⦋i⦌
+          ans := ans +ₚ chk nums⦋j⦌ (PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i))
       return ans)
 
 attribute [simp, taste_ingr] count_beautiful_pairs
@@ -40,9 +40,9 @@ def count_beautiful_pairs'rn := fun (nums : List Int) ↦
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n)do
         for j in (PastaLean.pyRange i)do
-          ans := ans +ₚ chk'rn nums⦋j⦌ nums⦋i⦌
+          ans := ans +ₚ chk'rn nums⦋j⦌ (PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i))
       return ans)
 
 mutual

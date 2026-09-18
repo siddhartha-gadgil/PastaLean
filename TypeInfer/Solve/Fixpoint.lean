@@ -183,6 +183,12 @@ def paramUsageSeed (fn : Json) : Env := Id.run do
         match (loopVarOver q (Json.arr body)).map (decisiveScalarType · (Json.arr body)) with
         | some e => if e.isKnown then t := t.join (.dict e .any)
         | none => pure ()
+    -- The join channel collapses two disagreeing uses to `any` (→ boxed `PyAny`), losing a param that
+    -- the EXACT uses alone still determine (`p.isalpha()` plus an ambiguous `p[i]` ⇒ `str`). Fall back
+    -- to the requirement meet, which commits only when the exact uses have a common solution and
+    -- otherwise reports a conflict rather than silently widening (`TypeInfer.Diagnostics`).
+    if t == .any then
+      if let some r := (usageReq fnParams known 1 name (Json.arr body)).commit? then t := r
     if t != .unknown then env := env.insert name t
   return env
 
@@ -221,10 +227,12 @@ def mutationReceiverName? (value : Json) : Option String :=
       else none
   | none => none
 
-/-- Every positional argument list of a call `name(...)` anywhere in `json`. -/
-partial def collectCallArgLists (name : String) (json : Json) : Array (Array Json) :=
+/-- Every argument list of a call `name(...)` anywhere in `json`, as `(positional args, keywords)` —
+the keywords object maps a parameter NAME to its argument expression (`show(flag=True)`). -/
+partial def collectCallArgLists (name : String) (json : Json) : Array (Array Json × Json) :=
   let here := if nodeTypeOf json == some "Call" && (getField json "func").bind nameId? == some name
-    then #[(json.getObjValAs? (Array Json) "args").toOption.getD #[]] else #[]
+    then #[((json.getObjValAs? (Array Json) "args").toOption.getD #[],
+            (getField json "keywords").getD Json.null)] else #[]
   let rest := match json with
     | .arr xs => xs.foldl (fun acc e => acc ++ collectCallArgLists name e) #[]
     | .obj fs => fs.toList.foldl (fun acc (_, v) => acc ++ collectCallArgLists name v) #[]
@@ -243,11 +251,16 @@ def nestedParamHints (sigs : Sigs) (env : Env) (fn : Json) (roots : Array Json) 
   let mut hints : Env := {}
   for _ in [0:2] do
     let env2 := hints.fold (fun m k v => m.insert k v) env
-    for args in callLists do
+    for (args, kws) in callLists do
       for i in [0:min params.size args.size] do
         let t := typeOfExpr sigs env2 args[i]!
         if t != .unknown then
           hints := hints.insert params[i]! (((hints.get? params[i]!).getD .unknown).join t)
+      if let .obj kfs := kws then
+        for (k, v) in kfs.toList do
+          if params.contains k then
+            let t := typeOfExpr sigs env2 v
+            if t != .unknown then hints := hints.insert k (((hints.get? k).getD .unknown).join t)
   return hints
 
 /-- The combined parameter types of every nested `def` in `body`, from their call sites (`roots` is

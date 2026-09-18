@@ -1,4 +1,5 @@
 import TypeInfer.Solve.Env
+import TypeInfer.Diagnostics.Basic
 
 namespace TypeInfer
 
@@ -161,8 +162,12 @@ Python signals that pin exactly one type: a type-exclusive method on it (`p.spli
 int-only operator over it (`p << 1`, `p >> 1`, `~p` — bitwise `& | ^` are int OR set, so NOT here),
 a type-fixing builtin arg (`ord(p)` → str, `chr(p)` → int), or a comparison against a literal
 (`p == []` → list, `p == ""` → str, `p in "abc"` → str element). Genuinely ambiguous uses (`p[i]`,
-`for x in p`, `len(p)`, `p + q`) stay `unknown` — the fixpoint fills them in. -/
-partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : Env) (fuel : Nat) (name : String) (json : Json) : PyType :=
+`for x in p`, `len(p)`, `p + q`) stay `unknown` — the fixpoint fills them in.
+
+Returns ONE ENTRY PER USE SITE rather than their join, so the caller can pick the combining operator:
+value flow joins (`usageType`), while the checker meets (`TypeInfer.Req`) — a conflict has to stay
+visible as a conflict instead of being pre-widened to `any`. -/
+partial def usageEvidence (fnParams : Std.HashMap String (Array PyType)) (known : Env) (fuel : Nat) (name : String) (json : Json) : List PyType :=
   let isName (j : Option Json) : Bool := j.bind nameId? == some name
   -- Element type of an iterable whose loop variable `c` is used as `ctx`: `ord(c)` ⇒ the iterable is
   -- a `str` (char iteration); any other concrete usage ⇒ `list[<c's type>]`. `fuel` bounds how deep
@@ -171,16 +176,28 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
   let loopElemType (c : String) (ctx : Json) : PyType :=
     if fuel == 0 then .unknown
     else if containsOrdOf c ctx then .str
-    else match usageType fnParams known (fuel - 1) c ctx with
+    else match PyType.joinAll (usageEvidence fnParams known (fuel - 1) c ctx) with
       | .unknown => .unknown
       -- a `str`-typed loop var is ambiguous: iterating a STRING yields 1-char strings, so `str` usage
       -- could mean `p : str` (char iteration) OR `p : list[str]`. Leave it to other signals rather
       -- than force `list[str]` (which mis-typed a plain-string param iterated char by char).
       | .str => .unknown
       | t => .list t
+  -- The type of an operand that pins the other side of an operator: a literal, or a name whose
+  -- SCALAR type `known` already holds (`s + xs[i]` with `s : int` ⇒ `xs : list[int]`, exactly as the
+  -- literal `s + 1` would). Containers are excluded — `+` between two lists says nothing about their
+  -- elements, and `==` against a container name is no more decisive than against a container literal.
+  let anchor? (o : Option Json) : Option PyType :=
+    match o.bind literalType? with
+    | some t => some t
+    | none => match (o.bind nameId?).bind known.get? with
+        | some t => if [PyType.int, .float, .str, .bool].contains t then some t else none
+        | none => none
   let here : PyType :=
     match nodeTypeOf json with
-    | some "Call" =>
+    -- `Range` is what Desugar leaves a `range(...)` call as; it keeps `func`/`args`, so the call
+    -- rules below apply to it unchanged.
+    | some "Call" | some "Range" =>
         match getField json "func" with
         -- `p.method(...)`: a type-exclusive method pins `p`.
         | some func =>
@@ -246,6 +263,8 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
                     | none => .unknown
                   else if args.any (fun a => nameId? a == some name) then
                     if fn == "ord" then .str else if fn == "chr" then .int
+                    -- `range` takes ints and nothing else, at every position.
+                    else if fn == "range" then .int
                     else
                       -- `f(x)` where user/nested fn `f` has an ANNOTATED param at x's position ⇒ `x`
                       -- has that type: a well-typed call must match the annotation. Sound —
@@ -286,8 +305,15 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
                 && (left.elim false (containsSubscriptOf name) || right.elim false (containsSubscriptOf name)) then .list .int
         -- `p[i] <arith> <literal>` (or the reverse): the element has the literal's type.
         else if ["add", "sub", "mul", "div", "floordiv", "pow"].contains op then
-          if isSubscriptOf name left then (right.bind literalType?).elim .unknown .list
-          else if isSubscriptOf name right then (left.bind literalType?).elim .unknown .list
+          -- `xs[i] * s` with `s : str` is string REPETITION, so a `str` anchor under `*` names the
+          -- other operand's type rather than this one's; every other op here is type-preserving.
+          let elemAnchor (o : Option Json) : PyType :=
+            match anchor? o with
+            | some .str => if op == "mul" then .unknown else .list .str
+            | some t => .list t
+            | none => .unknown
+          if isSubscriptOf name left then elemAnchor right
+          else if isSubscriptOf name right then elemAnchor left
           -- `name + <str/list literal>` pins `name` to that type: `+` typechecks only between two
           -- `str`s or two `list`s (`class_name + "."` ⇒ `class_name : str`), so a `str`/`list` literal
           -- on the other side is decisive (`int + str` / `list + str` are `TypeError`s in Python).
@@ -297,13 +323,16 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
             -- literals under `+` stay concat-typed (below). EXCLUDES `pow`: `a ** 0.5` (a float sqrt
             -- bound) does NOT make the base a float — `int ** 0.5` is valid, common in primality checks.
             let numLit (lit : Option Json) : PyType :=
-              if op == "pow" then .unknown else match lit.bind literalType? with
+              -- `*` stays literal-anchored: `sep * width` with `width : int` makes `sep` a `str` just
+              -- as readily as an `int`, so a name anchor there is not decisive.
+              if op == "pow" then .unknown else
+              match (if op == "mul" then lit.bind literalType? else anchor? lit) with
               | some .int => .int | some .float => .float | _ => .unknown
             let numg := (if isName left then numLit right else .unknown).join
                         (if isName right then numLit left else .unknown)
             if numg != .unknown then numg
             else if op == "add" then
-              let concatType (lit : Option Json) : PyType := match lit.bind literalType? with
+              let concatType (lit : Option Json) : PyType := match anchor? lit with
                 | some (.str) => .str
                 | some (.list e) => .list e
                 | _ => .unknown
@@ -312,9 +341,11 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
               else .unknown
             else .unknown
         else .unknown
-    -- `~p` (bitwise NOT) is int-only.
+    -- `~p` (bitwise NOT) is int-only; `-p` / `+p` are numeric-only (no container or `str` has them),
+    -- and `int` evidence already lets the numeric tower through `consistent`.
     | some "UnaryOp" =>
-        if (json.getObjValAs? String "op").toOption == some "invert" && isName (getField json "operand")
+        if ["invert", "neg", "pos"].contains ((json.getObjValAs? String "op").toOption.getD "")
+           && isName (getField json "operand")
         then .int else .unknown
     -- `for c in p`: infer `p`'s element from how the loop variable `c` is used in the body. `ord(c)`
     -- means `p` is a `str` iterated CHARACTER by character (the unannotated-word pattern); any other
@@ -395,7 +426,10 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
         -- `grid[i][j] == 1` ⇒ `grid : list[list[int]]` (depth-2). A conflicting DIRECT signal
         -- (`p.isalpha()`) wins via the `decisiveScalarType` override in `paramUsageSeed`.
         let elemCmp (subj other : Option Json) : PyType :=
-          match subj.bind (nameSubscriptDepth name), other.bind literalType? with
+          -- An ORDERED comparison also accepts a known-typed NAME as the anchor (`xs[i] > best` with
+          -- `best : int` ⇒ `xs : list[int]`); `==` keeps to literals, since any two values compare.
+          let anch := if ordered then anchor? other else other.bind literalType?
+          match subj.bind (nameSubscriptDepth name), anch with
           | some d, some t => nestList d t
           | _, _ => .unknown
         let fromLeftElem : PyType := if valueCmp then elemCmp left right else .unknown
@@ -404,10 +438,30 @@ partial def usageType (fnParams : Std.HashMap String (Array PyType)) (known : En
           |>.join fromOrdered
     | _ => .unknown
   let sub := match json with
-    | .arr xs => PyType.joinAll (xs.toList.map (usageType fnParams known fuel name))
-    | .obj fs => PyType.joinAll (fs.toList.map (fun (_, v) => usageType fnParams known fuel name v))
-    | _ => .unknown
-  here.join sub
+    | .arr xs => xs.toList.flatMap (usageEvidence fnParams known fuel name)
+    | .obj fs => fs.toList.flatMap (fun (_, v) => usageEvidence fnParams known fuel name v)
+    | _ => []
+  match here with
+  | .unknown => sub
+  | _ => here :: sub
+
+/-- The join of every use site's evidence — what the value-flow fixpoint consumes. -/
+def usageType (fnParams : Std.HashMap String (Array PyType)) (known : Env) (fuel : Nat) (name : String) (json : Json) : PyType :=
+  PyType.joinAll (usageEvidence fnParams known fuel name json)
+
+/-- May this evidence enter the requirement MEET? Only a use exactly one type satisfies. Python's
+arithmetic is subtype-polymorphic, so a bare numeric (`x + 1`, from which we read `int`) is a lower
+BOUND — meeting it with `float` would narrow to `int` and mis-type a genuine float. A structural
+signal (`p.isalpha()` ⇒ `str`, `p == []` ⇒ `list`, `p(…)` ⇒ `fn`) admits one shape only. -/
+def isExactRequirement : PyType → Bool
+  | .unknown | .any | .int | .float | .bool => false
+  | _ => true
+
+/-- What a slot's uses DEMAND, as opposed to what its values supply. `none` when no exact use
+constrains it; `some unknown` when two do and no type satisfies both (a reportable conflict, which the
+join channel would instead have widened to `any` and boxed as `PyAny`). -/
+def usageReq (fnParams : Std.HashMap String (Array PyType)) (known : Env) (fuel : Nat) (name : String) (json : Json) : Req :=
+  Req.ofEvidenceAll ((usageEvidence fnParams known fuel name json).filter isExactRequirement)
 
 /-- A DECISIVE scalar signal on the BARE `name`: a `str`-exclusive method (`p.isalpha()` ⇒ `p : str` —
 a list/dict has no such method, so Python would `TypeError` otherwise), `ord(p)` ⇒ str, `chr(p)` ⇒ int,

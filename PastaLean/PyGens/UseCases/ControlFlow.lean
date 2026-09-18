@@ -795,8 +795,16 @@ def forSyntax : (kind : SyntaxNodeKind) → Json →
                       pure #[seed, whileLoop]
                   | none =>
                       let iterCode ← rangeIterSyntax iterJson
-                      let forLoop ← `(doElem| for $targetIdent:ident in ($iterCode) do
-                          $[$bodyStxArray:doElem]*)
+                      -- TypeInfer proved every `xs[i]` in this body in range (`_inbounds_h`); bind the
+                      -- membership hypothesis so `pyRange_len_bound` can discharge them.
+                      let forLoop ← match (json.getObjValAs? String "_inbounds_h").toOption with
+                        | some h =>
+                            let hIdent := mkIdent h.toName
+                            `(doElem| for $hIdent:ident : $targetIdent:ident in ($iterCode) do
+                                $[$bodyStxArray:doElem]*)
+                        | none =>
+                            `(doElem| for $targetIdent:ident in ($iterCode) do
+                                $[$bodyStxArray:doElem]*)
                       pure #[forLoop]
         let loopStx ← loopWithElseDoElem breakFlag? coreElems orelseElems
         if hoistDecls.isEmpty then pure loopStx

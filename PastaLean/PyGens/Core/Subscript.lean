@@ -1,4 +1,5 @@
 import PastaLean.PyAPI.Core
+import PastaLean.PyAPI.Refinement
 import PastaLean.PyGens.Basic
 import PastaLean.PyGens.Core.Utils
 
@@ -49,6 +50,17 @@ def subscriptTermFromValue (valueJson sliceJson : Json) (valueCode : TSyntax `te
           | _ => none
     let isTuple := tupleArity.isSome
     let isString := isStringConstant valueJson
+
+    -- TypeInfer proved this index in range (`for h : i in range(len(xs))`, `_inbounds_h` on the slice):
+    -- index through the proof, so no `Inhabited` default and no unreachable `panic!`. Not under
+    -- `--heap`, where the container is a `Ref` the analysis does not model.
+    if let some h := (sliceJson.getObjValAs? String "_inbounds_h").toOption then
+      if !(← getHeapMode) then
+        let sliceCode ← getCode sliceJson `term
+        -- `rfl` proves the loop bound IS this container's length: either literally `pyRange (pyLen xs)`,
+        -- or `pyRange n` for an `n` the analysis checked is a single `let n := pyLen xs`.
+        return ← `($(mkIdent ``pyListGetProof) $valueCode $sliceCode
+          ($(mkIdent ``pyRange_len_bound_of_eq) rfl $(mkIdent h.toName)))
 
     let sliceType := sliceJson.getObjValAs? String "node_type"
     if sliceType == .ok "Slice" then

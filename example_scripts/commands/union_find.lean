@@ -168,8 +168,8 @@ def count_gated := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (gate
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU.new n
       let mut merges : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen edges))do
-        let mut e : List Int := edges⦋i⦌
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+        let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ = (1 : Int) then 
           p'_sc'1 := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
@@ -187,8 +187,8 @@ def count_gated'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (g
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU'rn.new n
       let mut merges : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen edges))do
-        let mut e : List Int := edges⦋i⦌
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+        let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ == (1 : Int) then 
           p'_sc'1 := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1

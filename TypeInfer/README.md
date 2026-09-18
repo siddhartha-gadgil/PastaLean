@@ -339,6 +339,7 @@ J. Palsberg & M. Schwartzbach, *Object-Oriented Type Inference* (OOPSLA 1991); a
 | `Emit.lean` | `toTypeSyntax?` — `PyType` → Lean type text |
 | `Rules.lean` | `typeOfExpr` / `applyStmt` — the type of an expression, and how a statement updates what's known |
 | `Solve.lean` | `inferFunction` (the per-function fixpoint), `collectSigs` / `inferModule` (the cross-function pass), and `stampNode` (write `_ty` back onto the IR) |
+| `Diagnostics/` | the checker: `Basic.lean` (the requirement algebra `Req`, and `checkAnnotation` / `checkValue` / `checkUses` over it), `Render.lean` (a diagnostic as a Lean type error, Python type in a line comment), `Pass.lean` (`diagnoseModule` — the walk over a stamped module: parameters against their body uses, returns against the body re-inferred with return types stripped, `x: T = e` against its value flow, and every call argument against the parameter it is passed to). Reached from the CLI as `pastalean typeinfer --check` (the `checkTypes` task) |
 | `Theorems.lean` | the proofs: the lattice laws, the partial order, monotonicity, semantic soundness, gradual-typing consistency, and `reconcile` totality — all on the real `PyType` |
 
 The `PyAny` runtime fallback lives in `PastaLean/PyAPI/PyAny.lean`. Tests are in

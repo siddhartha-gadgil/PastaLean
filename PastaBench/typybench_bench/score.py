@@ -17,6 +17,7 @@ machine); it is NOT a thread count. Threads-per-project are sized automatically.
 """
 from __future__ import annotations
 import argparse, json, os, subprocess, sys
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from multiprocessing import Pool
@@ -327,9 +328,34 @@ def apply_generator_returns(pred: dict, gen_shapes: dict):
             pred[gk] = _name("Iterator")
 
 
+KEEP_ANY = False  # set by --any-stats: keep `PyAny` predictions so the dropped bucket can be sized
+
+
+def _render_type(node) -> str:
+    """A type node back to its source-ish spelling, for the `--any-stats` histogram only."""
+    if not isinstance(node, dict):
+        return str(node)
+    nt = node.get("node_type")
+    if nt == "Name":
+        return str(node.get("id"))
+    if nt == "Constant":
+        return str(node.get("value"))
+    if nt == "Attribute":
+        return f"{_render_type(node.get('value'))}.{node.get('attr')}"
+    if nt == "Subscript":
+        return f"{_render_type(node.get('value'))}[{_render_type(node.get('slice'))}]"
+    if nt in ("Tuple", "List"):
+        return ", ".join(_render_type(e) for e in node.get("elts", []))
+    if nt == "BinOp":
+        return f"{_render_type(node.get('left'))}|{_render_type(node.get('right'))}"
+    return nt or "?"
+
+
 def _is_unknown(node) -> bool:
     """A prediction that isn't a real static type — `PyAny` (our dynamic fallback) and bare `Any`.
     Committing these as predictions is wrong; they should count as MISSING, like an un-annotated slot."""
+    if KEEP_ANY:
+        return False
     return isinstance(node, dict) and node.get("node_type") == "Name" and node.get("id") in ("PyAny", "Any")
 
 
@@ -339,7 +365,10 @@ def extract_types(ir: dict, module: str, gt: bool) -> dict:
     out = {}
 
     def ann_of_arg(a):
-        return a.get("annotation") if gt else a.get("_ty")
+        # `_bench_ty` is the engine's benchmark-only param stamp (a callable of unknown signature, a
+        # `None`-defaulted param's `Optional[T]`) — a real inferred type `_ty` cannot carry because
+        # codegen would have to honour it. Prefer it, as the Assign case below already does.
+        return a.get("annotation") if gt else (a.get("_bench_ty") or a.get("_ty"))
 
     def walk(node, scope):
         if isinstance(node, dict):
@@ -428,6 +457,7 @@ def score_maps(gt: dict, pred: dict) -> dict:
 
 
 TOOL = "pastalean"  # set by main(); "pyrefly" runs `pyrefly infer` and reads its annotations
+ANY_STATS = False   # set by main(); size the PyAny-dropped bucket alongside the normal score
 
 
 def pred_pyrefly(untyped: Path) -> dict:
@@ -632,6 +662,8 @@ def raw_ir_text(text: str):
 
 
 def score_repo(repo: Path) -> dict:
+    any_recoverable = 0  # GT slots we predicted, but only as `PyAny` — the conflict-boxed bucket
+    any_gt_hist, any_slot_hist = Counter(), Counter()
     orig, untyped = repo / "original_repo", repo / "repo_without_types"
     for sub in ("src", "lib"):  # get_repo_similarity descends into src/lib — do it for BOTH so the
         if (orig / sub).is_dir():   # module-name keys (and hence gt/pred keys) line up.
@@ -680,12 +712,27 @@ def score_repo(repo: Path) -> dict:
         # (a predicate `X == Y and Z` is `bool`, etc.) — the RIGHT fix for spurious `None`s: infer the
         # correct type rather than drop the prediction.
         apply_structural_returns(pred, structural_returns(untyped))
+        if ANY_STATS:
+            global KEEP_ANY
+            KEEP_ANY = True
+            pred_any = {}
+            for m, st in stamped.items():
+                pred_any.update(extract_types(st, m, gt=False))
+            KEEP_ANY = False
+            any_keys = [k for k in gt if k not in pred and k in pred_any]
+            any_recoverable = len(any_keys)
+            for k in any_keys:
+                any_gt_hist[_render_type(gt[k])] += 1
+                any_slot_hist["return" if k.endswith("::return")
+                               else "param" if "@" in k.rsplit("::", 1)[-1] else "var"] += 1
     pred_time = _time.perf_counter() - _t0
     res = score_maps(gt, pred)
     total = res.get("total", 0)
     sim = float(res.get("sum_sim", "0"))
     return {"repo": repo.name, "total": total, "exact": res.get("exact", 0),
             "missing": res.get("missing", 0), "pred_time": pred_time,
+            "any_recoverable": any_recoverable,
+            "any_gt_hist": dict(any_gt_hist), "any_slot_hist": dict(any_slot_hist),
             "typesim": round(sim / total, 4) if total else 0.0,
             "exact_score": round(res.get("exact", 0) / total, 4) if total else 0.0,
             "coverage": round((total - res.get("missing", 0)) / total, 4) if total else 0.0}
@@ -703,9 +750,12 @@ def main():
     ap.add_argument("--repo", default=None)
     ap.add_argument("--tool", choices=("pastalean", "pyrefly", "pyre", "pytype", "hityper"),
                     default="pastalean")
+    ap.add_argument("--any-stats", action="store_true",
+                    help="also report how many GT slots we predict only as PyAny (dropped as MISSING)")
     args = ap.parse_args()
-    global TOOL, EXE_THREADS, WITHIN_REPO_PARALLEL
+    global TOOL, EXE_THREADS, WITHIN_REPO_PARALLEL, ANY_STATS
     TOOL = args.tool
+    ANY_STATS = args.any_stats
     repos = [p for p in args.dataset.iterdir()
              if (p / "repo_without_types").is_dir() and (args.repo is None or p.name == args.repo)]
     # Largest repo first (by untyped source bytes) so the longest pole starts in the first wave and
@@ -735,6 +785,21 @@ def main():
         wex = sum(r["exact_score"] * r["total"] for r in results) / tot
         wcov = sum(r["coverage"] * r["total"] for r in results) / tot
         print(f"\n{'WEIGHTED (' + str(len(results)) + ' repos)':<22}{tot:>7}{wsim:>9.3f}{wex:>8.3f}{wcov:>8.3f}")
+    if ANY_STATS and tot:
+        rec = sum(r.get("any_recoverable", 0) for r in results)
+        miss = max(1, sum(r["missing"] for r in results))
+        print(f"\nPyAny-dropped slots: {rec} of {miss} MISSING ({rec / miss:.1%} of the gap, "
+              f"{rec / tot:.1%} of all slots) — almost all params the engine could NOT infer and boxed "
+              f"as PyAny so the emitted Lean still elaborates (`usedInPyAnyPosition`), not slots whose "
+              f"uses conflicted.")
+        slots, hist = Counter(), Counter()
+        for r in results:
+            slots.update(r.get("any_slot_hist", {}))
+            hist.update(r.get("any_gt_hist", {}))
+        print("  by slot: " + ", ".join(f"{k} {v}" for k, v in slots.most_common()))
+        print("  ground truth they should have been:")
+        for t, c in hist.most_common(25):
+            print(f"    {c:>6}  {t}")
 
 
 if __name__ == "__main__":

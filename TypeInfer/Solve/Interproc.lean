@@ -43,6 +43,19 @@ def baseNamesOf (classDef : Json) : Array String :=
 /-- True when `fn`'s first parameter is `self` — an instance method, as opposed to a `@staticmethod`. -/
 def isInstanceMethod (fn : Json) : Bool := (paramNames fn)[0]? == some "self"
 
+/-- A call's argument types as a POSITIONAL array: the positional args, plus each keyword argument
+`k=v` placed at the index `k` holds in the callee's parameter names `pnames` (gaps stay `unknown`, the
+join's neutral element). Without this a `show(flag=True)` teaches its callee's `flag` nothing. -/
+def callArgTypes (sigs : Sigs) (env : Env) (pnames : Array String) (call : Json) : Array PyType :=
+  let args := ((call.getObjValAs? (Array Json) "args").toOption.getD #[]).map (typeOfExpr sigs env)
+  let kws : List (Nat × PyType) := match getField call "keywords" with
+    | some (.obj kfs) => kfs.toList.filterMap (fun (k, v) =>
+        (pnames.findIdx? (· == k)).map (fun i => (i, typeOfExpr sigs env v)))
+    | _ => []
+  if kws.isEmpty then args else
+  let size := kws.foldl (fun n (i, _) => max n (i + 1)) args.size
+  kws.foldl (fun a (i, t) => a.set! i t) (args ++ Array.replicate (size - args.size) PyType.unknown)
+
 /-- Collect `Class.method(...)` call sites for method-parameter inference, keyed `"Class.method"` (a
 dot no Python function name has). Two shapes resolve a class: a qualified call on a class *name*
 (`BinaryIndexedTree.lowbit(x)`, static or explicit-`self`) and an instance call whose receiver types
@@ -50,7 +63,13 @@ to `.cls C` (`tree.update(a, b)`, `self.query(x)`). An instance method's arg lis
 receiver's `.cls C` so it aligns with the `self` parameter. Skips nested defs' own scopes only in that
 `env` is the enclosing one; the walk itself is exhaustive. -/
 partial def collectMethodCalls (sigs : Sigs) (env : Env) (classNames : Std.HashSet String)
-    (methodSelf : Std.HashMap String Bool) (json : Json) : Array (String × Array PyType) :=
+    (methodSelf : Std.HashMap String Bool) (pnames : Std.HashMap String (Array String))
+    (json : Json) : Array (String × Array PyType) :=
+  -- A keyword argument is matched against the method's params MINUS `self` (slot 0 is the receiver,
+  -- which no call site writes); the receiver type is prefixed back on afterwards.
+  let argsOf (key : String) (dropSelf : Bool) : Array PyType :=
+    let ps := (pnames.get? key).getD #[]
+    callArgTypes sigs env (if dropSelf then ps.extract 1 ps.size else ps) json
   let here : Array (String × Array PyType) :=
     match nodeTypeOf json, getField json "func" with
     | some "Call", some func =>
@@ -59,34 +78,36 @@ partial def collectMethodCalls (sigs : Sigs) (env : Env) (classNames : Std.HashS
         if nodeTypeOf func == some "Name" then
           match (nameId? func).filter classNames.contains with
           | some cname =>
-              let args := ((json.getObjValAs? (Array Json) "args").toOption.getD #[]).map (typeOfExpr sigs env)
-              #[(s!"{cname}.__init__", #[PyType.cls cname] ++ args)]
+              #[(s!"{cname}.__init__", #[PyType.cls cname] ++ argsOf s!"{cname}.__init__" true)]
           | none => #[]
         else if nodeTypeOf func != some "Attribute" then #[] else
         match (func.getObjValAs? String "attr").toOption, getField func "value" with
         | some attr, some recv =>
-            let args := ((json.getObjValAs? (Array Json) "args").toOption.getD #[]).map (typeOfExpr sigs env)
             match nameId? recv with
             -- Qualified on a class name: static (args as-is) or explicit-self (prefix `.cls C`).
             | some rname =>
                 if classNames.contains rname then
                   let key := s!"{rname}.{attr}"
-                  let args := if (methodSelf.get? key).getD false then #[PyType.cls rname] ++ args else args
-                  #[(key, args)]
-                else instanceCall attr recv args
-            | none => instanceCall attr recv args
+                  let selfed := (methodSelf.get? key).getD false
+                  let args := argsOf key selfed
+                  #[(key, if selfed then #[PyType.cls rname] ++ args else args)]
+                else instanceCall attr recv
+            | none => instanceCall attr recv
         | _, _ => #[]
     | _, _ => #[]
   here ++ (match json with
-    | .arr xs => xs.foldl (fun acc x => acc ++ collectMethodCalls sigs env classNames methodSelf x) #[]
-    | .obj fs => fs.toList.foldl (fun acc (_, v) => acc ++ collectMethodCalls sigs env classNames methodSelf v) #[]
+    | .arr xs => xs.foldl (fun acc x => acc ++ collectMethodCalls sigs env classNames methodSelf pnames x) #[]
+    | .obj fs => fs.toList.foldl (fun acc (_, v) => acc ++ collectMethodCalls sigs env classNames methodSelf pnames v) #[]
     | _ => #[])
 where
   /-- An instance call `recv.attr(args)` where `recv : .cls C` → `C.attr` with the args prefixed by
   the receiver's `.cls C` (the `self` slot). -/
-  instanceCall (attr : String) (recv : Json) (args : Array PyType) : Array (String × Array PyType) :=
+  instanceCall (attr : String) (recv : Json) : Array (String × Array PyType) :=
     match (typeOfExpr sigs env recv).classNameOf? with
-    | some c => #[(s!"{c}.{attr}", #[PyType.cls c] ++ args)]
+    | some c =>
+        let key := s!"{c}.{attr}"
+        let ps := (pnames.get? key).getD #[]
+        #[(key, #[PyType.cls c] ++ callArgTypes sigs env (ps.extract 1 ps.size) json)]
     | none => #[]
 
 /-- The hint environment for the parameters named in `fn`, drawn from `params[key]` (its inferred
@@ -105,22 +126,23 @@ def hintsFor (params : ParamSigs) (fn : Json) : Env :=
   hintsForKey params fn ((fn.getObjValAs? String "name").toOption.getD "")
 
 /-- Collect `(calleeName, argumentTypes)` for every direct call `foo(a, b, …)` in `json`, typing the
-arguments under `env`. Nested calls are included; method calls are ignored (no positional callee). -/
-partial def collectCalls (sigs : Sigs) (env : Env) (json : Json) : Array (String × Array PyType) :=
+arguments under `env`. Nested calls are included; method calls are ignored (no positional callee).
+`pnames` gives each callee's parameter names, so keyword arguments land in the right slot. -/
+partial def collectCalls (sigs : Sigs) (env : Env) (pnames : Std.HashMap String (Array String))
+    (json : Json) : Array (String × Array PyType) :=
   let here : Array (String × Array PyType) :=
     if nodeTypeOf json == some "Call" then
       match getField json "func" with
       | some func =>
           match (nodeTypeOf func, (func.getObjValAs? String "id").toOption) with
           | (some "Name", some name) =>
-              let args := ((json.getObjValAs? (Array Json) "args").toOption.getD #[]).map (typeOfExpr sigs env)
-              #[(name, args)]
+              #[(name, callArgTypes sigs env ((pnames.get? name).getD #[]) json)]
           | _ => #[]
       | none => #[]
     else #[]
   let sub := match json with
-    | .arr xs => xs.foldl (fun acc x => acc ++ collectCalls sigs env x) #[]
-    | .obj fs => fs.toList.foldl (fun acc (_, v) => acc ++ collectCalls sigs env v) #[]
+    | .arr xs => xs.foldl (fun acc x => acc ++ collectCalls sigs env pnames x) #[]
+    | .obj fs => fs.toList.foldl (fun acc (_, v) => acc ++ collectCalls sigs env pnames v) #[]
     | _ => #[]
   here ++ sub
 
@@ -248,9 +270,13 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
     | none => arr
   -- Seed each function's parameters with their annotations (unknown where unannotated).
   let mut params : ParamSigs := seedParams
+  -- Each callable's parameter NAMES under the same keys, so a keyword argument at a call site finds
+  -- its slot (`callArgTypes`).
+  let mut pnames : Std.HashMap String (Array String) := {}
   for fn in fns do
     if let .ok name := fn.getObjValAs? String "name" then
       let seed := paramSeed fn
+      pnames := pnames.insert name (paramNames fn)
       params := params.insert name (seedFill name ((paramNames fn).map fun p => (seed.get? p).getD .unknown))
   -- Class methods join the same table under `"Class.method"` keys (a dot no function name has), so
   -- their params are refined from call sites just like a free function's. `methodSelf` records which
@@ -266,6 +292,7 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
   for (cls, mn, m) in methodEntries do
     let key := s!"{cls}.{mn}"
     let seed := paramSeed m
+    pnames := pnames.insert key (paramNames m)
     params := params.insert key (seedFill key ((paramNames m).map fun p => (seed.get? p).getD .unknown))
     methodSelf := methodSelf.insert key (isInstanceMethod m)
   -- Class field types share the `sigs` table under `"Class.field"` keys; a bare class name maps to
@@ -323,8 +350,8 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
         -- pure duplication — the single dominant cost of a fixpoint iteration).
         let env := inferFunction sigs fnEnv hints fn
         nextSigs := nextSigs.insert name (returnTypeFromEnv sigs env fn)
-        nextParams := refineFrom nextParams (collectCalls sigs env fn)
-        nextParams := refineFrom nextParams (collectMethodCalls sigs env classNames methodSelf fn)
+        nextParams := refineFrom nextParams (collectCalls sigs env pnames fn)
+        nextParams := refineFrom nextParams (collectMethodCalls sigs env classNames methodSelf pnames fn)
     -- Class methods: refine callees from each method body, with `self` typed to its class.
     for (cls, mn, m) in methodEntries do
       let key := s!"{cls}.{mn}"
@@ -342,16 +369,16 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
       -- data field. `obj.method()` still reads the return type via `key`.
       let methParams := ((params.get? key).getD #[]).toList.drop (if isInstanceMethod m then 1 else 0)
       nextSigs := nextSigs.insert s!"{key}#fn" (.fn methParams ret)
-      nextParams := refineFrom nextParams (collectCalls sigs env m)
-      nextParams := refineFrom nextParams (collectMethodCalls sigs env classNames methodSelf m)
+      nextParams := refineFrom nextParams (collectCalls sigs env pnames m)
+      nextParams := refineFrom nextParams (collectMethodCalls sigs env classNames methodSelf pnames m)
     -- Module top-level call sites (outside any def), typed under `fnEnv` PLUS the module-level
     -- variable types (`a = A()` ⇒ `a : A`), so a constructor arg that is a class instance refines the
     -- callee's param: `b = B(a)` teaches `B.__init__`'s `a : A`, hence `self.a : A`, hence
     -- `self.a.func()` resolves the cross-class method.
     let moduleEnv := (topLevelStmts module).foldl (applyStmt sigs) fnEnv
     for stmt in topLevelStmts module do
-      nextParams := refineFrom nextParams (collectCalls sigs moduleEnv stmt)
-      nextParams := refineFrom nextParams (collectMethodCalls sigs moduleEnv classNames methodSelf stmt)
+      nextParams := refineFrom nextParams (collectCalls sigs moduleEnv pnames stmt)
+      nextParams := refineFrom nextParams (collectMethodCalls sigs moduleEnv classNames methodSelf pnames stmt)
     -- Decorator unification: `@d def g` is `g = d(g_raw)`, so g's type and d's wrapped-parameter
     -- type are the same. Flow each into the other: g's `.fn` type refines d's parameter 0 (so a
     -- decorator's `f` is learned from the function it wraps), and d's parameter 0 — if a function

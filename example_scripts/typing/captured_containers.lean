@@ -122,8 +122,8 @@ private def _walk'total := fun (graph : Libraries.collections.PyDefaultDict Int 
   Id.run
     (do
       let mut acc : Int := (0 : Int)
-      for k in (PastaLean.pyRange (PastaLean.pyLen todo))do
-        let p'_unpack_value_1 := todo⦋k⦌
+      for hb'k : k in (PastaLean.pyRange (PastaLean.pyLen todo))do
+        let p'_unpack_value_1 := PastaLean.pyListGetProof todo k (PastaLean.pyRange_len_bound_of_eq rfl hb'k)
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut i : Int := Prod.fst p'_unpack_pair_1
         let mut j : Int := Prod.snd p'_unpack_pair_1
@@ -154,8 +154,8 @@ private def _walk'total'rn := fun (graph : Libraries.collections.PyDefaultDict I
   Id.run
     (do
       let mut acc : Int := (0 : Int)
-      for k in (PastaLean.pyRange (PastaLean.pyLen todo))do
-        let p'_unpack_value_1 := todo⦋k⦌
+      for hb'k : k in (PastaLean.pyRange (PastaLean.pyLen todo))do
+        let p'_unpack_value_1 := PastaLean.pyListGetProof todo k (PastaLean.pyRange_len_bound_of_eq rfl hb'k)
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut i : Int := Prod.fst p'_unpack_pair_1
         let mut j : Int := Prod.snd p'_unpack_pair_1

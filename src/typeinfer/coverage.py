@@ -4,7 +4,7 @@
 module/local variable, a class field), resolves it to one of three states: it already carries an
 annotation in the source, the engine inferred a concrete type for it, or it is unresolved (no
 annotation and either no inference or a bare `Any`). `coverage` tallies those into a per-dimension
-report and an overall ratio; the CLI's `--check` / `--fail-under` gate on that ratio."""
+report and an overall ratio; the CLI's `--unresolved` / `--fail-under` gate on that ratio."""
 
 from __future__ import annotations
 

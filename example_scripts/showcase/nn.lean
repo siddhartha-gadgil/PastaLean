@@ -44,8 +44,9 @@ noncomputable def mean_squared_error := fun (xs : List (List Rat)) ↦ fun (ys :
   Id.run
     (do
       let mut total := (0.0 : Real)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
-        let mut diff := predict xs⦋i⦌ w1 b1 w2 b2 -ₚ ys⦋i⦌
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+        let mut diff :=
+          predict (PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)) w1 b1 w2 b2 -ₚ ys⦋i⦌
         total := total +ₚ diff *ₚ diff
       let p'_ret_1 := total /ₚ PastaLean.pyLen xs
       return p'_ret_1)
@@ -58,8 +59,10 @@ def mean_squared_error'rn := fun (xs : List (List Float)) ↦ fun (ys : List Flo
     Id.run
       (do
         let mut total := (0.0 : Float)
-        for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
-          let mut diff := predict'rn xs⦋i⦌ w1 b1 w2 b2 -ₚ ys⦋i⦌
+        for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+          let mut diff :=
+            predict'rn (PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)) w1 b1 w2 b2 -ₚ
+              ys⦋i⦌
           total := total +ₚ diff *ₚ diff
         let p'_ret_1 := PastaLean.pyFloat total /ₚ PastaLean.pyLen xs
         return p'_ret_1))

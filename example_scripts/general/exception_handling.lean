@@ -263,7 +263,7 @@ def raise_error'rn : Int → PastaLean.PyExcept String := fun (num : Int) ↦ do
       let p'_ret_1 := s! "Number is {num}"
       return p'_ret_1
 
-def catch_loop := fun num ↦
+def catch_loop := fun (num : Int) ↦
   ((do
       for i in (PastaLean.pyRange num)do
         try
@@ -286,7 +286,7 @@ def catch_loop := fun num ↦
 
 attribute [simp] catch_loop
 
-def catch_loop'rn := fun num ↦
+def catch_loop'rn := fun (num : Int) ↦
   ((do
       for i in (PastaLean.pyRange num)do
         try

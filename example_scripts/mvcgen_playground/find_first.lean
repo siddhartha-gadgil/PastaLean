@@ -17,9 +17,9 @@ namespace PastaLean.User.Root
 -- equals k, or -1. The loop invariant is "k absent from the prefix scanned so far".
 def find_first := fun (xs : List Int) ↦ fun (k : Int) ↦
   (do
-    for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+    for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
       let _ := Libraries.passta.pyPassInvariant !(PastaLean.pyContains (PastaLean.pySlice xs none (some i) none) k)
-      if h_1 : xs⦋i⦌ = k then 
+      if h_1 : PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) = k then 
         return i
     let p'_ret_1 := -(1 : Int)
     return p'_ret_1 : Id _)
@@ -32,9 +32,9 @@ theorem find_first_spec : ⦃⌜True⌝⦄ find_first xs k ⦃⇓_ => ⌜True⌝
 def find_first'rn := fun (xs : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
         let _ := Libraries.passta.pyPassInvariant !(PastaLean.pyContains (PastaLean.pySlice xs none (some i) none) k)
-        if h_1 : xs⦋i⦌ == k then 
+        if h_1 : PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) == k then 
           return i
       let p'_ret_1 := -(1 : Int)
       return p'_ret_1)

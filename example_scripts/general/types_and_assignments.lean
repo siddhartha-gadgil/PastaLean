@@ -229,12 +229,16 @@ def grid_inf_dp := fun (houses : List Int) ↦
       let mut n : Int := PastaLean.pyLen houses
       let mut f : List (List Int) :=
         (PastaLean.pyRange n).map fun (_ : Int) => PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int))
-      for i in (PastaLean.pyRange n)do
-        let p'_setval_1 := houses⦋i⦌
+      for hb'i : i in (PastaLean.pyRange n)do
+        let p'_setval_1 := PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         f := PastaLean.pyModifyItem f i (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (1 : Int) p'_setval_1)
         for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int))do
           for p in (PastaLean.pyRange i)do
-            let p'_setval_2 := PastaLean.pyMin [f⦋i⦌⦋j⦌, f⦋p⦌⦋j -ₚ (1 : Int)⦌ +ₚ houses⦋i⦌]
+            let p'_setval_2 :=
+              PastaLean.pyMin
+                [f⦋i⦌⦋j⦌,
+                  f⦋p⦌⦋j -ₚ (1 : Int)⦌ +ₚ
+                    PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)]
             f := PastaLean.pyModifyItem f i (fun p'_row_2 => PastaLean.pySetItem p'_row_2 j p'_setval_2)
       let p'_ret_1 := f⦋n -ₚ (1 : Int)⦌⦋n⦌
       return p'_ret_1)
@@ -251,12 +255,16 @@ def grid_inf_dp'rn := fun (houses : List Int) ↦
       let mut n : Int := PastaLean.pyLen houses
       let mut f : Array (Array Int) :=
         ((PastaLean.pyRange n).map fun (_ : Int) => PastaLean.pyArrayRepeat #[inf] (n +ₚ (1 : Int))) |>.toArray
-      for i in (PastaLean.pyRange n)do
-        let p'_setval_1 := houses⦋i⦌
+      for hb'i : i in (PastaLean.pyRange n)do
+        let p'_setval_1 := PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         f := PastaLean.pyModifyItem f i (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (1 : Int) p'_setval_1)
         for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int))do
           for p in (PastaLean.pyRange i)do
-            let p'_setval_2 := PastaLean.pyMin [f⦋i⦌⦋j⦌, f⦋p⦌⦋j -ₚ (1 : Int)⦌ +ₚ houses⦋i⦌]
+            let p'_setval_2 :=
+              PastaLean.pyMin
+                [f⦋i⦌⦋j⦌,
+                  f⦋p⦌⦋j -ₚ (1 : Int)⦌ +ₚ
+                    PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)]
             f := PastaLean.pyModifyItem f i (fun p'_row_2 => PastaLean.pySetItem p'_row_2 j p'_setval_2)
       let p'_ret_1 := f⦋n -ₚ (1 : Int)⦌⦋n⦌
       return p'_ret_1)

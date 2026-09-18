@@ -10,6 +10,7 @@ import PastaLean.PyAPI.Arrays
 import PastaLean.PyAPI.Dicts
 import PastaLean.PyAPI.Sets
 import PastaLean.PyAPI.CommonProtocols
+import PastaLean.PyAPI.Refinement
 import PastaLean.PyAPI.PyAny
 import PastaLean.PyAPI.Types
 import PastaLean.PyAPI.Heap

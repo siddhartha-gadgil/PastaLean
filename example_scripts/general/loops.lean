@@ -13,7 +13,7 @@ set_option maxHeartbeats 200000
 
 namespace PastaLean.User.Root
 
-def nested_loops := fun n ↦
+def nested_loops := fun (n : Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
@@ -24,7 +24,7 @@ def nested_loops := fun n ↦
 
 attribute [simp, taste_ingr] nested_loops
 
-def nested_loops'rn := fun n ↦
+def nested_loops'rn := fun (n : Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
@@ -33,7 +33,7 @@ def nested_loops'rn := fun n ↦
           total := total +ₚ j
       return total)
 
-def super_nested_loops := fun n ↦
+def super_nested_loops := fun (n : Int) ↦
   Id.run
     (do
       let mut res : Int := (0 : Int)
@@ -46,7 +46,7 @@ def super_nested_loops := fun n ↦
 
 attribute [simp, taste_ingr] super_nested_loops
 
-def super_nested_loops'rn := fun n ↦
+def super_nested_loops'rn := fun (n : Int) ↦
   Id.run
     (do
       let mut res : Int := (0 : Int)
@@ -57,7 +57,7 @@ def super_nested_loops'rn := fun n ↦
               res := res +ₚ (i +ₚ j +ₚ k +ₚ l)
       return res)
 
-def while_in_for := fun n ↦
+def while_in_for := fun (n : Int) ↦
   Id.run
     (do
       let mut count : Int := (0 : Int)
@@ -70,7 +70,7 @@ def while_in_for := fun n ↦
 
 attribute [simp, taste_ingr] while_in_for
 
-def while_in_for'rn := fun n ↦
+def while_in_for'rn := fun (n : Int) ↦
   Id.run
     (do
       let mut count : Int := (0 : Int)

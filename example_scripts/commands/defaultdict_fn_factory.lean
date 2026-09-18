@@ -23,8 +23,8 @@ def count_interesting := fun (nums : List Int) ↦ fun (m : Int) ↦ fun (k : In
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut a : List Int := (PastaLean.pyRange (n +ₚ (1 : Int))).map fun (_ : Int) => (0 : Int)
-      for i in (PastaLean.pyRange n)do
-        if h_1 : nums⦋i⦌ %ₚ m = k then 
+      for hb'i : i in (PastaLean.pyRange n)do
+        if h_1 : PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) %ₚ m = k then 
           a := PastaLean.pySetItem a (i +ₚ (1 : Int)) (1 : Int)
       for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
         a := PastaLean.pySetItem a i (a⦋i⦌ +ₚ a⦋i -ₚ (1 : Int)⦌)
@@ -45,8 +45,8 @@ def count_interesting'rn := fun (nums : List Int) ↦ fun (m : Int) ↦ fun (k :
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut a : Array Int := ((PastaLean.pyRange (n +ₚ (1 : Int))).map fun (_ : Int) => (0 : Int)) |>.toArray
-      for i in (PastaLean.pyRange n)do
-        if h_1 : nums⦋i⦌ %ₚ m == k then 
+      for hb'i : i in (PastaLean.pyRange n)do
+        if h_1 : PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) %ₚ m == k then 
           a := PastaLean.pySetItem a (i +ₚ (1 : Int)) (1 : Int)
       for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
         a := PastaLean.pySetItem a i (a⦋i⦌ +ₚ a⦋i -ₚ (1 : Int)⦌)

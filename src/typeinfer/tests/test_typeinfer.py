@@ -257,6 +257,38 @@ def test_engine_smoke() -> int:
     return 0
 
 
+def test_check() -> None:
+    """`--check`'s engine side: the Lean checker flags an annotation the body contradicts, stays
+    quiet on a consistent one, and renders Lean-first. Skipped if the binary is not built."""
+    from ...backend.typeinfer import TypeInferUnavailable
+    from ..check import check_source, to_lines, to_text
+    bad = 'def total(n: int) -> int:\n    return n.upper()\n'
+    try:
+        diags = check_source(bad, "t.py")
+    except TypeInferUnavailable as err:
+        print(f"  (skipped check test: {err})")
+        return
+    check("check.flags_mismatch", any(d["kind"] == "annotation-mismatch" for d in diags),
+          f"got {[d['kind'] for d in diags]}")
+    d = diags[0]
+    eq("check.lean_expected", d["lean_expected"], "Int")
+    eq("check.lean_actual", d["lean_actual"], "String")
+    # The rendering leads with the Lean type and carries the Python one as a line comment.
+    pairs = [("t.py", d)]
+    check("check.render_lean_first", "has type\n  String" in to_text(pairs), to_text(pairs))
+    check("check.render_python_gloss", "-- python: str" in to_text(pairs), to_text(pairs))
+    check("check.lines_one_per_error", len(to_lines(pairs).splitlines()) == 1)
+    eq("check.clean", check_source('def total(n: int) -> int:\n    return n + 1\n', "t.py"), [])
+    # A call argument is checked against the parameter it is passed to.
+    call = 'def total(n: int) -> int:\n    return n + 1\n\n\ndef main():\n    print(total("3"))\n'
+    cd = check_source(call, "t.py")
+    check("check.call_arg", any(d["slot"] == "n" and d["lean_actual"] == "String" for d in cd),
+          f"got {cd}")
+    # Iterating or indexing refutes a numeric annotation even with no element type to name.
+    cont = check_source('def f(xs: int) -> int:\n    t = 0\n    for x in xs:\n        t += x\n    return t\n', "t.py")
+    check("check.container_use", any(d["lean_expected"] == "Int" for d in cont), f"got {cont}")
+
+
 def test_server() -> None:
     """The persistent server: one process answers many tasks (reuse), separate servers are isolated,
     and a closed server transparently respawns. Skipped if the binary is not built."""
@@ -306,6 +338,7 @@ def main() -> int:
     test_annotate()
     test_config()
     test_engine_smoke()
+    test_check()
     test_server()
 
     if FAILURES:

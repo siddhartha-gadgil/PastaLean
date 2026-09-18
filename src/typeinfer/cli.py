@@ -6,7 +6,10 @@ package, so `main.py` only forwards to `run`. Modes:
   (default)          emit the source with inferred types injected (or JSON / a scope listing / a
                      `.pyi` stub via --format), optionally in place (-i).
   --coverage         print a type-coverage report.
-  --check            CI mode: print a diagnostic per unresolved slot (text / GitHub / SARIF) and,
+  --check            TYPE CHECK: report the Lean checker's verdicts (`checkTypes`) — an annotation
+                     the body contradicts, a slot whose uses no type satisfies — and exit non-zero
+                     if there is any. Errors print Lean-first, with the Python type alongside.
+  --unresolved       CI mode: print a diagnostic per unresolved slot (text / GitHub / SARIF) and,
                      with --fail-under (or `[tool.typeinfer]`), exit non-zero below that coverage.
 """
 
@@ -33,8 +36,9 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
         "--format", default=None, choices=[*FILE_FORMATS, "github", "sarif"],
         help="Output format. Default 'annotated': the source with inferred type annotations added. "
              "'json': a machine-readable type map. 'list': a scope-grouped listing. 'stub': a `.pyi` "
-             "stub. With --check, 'github'/'sarif' select the diagnostic format. Directory input "
-             "supports only 'annotated'.",
+             "stub. With --check/--unresolved, 'github'/'sarif' select the diagnostic format "
+             "('list' gives one line per error under --check). Directory input supports only "
+             "'annotated'.",
     )
     p.add_argument(
         "-i", "--in-place", action="store_true",
@@ -43,6 +47,12 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     )
     p.add_argument(
         "--check", action="store_true",
+        help="Type-check: report every annotation the body contradicts and every slot whose uses no "
+             "single type satisfies, and exit non-zero if there is any. Each error shows the Lean "
+             "type the transpiler would emit with its Python type alongside.",
+    )
+    p.add_argument(
+        "--unresolved", action="store_true",
         help="CI mode: report a diagnostic for every parameter/return/variable/field the engine could "
              "not resolve, and exit non-zero if coverage is below --fail-under.",
     )
@@ -52,7 +62,7 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     )
     p.add_argument(
         "--fail-under", type=float, default=None, metavar="PCT",
-        help="With --check/--coverage, exit non-zero if overall coverage is below this percentage.",
+        help="With --unresolved/--coverage, exit non-zero if overall coverage is below this percentage.",
     )
     p.add_argument(
         "--no-any", action="store_true",
@@ -66,7 +76,7 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
     p.add_argument("--indent", action=argparse.BooleanOptionalAction, default=True,
                    help="Pretty-print --format json. Default: on.")
     p.add_argument("-j", "--jobs", type=int, default=None, metavar="N",
-                   help="Repo mode: parallelism for IR generation and inference. Default: all cores.")
+                   help="Repo mode: parallelism for IR generation, inference and --check. Default: all cores.")
 
 
 def _emit(code: str, output: str | None) -> None:
@@ -92,6 +102,10 @@ def run(args) -> int:
     path = Path(args.file)
     t0 = time.perf_counter()
     try:
+        # Checking runs its own Lean pass (`checkTypes` infers twice — once as written, once with the
+        # annotations stripped — so the two answers are independent), so it does not reuse `result`.
+        if args.check:
+            return _run_check(path, fmt, getattr(args, "jobs", None))
         if path.is_dir():
             return _run_repo(args, path, fmt, output, include_any, fail_under, t0)
         source = path.read_text(encoding="utf-8")
@@ -106,7 +120,7 @@ def run(args) -> int:
         print(format_coverage_report(args.file, cov))
         return _gate(cov, fail_under)
 
-    if args.check:
+    if args.unresolved:
         diags = diagnostics(source, result, args.file)
         dfmt = fmt if fmt in ("github", "sarif") else "text"
         if dfmt == "github":
@@ -128,6 +142,27 @@ def run(args) -> int:
         counts = count_annotations(result, include_any=include_any)
         print(format_stats_report(args.file, counts, elapsed), file=sys.stderr)
     return 0
+
+
+def _run_check(path: Path, fmt: str, jobs: int | None = None) -> int:
+    """`--check`: the Lean checker's verdicts, mypy-style — nothing printed on success, non-zero exit
+    on any error."""
+    from .check import check_dir, check_source, to_github, to_lines, to_sarif, to_text
+
+    if path.is_dir():
+        diags = check_dir(path, jobs=jobs)
+    else:
+        diags = [(str(path), d)
+                 for d in check_source(path.read_text(encoding="utf-8"), str(path))]
+    if fmt == "github":
+        print(to_github(diags))
+    elif fmt == "sarif":
+        print(to_sarif(diags))
+    elif diags:
+        print(to_lines(diags) if fmt == "list" else to_text(diags))
+    n = len(diags)
+    print(f"{n} type error{'' if n == 1 else 's'}" if n else "no type errors", file=sys.stderr)
+    return 1 if diags else 0
 
 
 def _format_file(fmt: str, source: str, result, args, include_any: bool) -> str:
@@ -174,7 +209,7 @@ def _run_repo(args, repo: Path, fmt: str, output: str | None, include_any: bool,
     from .engine import infer_repo_dir
 
     jobs = getattr(args, "jobs", None)
-    if args.coverage or args.check:
+    if args.coverage or args.unresolved:
         agg = {d: {"typed": 0, "total": 0} for d in DIMENSIONS}
         for _dotted, (src, result) in infer_repo_dir(repo, jobs=jobs).items():
             c = coverage(src.read_text(encoding="utf-8"), result)

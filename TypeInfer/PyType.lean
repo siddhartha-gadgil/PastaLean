@@ -229,6 +229,50 @@ decreasing_by
 /-- Join a whole list, starting from `unknown`. -/
 def joinAll (ts : List PyType) : PyType := ts.foldl join .unknown
 
+/-- Greatest lower bound — the dual of `join`, with `any` (⊤) the identity and `unknown` (⊥) absorbing.
+
+`join` merges values that FLOW INTO a slot, so it widens (`int` and `float` assigned to the same
+variable make it `float`). `meet` merges the REQUIREMENTS a slot's uses impose, so it narrows: a
+parameter used both as an `int` and as a `float` must be `int`, since an `int` satisfies both uses but
+a `float` does not. Requirements that cannot be met together bottom out at `unknown`, which is the
+signal a checker reports rather than boxes. -/
+def meet : PyType → PyType → PyType
+  | .any, t | t, .any => t
+  | .unknown, _ | _, .unknown => .unknown
+  -- Dual of `join`'s numeric tower `bool <: int <: float`: the meet narrows DOWN the tower.
+  | .int, .bool | .bool, .int => .bool
+  | .float, .int | .int, .float => .int
+  | .float, .bool | .bool, .float => .bool
+  -- `opt` rungs before the container ones, mirroring `join`. `Optional[T] ⊓ None = None` (the only
+  -- value both admit); `Optional[T] ⊓ U` drops the nullability, since `U` alone admits no `None`.
+  | .opt a, .opt b => .opt (meet a b)
+  | .opt _, .none | .none, .opt _ => .none
+  | .opt a, b | b, .opt a => meet a b
+  | .list a, .list b => .list (meet a b)
+  | .set a, .set b => .set (meet a b)
+  | .dict k₁ v₁, .dict k₂ v₂ => .dict (meet k₁ k₂) (meet v₁ v₂)
+  | .tuple as, .tuple bs =>
+      if as.length == bs.length then .tuple ((as.zip bs).attach.map fun ⟨(a, b), _⟩ => meet a b)
+      else .unknown
+  | .fn as r₁, .fn bs r₂ =>
+      if as.length == bs.length then .fn ((as.zip bs).attach.map fun ⟨(a, b), _⟩ => meet a b) (meet r₁ r₂)
+      else .unknown
+  | a, b => if a.beq b then a else .unknown
+termination_by a b => sizeOf a + sizeOf b
+decreasing_by
+  all_goals simp_wf
+  all_goals
+    first
+    | omega
+    | · rename_i h
+        obtain ⟨ha, hb⟩ := List.of_mem_zip h
+        have := List.sizeOf_lt_of_mem ha
+        have := List.sizeOf_lt_of_mem hb
+        omega
+
+/-- Meet a whole list of requirements, starting from `any` (⊤, "no requirement yet"). -/
+def meetAll (ts : List PyType) : PyType := ts.foldl meet .any
+
 /-- Gradual-typing *consistency* (Siek & Taha): reflexive and symmetric, **not** transitive.
 `any` is consistent with everything, so a boxed value may flow anywhere; `int` and `str` are not
 consistent with each other. -/

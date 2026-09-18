@@ -322,6 +322,7 @@ pastalean typeinfer script.py                 # print the source with inferred a
 pastalean typeinfer script.py -o out.py       # write annotated source to a file
 pastalean typeinfer script.py --format stub   # emit a .pyi stub instead
 pastalean typeinfer script.py --coverage      # per-dimension type-coverage report
+pastalean typeinfer script.py --check         # type-check it: Lean-style errors, exit 1 if any
 pastalean typeinfer my_project/               # repo mode: annotate a whole project
 ```
 
@@ -452,6 +453,91 @@ pastalean typeinfer myrepo/ -o myrepo_typed -r
 
 Inference is parallel inside the engine: a batch or a repo fans out across the machine's cores in a
 single process (no per-file backend boot).
+
+`--check` **type-checks** instead of inferring: the Lean checker (`TypeInfer/Diagnostics/`) reports
+every annotation the body contradicts and every slot whose uses no single type satisfies, prints
+nothing when the file is clean, and exits non-zero when it is not. Errors read like Lean's, because
+what is really being checked is the Lean the transpiler would emit — the Python type rides along as
+a line comment:
+
+```bash
+pastalean typeinfer prog.py --check            # type errors, Lean-style; exit 1 if any
+pastalean typeinfer myrepo/ --check            # every file under the directory
+pastalean typeinfer prog.py --check --format list    # one line per error
+pastalean typeinfer prog.py --check --format github  # or sarif, for CI
+pastalean typeinfer prog.py --unresolved       # the other CI mode: slots left untyped
+```
+
+A directory runs full throttle by default, the same way inference does: the front-end builds every
+IR across a process pool, then the `checkBatch` task fans the modules across the machine's cores
+inside the exe (sharded over several exe processes past one process's ceiling). `-j/--jobs` caps it.
+One file is ~45 ms end-to-end, and all 165 `example_scripts/` programs check in under 0.4 s.
+
+```
+prog.py: error: type mismatch
+  total.n
+has type
+  String  -- python: str
+but is expected to have type
+  Int     -- python: int
+```
+
+Four judgments feed it: a parameter annotation against its body's uses, a return annotation against
+the body re-inferred with every return type stripped, a local `x: T = e` against its value flow, and
+each call argument against the parameter it is passed to. On a seeded-error benchmark — 204 mechanical
+annotation flips over 77 known-good programs, scored differentially (credit only when the mutant is
+flagged and its untouched original is not) — it catches the most of any checker while being the only
+one that never flags a known-good file:
+
+| Tool | Caught | Flagged clean | Time |
+|---|---|---|---|
+| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.7s |
+| ty | 149 (73.0%) | 47 (23.0%) | 0.2s |
+| pyright | 141 (69.1%) | 56 (27.5%) | 6.4s |
+| pyrefly | 137 (67.2%) | 59 (28.9%) | 0.8s |
+| zuban | 131 (64.2%) | 43 (21.1%) | 0.5s |
+| mypy | 119 (58.3%) | 80 (39.2%) | 3.8s |
+
+Reproduce with `PastaBench/typecheck_bench/mutate.py` and `bench_checkers.py`. The corpus is
+`example_scripts/`, Python that PastaLean fully supports; the "flagged clean" column is mostly extra
+strictness for the other tools rather than a bug, which is exactly why recall is scored
+differentially.
+
+#### False positives on the mypy_primer corpus
+
+204 mutants of our own examples is a recall test, not a precision test. For that we use
+[mypy_primer](https://github.com/hauntsaninja/mypy_primer)'s project list — the corpus mypy,
+pyright, ty and pyrefly all run their own regressions against. Its selection rule is what makes it
+useful: a project is on the list only if it already type-checks in its own CI, so **every diagnostic
+PastaLean emits on it is a candidate false positive**.
+
+```
+mypy_primer corpus: 158 projects, 72,881 .py files
+  diagnostics       234 (3.21 per 1000 files)
+  front-end failed  100
+  timed out         5 files (> 90s)
+```
+
+One diagnostic per ~310 files, on 10M lines nobody here wrote. Of the survivors a visible share are
+genuine: `beartype` and `black` ship deliberately ill-typed fixtures, and Home Assistant really does
+`return 0` from a `-> None` function. Reproduce with
+
+```bash
+uv run PastaBench/typecheck_bench/primer.py fetch     /tmp/primer   # ~3.5 GB, shallow
+uv run PastaBench/typecheck_bench/primer.py precision /tmp/primer
+```
+
+The sweep is what the current filters were written against: a class must be in a method's scope path
+(two `__exit__`s in one module are not one slot), a judgment may not name a class the module does not
+define (a `TypeVar` is a binder, not a nominal type), a use-conflict is reported only between two
+committed scalars, and a `yield` function's `-> None` is not contradicted by the list its
+materialisation builds. Together those took the corpus from 860 diagnostics to 234 at **no cost to
+recall** — still 169/204.
+
+What the corpus does *not* give us is a scoreboard. The published one is the
+[typing conformance suite](https://github.com/python/typing/tree/main/conformance), scored by exact
+per-line agreement with inline `# E:` markers; PastaLean's diagnostics carry no line numbers yet, so
+it is not currently scorable there.
 
 ### HTTP API
 
