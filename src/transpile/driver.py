@@ -1441,7 +1441,7 @@ def _local_module_file(root, dotted):
     return None
 
 
-def resolve_local_imports(source_code, module_dir):
+def resolve_local_imports(source_code, module_dir, as_tree=False):
     """Inline a program's LOCAL imports so single-module inference sees the whole reachable program.
 
     PastaLean translates each file to its own Lean module, but the `TypeInfer` pass runs per-module,
@@ -1451,6 +1451,10 @@ def resolve_local_imports(source_code, module_dir):
     defs are inlined under mangled names and qualified accesses (`mod.f()`, `pkg.sub.f()`, `alias.f()`)
     are rewritten to them, producing one flat self-contained program. Library/foreign imports (numpy,
     random, …) are left untouched. Returns the rewritten source, or None when nothing local resolves.
+
+    `as_tree` returns the combined AST instead of unparsed source, so the main file's nodes keep
+    their ORIGINAL `lineno` (unparsing renumbers everything). Inlined defs are marked `_pl_foreign`,
+    since their line numbers belong to another file.
     """
     if not module_dir:
         return None
@@ -1563,6 +1567,11 @@ def resolve_local_imports(source_code, module_dir):
     kept = [_rewrite(n, main_binds) for n in main_tree.body
             if not isinstance(n, (ast.Import, ast.ImportFrom))]
     main_tree.body = prepended + kept
+    if as_tree:
+        for top in prepended:
+            for n in ast.walk(top):
+                n._pl_foreign = True
+        return ast.fix_missing_locations(main_tree)
     try:
         return ast.unparse(ast.fix_missing_locations(main_tree))
     except Exception:  # noqa: BLE001
@@ -1591,12 +1600,20 @@ def translate_to_json(source_code, filepath=None, best_effort=False, infer_only=
     # (`from helper import f; x = f()` → `x` typed). Library/foreign imports are left untouched.
     # `resolve_imports=False` is the repo-level path: keep each file a separate module (imports left
     # in the IR) so the Lean `inferRepo` task does all cross-file resolution itself.
+    # Under `infer_only` the combined program is taken as an AST, not as unparsed source, so the
+    # checked file's own nodes keep their real line numbers for diagnostics.
+    ast_tree = None
     if filepath and resolve_imports:
-        _resolved = resolve_local_imports(source_code, str(Path(filepath).resolve().parent))
+        _resolved = resolve_local_imports(source_code, str(Path(filepath).resolve().parent),
+                                          as_tree=infer_only)
         if _resolved is not None:
-            source_code = _resolved
+            if infer_only:
+                ast_tree = _resolved
+            else:
+                source_code = _resolved
     logger.debug("Source passed to Python AST parser:\n%s", source_code)
-    ast_tree = ast.parse(source_code)
+    if ast_tree is None:
+        ast_tree = ast.parse(source_code)
     _sanitize_hole_identifiers(ast_tree)
     logger.debug("Parsed Python AST:\n%s", ast.dump(ast_tree, indent=4))
     module_dir = str(Path(filepath).resolve().parent) if filepath else None

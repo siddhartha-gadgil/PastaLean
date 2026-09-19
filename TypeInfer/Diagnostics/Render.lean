@@ -61,7 +61,8 @@ private def typeLine (t : PyType) (width : Nat) : String :=
 `file` prefixes the headline the way Lean prefixes a message with its source file. -/
 def Diagnostic.render (d : Diagnostic) (file : String := "") : String :=
   let width := max (d.expected.toLeanName).length (d.actual.toLeanName).length
-  let loc := if file.isEmpty then "" else s!"{file}: "
+  let pos := if d.line == 0 then "" else s!":{d.line}:{d.col}"
+  let loc := if file.isEmpty then "" else s!"{file}{pos}: "
   let block (headline actualLabel expectedLabel : String) : String :=
     s!"{loc}error: {headline}\n  {d.subject}\n{actualLabel}\n{typeLine d.actual width}\n" ++
       s!"{expectedLabel}\n{typeLine d.expected width}"
@@ -88,6 +89,7 @@ def Diagnostic.toJson (d : Diagnostic) : Json :=
     [ ("scope", .str d.scope), ("slot", .str d.slot), ("kind", .str (toString d.kind)),
       ("expected", .str (toString d.expected)), ("actual", .str (toString d.actual)),
       ("lean_expected", .str d.expected.toLeanName), ("lean_actual", .str d.actual.toLeanName),
+      ("line", Lean.toJson d.line), ("col", Lean.toJson d.col),
       ("message", .str d.message), ("render", .str (d.render)) ]
 
 end TypeInfer

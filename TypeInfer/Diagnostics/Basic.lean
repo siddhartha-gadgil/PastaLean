@@ -128,7 +128,16 @@ structure Diagnostic where
   expected : PyType
   /-- What the conflicting evidence said. -/
   actual : PyType
+  /-- 1-based source line of the accused node; `0` when the IR carried no position. -/
+  line : Nat := 0
+  /-- 1-based source column of the accused node; `0` when unknown. -/
+  col : Nat := 0
   deriving Repr, Inhabited
+
+/-- Stamp the accused node's source position onto a diagnostic. A position already set wins: the
+inner judgment knows the precise node, the caller only the enclosing one. -/
+def Diagnostic.at (line col : Nat) (d : Diagnostic) : Diagnostic :=
+  if d.line == 0 then { d with line, col } else d
 
 /-- The slot a diagnostic is about, as the user wrote it: `f.p`, or just `p` at module scope. -/
 def Diagnostic.subject (d : Diagnostic) : String :=

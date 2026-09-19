@@ -103,22 +103,28 @@ def check_dir(repo: Path, *, jobs: int | None = None) -> list[tuple[str, dict]]:
     return check_paths([str(p) for p in sorted(repo.rglob("*.py"))], jobs=jobs)
 
 
+def _pos(d: dict) -> str:
+    """`:line:col`, or nothing when the accused node carried no position (a node a pre-pass
+    synthesised, or one inlined from another file)."""
+    return f":{d['line']}:{d['col']}" if d.get("line") else ""
+
+
 def to_text(diags: list[tuple[str, dict]]) -> str:
     """Lean-style, one block per error: the Lean type codegen would emit, with the Python type it
     came from as a line comment beside it."""
-    return "\n\n".join(f"{file}: {d['render']}" for file, d in diags)
+    return "\n\n".join(f"{file}{_pos(d)}: {d['render']}" for file, d in diags)
 
 
 def to_lines(diags: list[tuple[str, dict]]) -> str:
     """One line per error, for grep-ability."""
-    return "\n".join(f"{file}: error: {d['message']}" for file, d in diags)
+    return "\n".join(f"{file}{_pos(d)}: error: {d['message']}" for file, d in diags)
 
 
 def to_github(diags: list[tuple[str, dict]]) -> str:
-    """GitHub Actions workflow commands. The IR carries no source positions yet, so every annotation
-    lands on line 1 of its file."""
+    """GitHub Actions workflow commands."""
     return "\n".join(
-        f"::error file={file},line=1,title=typeinfer {d['kind']}::{d['message']}"
+        f"::error file={file},line={d.get('line') or 1},col={d.get('col') or 1},"
+        f"title=typeinfer {d['kind']}::{d['message']}"
         for file, d in diags
     )
 
@@ -136,7 +142,7 @@ def to_sarif(diags: list[tuple[str, dict]]) -> str:
             "locations": [{
                 "physicalLocation": {
                     "artifactLocation": {"uri": file},
-                    "region": {"startLine": 1},
+                    "region": {"startLine": d.get("line") or 1, "startColumn": d.get("col") or 1},
                 }
             }],
         }

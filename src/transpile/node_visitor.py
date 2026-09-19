@@ -418,7 +418,17 @@ class ASTToJsonLeanVisitorBase:
             visitor = self._visit_auto_serialized_node
         if visitor is None:
             visitor = self.generic_visit
-        return visitor(node)
+        out = visitor(node)
+        # Source position, for diagnostics. Stamped here (the one dispatcher every node goes
+        # through) rather than per visit_X. `_pl_foreign` marks a def inlined from ANOTHER file by
+        # `resolve_local_imports`, whose line number would point into the wrong source.
+        if (isinstance(out, dict) and "node_type" in out and "_line" not in out
+                and not getattr(node, "_pl_foreign", False)):
+            line = getattr(node, "lineno", None)
+            if line is not None:
+                out["_line"] = line
+                out["_col"] = getattr(node, "col_offset", 0) + 1
+        return out
 
     def generic_visit(self, node):
         """Strict fallback to prevent unsupported syntax from leaking into the IR."""

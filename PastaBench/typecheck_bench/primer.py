@@ -85,13 +85,12 @@ def fetch(out: Path, limit: int | None, jobs: int) -> int:
     return 0
 
 
-#: Files per unit of work. Small enough that one pathological module (see `MAX_BYTES`) strands one
-#: worker rather than a whole project, and that every IR in a call stays resident comfortably.
+#: One unit of work: at most this many files, and at most this many source bytes. The corpus is
+#: wildly uneven — a 4 MB generated test module sits beside thousands of 2 KB ones — so a file count
+#: alone makes some chunks a thousand times the work of others. Nothing is skipped for being large:
+#: a file over the budget simply gets a chunk to itself.
 CHUNK = 50
-#: Machine-generated modules — a 33k-line GraphQL schema dump, a vendored parse table — are not what
-#: this corpus is here to measure, and the checker's fixpoint is superlinear in a single scope's size.
-#: Skipped, and counted, rather than silently distorting the wall clock.
-MAX_BYTES = 400_000
+CHUNK_BYTES = 600_000
 #: Wall-clock ceiling for one chunk. Generous next to the ~0.1 s a 50-file chunk normally takes.
 CHUNK_TIMEOUT = 90
 
@@ -159,16 +158,18 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
     projects = sorted(p for p in corpus.iterdir() if p.is_dir())
     jobs = jobs or (os.cpu_count() or 8)
     work: list[tuple[str, list[str]]] = []
-    oversize = 0
     for proj in projects:
-        paths = []
+        cur: list[str] = []
+        cur_bytes = 0
         for p in sorted(proj.rglob("*.py")):
-            if p.stat().st_size > MAX_BYTES:
-                oversize += 1
-            else:
-                paths.append(str(p))
-        for i in range(0, len(paths), CHUNK):
-            work.append((proj.name, paths[i:i + CHUNK]))
+            size = p.stat().st_size
+            if cur and (len(cur) >= CHUNK or cur_bytes + size > CHUNK_BYTES):
+                work.append((proj.name, cur))
+                cur, cur_bytes = [], 0
+            cur.append(str(p))
+            cur_bytes += size
+        if cur:
+            work.append((proj.name, cur))
 
     per_project: dict[str, dict] = {}
     samples: list[str] = []
@@ -195,7 +196,6 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
           f"({total_diags / max(total_files, 1) * 1000:.2f} per 1000 files)")
     print(f"  front-end failed  {failed}")
     print(f"  timed out         {len(timeouts)} files (> {CHUNK_TIMEOUT}s, bisected)")
-    print(f"  skipped oversize  {oversize} (> {MAX_BYTES // 1000} KB)")
     print(f"  wall              {wall:.1f}s ({total_files / max(wall, 1e-9):.0f} files/s)")
     for row in sorted(per_project.values(), key=lambda r: -r["diags"])[:10]:
         if row["diags"]:
@@ -203,7 +203,7 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
     if out_json:
         out_json.write_text(json.dumps(
             {"projects": sorted(per_project.values(), key=lambda r: -r["diags"]),
-             "files": total_files, "diags": total_diags, "oversize": oversize,
+             "files": total_files, "diags": total_diags,
              "wall": wall, "samples": samples, "timeouts": timeouts}, indent=2))
     return 0
 

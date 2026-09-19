@@ -27,6 +27,16 @@ private def liveField? (j : Json) (k : String) : Option Json :=
   | some v => if v.isNull then Option.none else some v
   | Option.none => Option.none
 
+/-- The source position the front end stamped on a node (`_line`/`_col`), `(0, 0)` when it carried
+none — a node synthesised by a pre-pass, or one inlined from another file. -/
+private def posOf (j : Json) : Nat × Nat :=
+  ((j.getObjValAs? Nat "_line").toOption.getD 0, (j.getObjValAs? Nat "_col").toOption.getD 0)
+
+/-- Stamp a node's position onto every diagnostic that does not already carry one. -/
+private def atNode (j : Json) (ds : Array Diagnostic) : Array Diagnostic :=
+  let (l, c) := posOf j
+  if l == 0 then ds else ds.map (Diagnostic.at l c)
+
 /-- Evidence an annotation may be checked against DIRECTLY. Scalar evidence names the type its use
 demands (`p.isalpha()` ⇒ `str`, `p << 1` ⇒ `int`), and `consistent` already lets Python's numeric
 tower through, so `x: float` used as `x + 1` is not flagged. Container evidence is excluded: the
@@ -126,7 +136,7 @@ private def diagnoseArg (fnParams : Std.HashMap String (Array PyType)) (scope : 
   let name := (arg.getObjValAs? String "arg").toOption.getD ""
   if name.isEmpty || name == "self" || name == "cls" then #[] else
   let evidence := usageEvidence fnParams (locals.erase name) 1 name body
-  match liveField? arg "annotation" with
+  atNode arg <| match liveField? arg "annotation" with
   | some ann =>
       let a := ofAnnotation ann
       -- Both sides must be scalar. A class-shaped annotation is not necessarily a class: an
@@ -226,16 +236,28 @@ partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
               -- decidable as the parameter case.
               if isScalarEvidence a && inferred != .none
                  && (isScalarEvidence inferred || checkableContainer a inferred) then
-                (checkAnnotation fq "<return>" a inferred).toArray
+                atNode ann ((checkAnnotation fq "<return>" a inferred).toArray)
               else #[]
           | Option.none => #[]
-        params ++ ret
-    -- `x: T = e` — the annotation is the claim, the stamp is what the value flow found.
-    | some "AnnAssign" =>
-        match (liveField? json "target").bind nameId?, liveField? json "annotation" with
+        atNode json (params ++ ret)
+    -- `x: T = e` — the annotation is the claim, the VALUE is the evidence. The front end lowers an
+    -- annotated assignment that has a value to an `Assign` carrying `_decl_ty` (a bare `AnnAssign`
+    -- survives only when there is no value, and has nothing to check). The target's own `_ty` is
+    -- seeded FROM the annotation, so comparing the two could only ever agree.
+    | some "Assign" =>
+        match (liveField? json "target").bind nameId?, liveField? json "_decl_ty" with
         | some n, some ann =>
-            let inferred := ((liveField? json "target").bind (liveField? · "_ty")).elim PyType.unknown ofAnnotation
-            (checkAnnotation scope n (ofAnnotation ann) inferred).toArray
+            let a := ofAnnotation ann
+            let v := match liveField? json "value" with
+              | some val =>
+                  (literalType? val).getD ((liveField? val "_ty").elim PyType.unknown ofAnnotation)
+              | Option.none => .unknown
+            -- A `None` initialiser is the implicit-Optional idiom (`_argv_ptr: int = None`, filled in
+            -- later), not a claim about the slot — and the parameter judgment already declines to
+            -- accuse `None` for the same reason, so accusing it here would contradict that.
+            if isScalarEvidence a && v != .none && (isScalarEvidence v || checkableContainer a v) then
+              atNode json ((checkAnnotation scope n a v).toArray)
+            else #[]
         | _, _ => #[]
     | _ => #[]
   -- A nested `def`, or a `class`, re-scopes its children; every other node keeps the current scope.
@@ -301,7 +323,7 @@ private partial def diagnoseCalls (sigs : Std.HashMap String (Option (Array (Str
   let here : Array Diagnostic :=
     match nodeTypeOf json with
     | some "Call" =>
-        match (liveField? json "func").bind nameId? |>.bind sigs.get? |>.join with
+        atNode json <| match (liveField? json "func").bind nameId? |>.bind sigs.get? |>.join with
         | some named =>
             let fn := ((liveField? json "func").bind nameId?).getD ""
             let args := (json.getObjValAs? (Array Json) "args").toOption.getD #[]
@@ -309,7 +331,9 @@ private partial def diagnoseCalls (sigs : Std.HashMap String (Option (Array (Str
             (Array.range args.size).filterMap fun i =>
               match literalType? args[i]!, named[i]? with
               | some t, some (pname, ptype) =>
-                  if fullyKnown t && fullyKnown ptype then checkAnnotation fn pname ptype t
+                  if fullyKnown t && fullyKnown ptype then
+                    let (l, c) := posOf args[i]!
+                    (checkAnnotation fn pname ptype t).map (Diagnostic.at l c)
                   else Option.none
               | _, _ => Option.none
         | Option.none => #[]

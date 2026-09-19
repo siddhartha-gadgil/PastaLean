@@ -251,6 +251,26 @@ def stampClassFields (fields : Sigs) (cls : String) (st : Json) : Json :=
       | _ => f))
   | _ => st
 
+/-- Split a `Class.member` key into its owning class and the member below it. A base name can itself
+be dotted (`abc.ABC`), so the owner is the shortest dot-delimited prefix `owners` knows. -/
+private partial def ownerSplit (owners : Std.HashSet String) (k : String) : Option (String × String) :=
+  let rec go (acc : String) : List String → Option (String × String)
+    | [] | [_] => none
+    | p :: rest =>
+        let owner := if acc.isEmpty then p else acc ++ "." ++ p
+        if owners.contains owner then some (owner, String.intercalate "." rest) else go owner rest
+  go "" (k.splitOn ".")
+
+/-- A `Class.member` table indexed by owning class. Built once per inheritance pass so a subclass
+reads its base's members straight out of a map, instead of the whole table being rescanned for every
+(subclass, base) pair. -/
+private def membersByOwner {α : Type} (owners : Std.HashSet String)
+    (entries : List (String × α)) : Std.HashMap String (Array (String × α)) :=
+  entries.foldl (fun m (k, v) =>
+    match ownerSplit owners k with
+    | some (owner, suffix) => m.insert owner (((m.get? owner).getD #[]).push (suffix, v))
+    | none => m) {}
+
 /-- Co-evolve every function's return type AND its parameter types to a fixpoint: a callee's return
 flows to its callers, and a caller's argument types flow to the callee's parameters. Both only climb
 the lattice, so this settles. -/
@@ -306,6 +326,8 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
   -- Each class's direct base names, for MRO member propagation inside the fixpoint below.
   let baseMap : Array (String × Array String) := (classDefsOf module).filterMap fun cd =>
     (cd.getObjValAs? String "name").toOption.map (fun c => (c, baseNamesOf cd))
+  -- The only class names the member index is ever asked about.
+  let baseSet : Std.HashSet String := baseMap.foldl (fun s (_, bs) => bs.foldl (·.insert ·) s) {}
   for _ in [0:6] do
     -- Refresh class field types from the current (refined) `__init__` params so a field on an
     -- unannotated ctor param (`self.width = width`, `width` learned as `int` from `Rectangle(5,10)`)
@@ -317,17 +339,29 @@ partial def collectSigs (module : Json) (seedSigs : Sigs := {}) (seedParams : Pa
     -- method (`B(A)` whose `func` returns `self.a`, `a` set by `A.__init__`) and an inherited METHOD
     -- call (`b.func()`) both resolve. Inside the loop + iterated so `self.a` is known BEFORE the
     -- method's return is computed, and multi-level chains (C→B→A) close.
-    for _ in [0:baseMap.size] do
+    -- A pass copies one level, so only a chain needs another one: the loop stops as soon as a pass
+    -- inserts nothing, and each pass indexes both tables by owning class (`membersByOwner`) rather
+    -- than rescanning them per (subclass, base) pair. Scanning every pair on every one of `baseMap.size`
+    -- passes was cubic — a module with a few hundred inherited classes took minutes.
+    let mut pass := 0
+    let mut changed := true
+    while changed && pass < baseMap.size do
+      pass := pass + 1
+      changed := false
+      let sigMembers := membersByOwner baseSet sigs.toList
+      let parMembers := membersByOwner baseSet params.toList
       for (cls, bases) in baseMap do
         for base in bases do
-          for (k, v) in sigs.toList do
-            if k.startsWith s!"{base}." then
-              let subKey := s!"{cls}." ++ k.drop (base.length + 1)
-              unless sigs.contains subKey do sigs := sigs.insert subKey v
-          for (k, v) in params.toList do
-            if k.startsWith s!"{base}." then
-              let subKey := s!"{cls}." ++ k.drop (base.length + 1)
-              unless params.contains subKey do params := params.insert subKey v
+          for (suffix, v) in (sigMembers.get? base).getD #[] do
+            let subKey := s!"{cls}.{suffix}"
+            if !sigs.contains subKey then
+              sigs := sigs.insert subKey v
+              changed := true
+          for (suffix, v) in (parMembers.get? base).getD #[] do
+            let subKey := s!"{cls}.{suffix}"
+            if !params.contains subKey then
+              params := params.insert subKey v
+              changed := true
     let mut nextSigs := sigs
     let mut nextParams := params
     let refineFrom (nextParams : ParamSigs) (calls : Array (String × Array PyType)) : ParamSigs :=

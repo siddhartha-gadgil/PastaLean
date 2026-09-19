@@ -474,7 +474,7 @@ inside the exe (sharded over several exe processes past one process's ceiling). 
 One file is ~45 ms end-to-end, and all 165 `example_scripts/` programs check in under 0.4 s.
 
 ```
-prog.py: error: type mismatch
+prog.py:4:11: error: type mismatch
   total.n
 has type
   String  -- python: str
@@ -512,13 +512,18 @@ useful: a project is on the list only if it already type-checks in its own CI, s
 PastaLean emits on it is a candidate false positive**.
 
 ```
-mypy_primer corpus: 158 projects, 72,881 .py files
-  diagnostics       234 (3.21 per 1000 files)
-  front-end failed  100
-  timed out         5 files (> 90s)
+mypy_primer corpus: 158 projects, 72,923 .py files
+  diagnostics       238 (3.26 per 1000 files)
+  front-end failed  72
+  timed out         0 files (> 90s, bisected)
 ```
 
-One diagnostic per ~310 files, on 10M lines nobody here wrote. Of the survivors a visible share are
+One diagnostic per ~310 files, on 10M lines nobody here wrote, with **every** file checked — nothing
+skipped for size, and nothing the checker cannot finish. The largest module in the corpus is a 4.1 MB
+generated test (`manticore/tests/native/test_x86.py`) at 12.8 s; the 33k-line GraphQL schema dump
+that used to run for minutes is 3.7 s. Both were the same bug: the signature fixpoint propagated
+inherited members by rescanning the whole table for every subclass/base pair on every pass, which is
+cubic in the class count. Indexing by owning class made it linear. Of the survivors a visible share are
 genuine: `beartype` and `black` ship deliberately ill-typed fixtures, and Home Assistant really does
 `return 0` from a `-> None` function. Reproduce with
 
@@ -536,8 +541,10 @@ recall** — still 169/204.
 
 What the corpus does *not* give us is a scoreboard. The published one is the
 [typing conformance suite](https://github.com/python/typing/tree/main/conformance), scored by exact
-per-line agreement with inline `# E:` markers; PastaLean's diagnostics carry no line numbers yet, so
-it is not currently scorable there.
+per-line agreement with inline `# E:` markers. Diagnostics now carry `line:col`, so that rule is no
+longer the blocker; what still is, is coverage — the suite tests `Protocol`, `ParamSpec`,
+`TypedDict`, `overload` and variance, and only a third of its files survive a subset transpiler's
+front end.
 
 ### HTTP API
 
