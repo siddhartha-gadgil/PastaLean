@@ -65,6 +65,9 @@ case-insensitive filesystems.) Install it with `uv pip install -e '.[server]'`.
 - `server.py` — `pastalean serve`: a FastAPI app over one `Session`, serving the `static/` web
   playground at `/` and its generated reference at `/api`.
 - `pyexec.py` — runs the *original* Python, so the UI can diff it against the Lean twin.
+- `mcp_server.py` — `pastalean mcp`: MCP server for LLM-driven verification (translate, prove,
+  `verify_theorems` axiom + fidelity audit, differential run, source browsing). Paired skill:
+  `.claude/skills/verify-python/`; proving guide: `docs/proving-with-pastalean.md`.
 - `backend/` — everything that talks to Lean: `client.py` (the persistent `py2lean --server`
   process) and `lean.py` (`compile_check` / `run_program` via `lake env lean`).
 - `transpile/` — everything that manipulates Python AST/IR (the three stages above, plus

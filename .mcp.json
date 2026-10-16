@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pastalean": {
+      "command": "uv",
+      "args": ["run", "--extra", "mcp", "pastalean", "mcp"]
+    }
+  }
+}

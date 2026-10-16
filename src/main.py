@@ -5,6 +5,7 @@
     pastalean json prog.py
     pastalean batch example_scripts/commands -o out/
     pastalean serve --port 6789
+    pastalean mcp                               # MCP server for LLM-driven verification
 
 Each subcommand is a thin `cmd_*` wrapper. The work happens elsewhere: `api.Session` translates
 (via `transpile/`), `backend.lean` compiles and runs, `server` serves. Nothing here should know
@@ -259,6 +260,13 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def cmd_mcp(args) -> int:
+    from .mcp_server import serve  # imported lazily: the MCP SDK is an optional extra
+
+    serve()
+    return 0
+
+
 def cmd_typeinfer(args) -> int:
     from .typeinfer.cli import run
 
@@ -351,6 +359,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_translation_flags(p_serve)
     p_serve.set_defaults(func=cmd_serve)
+
+    p_mcp = sub.add_parser(
+        "mcp",
+        help="Run the MCP server (stdio) that lets an LLM translate, prove and verify Python.",
+        description="Model Context Protocol server over stdio. Tools: translate_python, check_lean, "
+                    "verify_theorems, run_differential, typecheck_python, get_guide, "
+                    "list_proved_examples, get_example, search_lemmas. Needs the `mcp` extra: "
+                    "uv pip install -e '.[mcp]'.",
+    )
+    p_mcp.set_defaults(func=cmd_mcp)
 
     p_typeinfer = sub.add_parser(
         "typeinfer",

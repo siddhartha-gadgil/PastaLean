@@ -117,6 +117,24 @@ def compile_check(
             temp.unlink(missing_ok=True)
 
 
+_ROOT_MAIN_RE = re.compile(r"^def main\b", re.M)
+_NAMESPACED_MAIN_RE = re.compile(r"^def (main'rn|main)\s*:\s*IO Unit", re.M)
+
+
+def with_root_main(lean_code: str) -> str:
+    """`lean --run` needs a root-level `main`, but generated code defines it inside
+    `namespace PastaLean.User.Root`. Append a root alias to it (the runnable twin `main'rn` when
+    both twins were emitted). Code that already has a root `main` is returned unchanged."""
+    ns_end = lean_code.rfind("end PastaLean.User.Root")
+    if ns_end < 0 or _ROOT_MAIN_RE.search(lean_code[ns_end:]):
+        return lean_code
+    names = set(_NAMESPACED_MAIN_RE.findall(lean_code[:ns_end]))
+    entry = "main'rn" if "main'rn" in names else ("main" if "main" in names else None)
+    if entry is None:
+        return lean_code
+    return lean_code.rstrip() + f"\n\ndef main : IO Unit := PastaLean.User.Root.{entry}\n"
+
+
 def run_program(
     lean_code: str | None = None,
     *,
@@ -128,7 +146,9 @@ def run_program(
     """Execute a generated program's `main` with `lake env lean --run`."""
     temps: list[Path] = []
     try:
-        path = _materialise(lean_code, lean_path, temps)
+        if lean_path is not None:
+            lean_code, lean_path = Path(lean_path).read_text(encoding="utf-8"), None
+        path = _materialise(with_root_main(lean_code), None, temps)
         try:
             proc = subprocess.run(
                 [lake_executable(), "env", "lean", "--run", str(path)],

@@ -606,6 +606,27 @@ with pastalean.Session(target="command", mode="run") as session:
 Booting the backend imports Mathlib(the first run will take a lot of time, subsequent are faster), so a `Session` is much faster than one process per file. `pastalean.compile_check` and `pastalean.run_program` take Lean text
 and shell out to `lake env lean`.
 
+### MCP server and skill (LLM-driven verification)
+
+`pastalean mcp` runs a [Model Context Protocol](https://modelcontextprotocol.io) server over stdio,
+so an LLM client can verify Python logic itself. It writes contracts, translates, proves the emitted
+theorems, and gets a verdict it cannot game. Install the extra with `uv pip install -e '.[mcp]'`.
+The repo's `.mcp.json` registers the server for Claude Code automatically.
+
+| Tool | What it does |
+|---|---|
+| `translate_python` | Python → Lean (both twins). Returns an editable `lean_path`, the proof obligations, and whether anything degraded to `pyUnsupported` |
+| `check_lean` | Elaborate Lean and return diagnostics, for iterating on a proof |
+| `verify_theorems` | **The verdict.** Compiles, audits each theorem with `#print axioms` (no `sorry`, `native_decide` or extra axioms), and checks every `def` and theorem statement is still exactly what was translated. Only theorems and lemmas may be added |
+| `run_differential` | Runs CPython and the runnable twin on a `__main__` and compares their output |
+| `typecheck_python` | The TypeInfer type checker |
+| `find_definition`, `search_lemmas`, `grep_source`, `read_source` | Explore the runtime: what `pyAppend` computes, which lemmas exist about it |
+| `get_guide`, `list_proved_examples`, `get_example` | The contract guide, the proving guide (`docs/proving-with-pastalean.md`), and the fully proved PastaBench examples |
+
+The matching skill, `.claude/skills/verify-python/SKILL.md`, gives the workflow: contracts →
+translate → prove only the proofs → `verify_theorems` → differential check → an honest report
+(proved / false with a counterexample / not yet proved).
+
 ## Testing
 
 PastaLeanCheck (PALC) (pronounced - "pal" + "ack" like PAL Acknowledge) is the testing framework for PastaLean. It is used to check that the generated Lean code matches the expected output.

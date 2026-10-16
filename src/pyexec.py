@@ -9,17 +9,25 @@ This executes the caller's code in a subprocess. It is not a sandbox.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from typing import Sequence
 
 from .backend.lean import RunResult
 from .paths import REPO_ROOT
 
 
-def run_python(source: str, *, stdin: str = "", timeout: float | None = 60.0) -> RunResult:
-    """Execute `source` with CPython, feeding it `stdin`."""
+def run_python(source: str, *, stdin: str = "", timeout: float | None = 60.0,
+               extra_paths: Sequence[Path] = ()) -> RunResult:
+    """Execute `source` with CPython, feeding it `stdin`. `extra_paths` are prepended to
+    PYTHONPATH (e.g. a directory providing the `contracts` shim)."""
+    env = None
+    if extra_paths:
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join([*map(str, extra_paths), env.get("PYTHONPATH", "")]).rstrip(os.pathsep)
     with tempfile.NamedTemporaryFile("w", suffix=".py", delete=False, encoding="utf-8") as handle:
         handle.write(source)
         script = Path(handle.name)
@@ -32,6 +40,7 @@ def run_python(source: str, *, stdin: str = "", timeout: float | None = 60.0) ->
                 text=True,
                 capture_output=True,
                 timeout=timeout,
+                env=env,
             )
         except subprocess.TimeoutExpired as err:
             return RunResult(

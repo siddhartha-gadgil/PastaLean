@@ -38,3 +38,6 @@ cp_harness/.native/
 PastaBench/_eval_out
 PastaBench/_report_gen/
 PastaBench/llm_bench
+
+# `pastalean mcp` scratch workspace (translated sources, editable Lean, contracts shim).
+.pastalean-mcp/
