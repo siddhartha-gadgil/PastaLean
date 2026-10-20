@@ -1,4 +1,4 @@
-import TypeInfer.Diagnostics.Basic
+import TypeInfer.Certificate.Basic
 import TypeInfer.Annotation
 import TypeInfer.Solve.Fixpoint
 
@@ -15,6 +15,14 @@ Both are decided by machinery proved in `TypeInfer.Theorem.Requirements`: `check
 (never flags a slot against its own type) and `hasType_commit` (a committed requirement really is
 satisfied by every use). The pass is total — an unparseable annotation reads back as `unknown`, which
 by `checkAnnotation_unknown` is silently gradual rather than an error.
+
+**The pass yields `Slot`s, and the diagnostics are read off them** (`diagnoseModule`). Each judgment
+site reaches one verdict about one slot, and every judgment here reports at most one diagnostic — the
+annotated-parameter check takes the first failing use, and `checkUses` stops at the first
+contradiction because `Req` contradiction is absorbing. So a slot and its diagnostic are the same
+fact in two shapes, and recording the slot keeps what the old pass threw away: the evidence weighed,
+and the verdict on the slots that PASSED. `TypeInfer.certifyModule` is that record; see
+`TypeInfer/Certificate.lean`.
 -/
 
 namespace TypeInfer
@@ -127,33 +135,102 @@ private def isConflictEvidence : PyType → Bool
   | .int | .bool | .float | .str => true
   | _ => false
 
-/-- One `arg` node's verdicts. An ANNOTATED parameter is checked against its body uses rather than
+/-- May a clash between this slot's uses be REPORTED? Only when at least one of them is an
+unambiguous signal — a shift or `~` (int), `ord`/`chr`, or a type-exclusive method.
+
+Two merely *suggestive* uses are not enough, because several of the evidence rules are inference
+hints rather than requirements: `x * 2` reads as `int`, yet `str * int` and `list * int` are both
+legal Python repetition, and `x == "done"` reads as `str`, yet Python's `==` is total and comparing an
+`int` to a string is a legal (always-false) test. Meeting two hints produced a contradiction that the
+program did not actually contain — `ch = text[i]; ch == "a"; ch * 2` was reported as a type error on
+real code. One decisive signal on either side is what makes the clash real: a value that is genuinely
+shifted cannot also be the string the other use wants.
+
+Found by the mypy_primer sweep, and it was never specific to local variables — the same false
+positive fires on a parameter, where this judgment has lived all along. -/
+private def conflictReportable (name : String) (body : Json) : Bool :=
+  decisiveScalarType name body != .unknown
+
+/-- Build one slot: the body uses it weighed, and the verdict reached on them. -/
+private def mkSlot (scope name : String) (kind : SlotKind) (pos : Nat × Nat) (judgment : Judgment)
+    (reqs : List PyType) (origin : Origin) (verdict : Verdict) : Slot :=
+  { scope, name, kind, line := pos.1, col := pos.2, judgment, verdict,
+    evidence := reqs.map (fun r => { origin, req := r }) }
+
+/-- The names this function body BINDS, in binding order, not descending into a nested `def` or
+`class` (those are visited in their own right and bind their own names). The same four binding forms
+`localStamps` reads, minus the stamp. -/
+private partial def localTargets (json : Json) : List (String × Nat × Nat) :=
+  match nodeTypeOf json with
+  | some "FunctionDef" | some "AsyncFunctionDef" | some "ClassDef" => []
+  | nt =>
+      let at? (n : Option String) : List (String × Nat × Nat) :=
+        n.toList.map (fun v => let (l, c) := posOf json; (v, l, c))
+      let here : List (String × Nat × Nat) :=
+        match nt with
+        -- A target carrying `_decl_ty` was written `x: T = e`, and the annotated-local judgment
+        -- already covers it against its value. Judging it a second time by its uses would give the
+        -- same variable two slots, which is what the validator's grounding rule refuses.
+        | some "Assign" =>
+            if (liveField? json "_decl_ty").isSome then []
+            else at? ((liveField? json "target").bind nameId?)
+        | some "AnnAssign" | some "For" | some "AugAssign" =>
+            at? ((liveField? json "target").bind nameId?)
+        | _ => []
+      let sub : List (String × Nat × Nat) := match json with
+        | .arr xs => xs.toList.flatMap localTargets
+        | .obj fs => fs.toList.flatMap (fun (_, v) => localTargets v)
+        | _ => []
+      here ++ sub
+
+/-- One `arg` node's verdict. An ANNOTATED parameter is checked against its body uses rather than
 against its own `_ty` stamp — inference seeds the stamp FROM the annotation, so comparing the two can
 only ever agree. The uses are the independent evidence, which is what makes this a check and not a
 tautology. -/
 private def diagnoseArg (fnParams : Std.HashMap String (Array PyType)) (scope : String)
-    (body : Json) (locals : Env) (arg : Json) : Array Diagnostic :=
+    (body : Json) (locals : Env) (arg : Json) : Array Slot :=
   let name := (arg.getObjValAs? String "arg").toOption.getD ""
   if name.isEmpty || name == "self" || name == "cls" then #[] else
   let evidence := usageEvidence fnParams (locals.erase name) 1 name body
-  atNode arg <| match liveField? arg "annotation" with
+  let mk := mkSlot scope name .param (posOf arg)
+  match liveField? arg "annotation" with
   | some ann =>
       let a := ofAnnotation ann
       -- Both sides must be scalar. A class-shaped annotation is not necessarily a class: an
       -- unresolved alias (`_TYPE_TIMEOUT = Union[float, None]`) reads back as `cls`, and accusing it
       -- of contradicting an `int` use would be reporting our own missing alias table as a bug.
       if isScalarEvidence a then
-        let uses := (evidence.filter (fun e => isScalarEvidence e || checkableContainer a e)).filterMap
-          (checkAnnotation scope name a) |>.take 1 |>.toArray
-        -- A numeric annotation has no container operations at all, so a single indexing/iteration is
-        -- decisive even when no rule can name the container's element type.
-        if !uses.isEmpty then uses
-        else if a != .str && usedAsContainer name body then
-          (checkAnnotation scope name a (.list .unknown)).toArray
-        else #[]
+        let weighed := evidence.filter (fun e => isScalarEvidence e || checkableContainer a e)
+        match weighed.filterMap (checkAnnotation scope name a) with
+        | d :: _ => #[mk (.declared a) weighed .bodyUse (.rejects d.expected d.actual)]
+        | [] =>
+            -- A numeric annotation has no container operations at all, so a single indexing/iteration
+            -- is decisive even when no rule can name the container's element type. The synthesised
+            -- `list ?` goes into the evidence, so the verdict still replays from what is recorded.
+            if a != .str && usedAsContainer name body then
+              match checkAnnotation scope name a (.list .unknown) with
+              | some d => #[mk (.declared a) (weighed ++ [.list .unknown]) .bodyUse
+                              (.rejects d.expected d.actual)]
+              | Option.none => #[mk (.declared a) weighed .bodyUse .agrees]
+            else #[mk (.declared a) weighed .bodyUse .agrees]
       else #[]
   -- No annotation to check against, so the only available judgment is whether the uses AGREE.
-  | Option.none => (checkUses scope name (evidence.filter isConflictEvidence)).2.toArray
+  | Option.none =>
+      let reqs := evidence.filter isConflictEvidence
+      let (req, diags) := checkUses scope name reqs
+      match diags with
+      | d :: _ =>
+          if conflictReportable name body then
+            #[mk .uses reqs .bodyUse (.conflict d.expected d.actual)]
+          -- Two suggestive uses that disagree say nothing certain, so the slot is left unjudged
+          -- rather than accused.
+          else #[]
+      | [] =>
+          -- No conflict, so the fold is not contradictory and `commit?` answers exactly when some use
+          -- constrained the slot.
+          match req.commit? with
+          | some t => #[mk .uses reqs .bodyUse (.commits t)]
+          | Option.none => #[mk .uses reqs .bodyUse .unconstrained]
 
 /-- Erase every declared RETURN type. Inference seeds a function's return from its `-> T`, so an
 annotation checked against the resulting stamp can only ever agree; re-inferring the stripped program
@@ -204,12 +281,25 @@ private def isLoweredGenerator (body : Array Json) : Bool :=
   | some st => (getField st "target").bind nameId? == some "__gen'acc"
   | none => false
 
-/-- Every diagnostic in one stamped module. `scope` is the dotted enclosing-function path;
+/-- Stamp a node's position onto every slot that does not already carry one. -/
+private def atNodeSlots (j : Json) (ss : Array Slot) : Array Slot :=
+  let (l, c) := posOf j
+  if l == 0 then ss else ss.map (Slot.at l c)
+
+/-- Was this node inlined from ANOTHER file by `resolve_local_imports`? Inference wants those defs —
+resolving imports is what lets a call into a sibling module be typed at all — but judging them here
+reports another file's code while checking this one: the verdict is a duplicate of the one that file
+gets on its own pass, and it carries no usable position. -/
+private def isForeign (j : Json) : Bool :=
+  (j.getObjValAs? Bool "_foreign").toOption == some true
+
+/-- Every judged slot in one stamped module. `scope` is the dotted enclosing-function path;
 `bareReturns` is the return type each function gets with all annotations stripped. -/
 partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
     (bareReturns : Std.HashMap String PyType) (scope : String)
-    (json : Json) : Array Diagnostic :=
-  let here : Array Diagnostic :=
+    (json : Json) : Array Slot :=
+  let here : Array Slot :=
+    if isForeign json then #[] else
     match nodeTypeOf json with
     | some "FunctionDef" | some "AsyncFunctionDef" =>
         let fnName := (json.getObjValAs? String "name").toOption.getD ""
@@ -219,14 +309,38 @@ partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
         let args := (liveField? json "args").getD Json.null
         let group (k : String) : Array Json := (args.getObjValAs? (Array Json) k).toOption.getD #[]
         let locals := localStamps body
-        let params := (group "args" ++ group "posonlyargs" ++ group "kwonlyargs").flatMap
-          (diagnoseArg fnParams fq body locals)
+        let paramNodes := group "args" ++ group "posonlyargs" ++ group "kwonlyargs"
+        let params := paramNodes.flatMap (diagnoseArg fnParams fq body locals)
+        -- Locals get the judgment an unannotated parameter gets — do the uses agree? — so a variable
+        -- used as both a `str` and an `int` is reported wherever it is bound, not only when it came
+        -- in as an argument. Recording them is also what makes the certificate cover the whole
+        -- function rather than only its boundary.
+        let bound := paramNodes.toList.filterMap (fun a => (a.getObjValAs? String "arg").toOption)
+        -- First binding wins: a name rebound later is the same slot, and its first binding is where
+        -- a reader looks for it.
+        let vars := (localTargets body).foldl
+          (fun acc (n, l, c) =>
+            if n.isEmpty || bound.contains n || acc.any (fun (m, _, _) => m == n) then acc
+            else acc ++ [(n, l, c)]) []
+        let localSlots : Array Slot := vars.toArray.flatMap fun (n, l, c) =>
+          let reqs := (usageEvidence fnParams (locals.erase n) 1 n body).filter isConflictEvidence
+          let (req, diags) := checkUses fq n reqs
+          let mk := mkSlot fq n .localVariable (l, c) .uses reqs .bodyUse
+          match diags with
+          | d :: _ =>
+              -- Unreportable: the slot is dropped rather than recorded as unconstrained, because its
+              -- evidence really does conflict and a certificate claiming otherwise would not replay.
+              if conflictReportable n body then #[mk (.conflict d.expected d.actual)]
+              else #[]
+          | [] => match req.commit? with
+                  | some t => #[mk (.commits t)]
+                  | Option.none => #[mk .unconstrained]
         -- Returns are checked only SCALAR-against-SCALAR. A container/class inferred return is not
         -- reliable enough to accuse the annotation with (`list[PyAny]` vs `list[TokenInfo]`, a
         -- subclass returned for an annotated `Self`), and an inferred `None` is what a degraded body
         -- leaves behind rather than a real void — both would be inference gaps reported as program
         -- errors.
-        let ret : Array Diagnostic :=
+        let ret : Array Slot :=
           match liveField? json "returns" with
           | some ann =>
               let a := ofAnnotation ann
@@ -236,10 +350,13 @@ partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
               -- decidable as the parameter case.
               if isScalarEvidence a && inferred != .none
                  && (isScalarEvidence inferred || checkableContainer a inferred) then
-                atNode ann ((checkAnnotation fq "<return>" a inferred).toArray)
+                let mk := mkSlot fq "<return>" .returnType (posOf ann) (.declared a) [inferred] .returnBody
+                atNodeSlots ann #[match checkAnnotation fq "<return>" a inferred with
+                                  | some d => mk (.rejects d.expected d.actual)
+                                  | Option.none => mk .agrees]
               else #[]
           | Option.none => #[]
-        atNode json (params ++ ret)
+        atNodeSlots json (params ++ localSlots ++ ret)
     -- `x: T = e` — the annotation is the claim, the VALUE is the evidence. The front end lowers an
     -- annotated assignment that has a value to an `Assign` carrying `_decl_ty` (a bare `AnnAssign`
     -- survives only when there is no value, and has nothing to check). The target's own `_ty` is
@@ -256,7 +373,10 @@ partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
             -- later), not a claim about the slot — and the parameter judgment already declines to
             -- accuse `None` for the same reason, so accusing it here would contradict that.
             if isScalarEvidence a && v != .none && (isScalarEvidence v || checkableContainer a v) then
-              atNode json ((checkAnnotation scope n a v).toArray)
+              let mk := mkSlot scope n .annotatedLocal (posOf json) (.declared a) [v] .valueFlow
+              atNodeSlots json #[match checkAnnotation scope n a v with
+                                 | some d => mk (.rejects d.expected d.actual)
+                                 | Option.none => mk .agrees]
             else #[]
         | _, _ => #[]
     | _ => #[]
@@ -268,7 +388,7 @@ partial def diagnoseNode (fnParams : Std.HashMap String (Array PyType))
         let n := (json.getObjValAs? String "name").toOption.getD ""
         if scope.isEmpty then n else scope ++ "." ++ n
     | _ => scope
-  let sub : Array Diagnostic := match json with
+  let sub : Array Slot := match json with
     | .arr xs => xs.flatMap (diagnoseNode fnParams bareReturns scope')
     | .obj fs => (fs.toList.map (fun (_, v) => diagnoseNode fnParams bareReturns scope' v)).foldl (· ++ ·) #[]
     | _ => #[]
@@ -315,15 +435,16 @@ private partial def callSigs (json : Json) : Std.HashMap String (Option (Array (
     | _ => []
   (here ++ sub).foldl (fun m (k, v) => if m.contains k then m.insert k Option.none else m.insert k v) {}
 
-/-- One diagnostic per call argument whose LITERAL type contradicts the parameter's annotation. Only
+/-- One slot per call argument whose LITERAL type is checked against the parameter's annotation. Only
 literals are judged: a `Name` argument would need the caller's environment, and an expression would
 need inference, but `f("x")` against `def f(n: int)` needs neither. -/
 private partial def diagnoseCalls (sigs : Std.HashMap String (Option (Array (String × PyType))))
-    (json : Json) : Array Diagnostic :=
-  let here : Array Diagnostic :=
+    (json : Json) : Array Slot :=
+  let here : Array Slot :=
+    if isForeign json then #[] else
     match nodeTypeOf json with
     | some "Call" =>
-        atNode json <| match (liveField? json "func").bind nameId? |>.bind sigs.get? |>.join with
+        atNodeSlots json <| match (liveField? json "func").bind nameId? |>.bind sigs.get? |>.join with
         | some named =>
             let fn := ((liveField? json "func").bind nameId?).getD ""
             let args := (json.getObjValAs? (Array Json) "args").toOption.getD #[]
@@ -332,13 +453,16 @@ private partial def diagnoseCalls (sigs : Std.HashMap String (Option (Array (Str
               match literalType? args[i]!, named[i]? with
               | some t, some (pname, ptype) =>
                   if fullyKnown t && fullyKnown ptype then
-                    let (l, c) := posOf args[i]!
-                    (checkAnnotation fn pname ptype t).map (Diagnostic.at l c)
+                    let mk := mkSlot fn pname .callArgument (posOf args[i]!) (.declared ptype) [t]
+                      .callLiteral
+                    some (match checkAnnotation fn pname ptype t with
+                          | some d => mk (.rejects d.expected d.actual)
+                          | Option.none => mk .agrees)
                   else Option.none
               | _, _ => Option.none
         | Option.none => #[]
     | _ => #[]
-  let sub : Array Diagnostic := match json with
+  let sub : Array Slot := match json with
     | .arr xs => xs.flatMap (diagnoseCalls sigs)
     | .obj fs => (fs.toList.map (fun (_, v) => diagnoseCalls sigs v)).foldl (· ++ ·) #[]
     | _ => #[]
@@ -374,13 +498,34 @@ private partial def mentionsOpaque (defined : Std.HashSet String) : PyType → B
   | .fn as r => as.any (mentionsOpaque defined) || mentionsOpaque defined r
   | _ => false
 
-/-- Check one stamped module. `bareStamped` is the SAME module inferred with every annotation stripped
-(see `stripAnnotations`), supplying the independent answer the written annotations are checked
-against. -/
-def diagnoseModule (stamped bareStamped : Json) : Array Diagnostic :=
-  let diags := diagnoseNode (collectFnParams stamped) (returnStamps "" bareStamped) "" stamped
+/-- Check one stamped module, as a list of judged slots. `bareStamped` is the SAME module inferred
+with every annotation stripped (see `stripAnnotations`), supplying the independent answer the written
+annotations are checked against.
+
+The opaque-class rule withholds a slot whose *failure* names a class the module does not define —
+exactly the diagnostics the old pass filtered. A slot that PASSED is kept whatever it names: it
+accuses nobody, and dropping it would thin the certificate for no gain. -/
+def certifySlots (stamped bareStamped : Json) : Array Slot :=
+  let slots := diagnoseNode (collectFnParams stamped) (returnStamps "" bareStamped) "" stamped
     ++ diagnoseCalls (callSigs stamped) stamped
   let defined := localClasses stamped
-  diags.filter fun d => !(mentionsOpaque defined d.expected || mentionsOpaque defined d.actual)
+  slots.filter fun s =>
+    match s.expectedDiagnostic? with
+    | some d => !(mentionsOpaque defined d.expected || mentionsOpaque defined d.actual)
+    | Option.none => true
+
+/-- Every diagnostic in one stamped module — read off the slots, since each judgment reports at most
+one and builds it from the verdict's own two types. -/
+def diagnoseModule (stamped bareStamped : Json) : Array Diagnostic :=
+  (certifySlots stamped bareStamped).filterMap Slot.diagnostic?
+
+/-- The full record of one checking run: the program it is about, every slot judged, and the
+diagnostics that follow. `ast` is the module as the caller handed it over, before the pre-passes — the
+same JSON a validator will be given, so `irHashOf` agrees on both sides. -/
+def certifyModule (ast stamped bareStamped : Json) : Cert :=
+  let slots := certifySlots stamped bareStamped
+  let diags := slots.filterMap Slot.diagnostic?
+  { version := certVersion, irHash := irHashOf ast, slots := slots.toList,
+    diagnostics := diags.toList, ok := diags.isEmpty }
 
 end TypeInfer

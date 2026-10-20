@@ -5,6 +5,9 @@ import TypeInfer.Theorem.Height
 import TypeInfer.Theorem.FiniteGeneration
 import TypeInfer.Theorem.Soundness
 import TypeInfer.Theorem.Consistency
+import TypeInfer.Theorem.Meet
+import TypeInfer.Theorem.Requirements
+import TypeInfer.Theorem.Certificate
 
 /-!
 # Correctness theorems for the TypeInfer lattice
@@ -30,4 +33,15 @@ whole development; each file is named for its main result:
 * `TypeInfer.Theorem.Soundness` — `hasType_join_left`: widening never excludes an admitted runtime value.
 * `TypeInfer.Theorem.Consistency` — `consistent_refl`/`consistent_symm`/`consistent_not_trans` (gradual
   typing) and the `reconcile` coercion totality.
+* `TypeInfer.Theorem.Meet` — `meet_comm`/`meet_assoc`/`meet_idem` and `hasType_meet`: narrowing never
+  admits a value one of a slot's uses rejects. The dual of `Soundness`, for the CHECKING direction.
+* `TypeInfer.Theorem.Requirements` — the `Req` algebra as a bounded meet-semilattice, and
+  `hasType_commit`: committing the meet of a slot's requirements really does satisfy every use.
+* `TypeInfer.Theorem.Certificate` — `validate_sound` and `validate_error_sound`: what an accepted
+  certificate means, and (in the module docstring) the three things it does not mean.
+
+`Meet` and `Requirements` were written but never imported anywhere, so no build compiled them; they
+are in this list now, which is what puts them under `lake test` (via `PALC/TypeInfer/TestLattice.lean`,
+the one file that imports this module). That makes `lake test` slower — `Meet.lean` runs with
+`maxHeartbeats 0` — and is the price of the checker-side theory being checked at all.
 -/

@@ -273,15 +273,56 @@ def nameSyntax : (kind : SyntaxNodeKind) → Json →
 def allocIfHeap (t : TSyntax `term) : PygenM (TSyntax `term) := do
   if ← getHeapMode then `((← PastaLean.allocM $t)) else pure t
 
+/-- The `None` literal: a `Constant` carrying JSON null. `...` is also a null-valued `Constant`,
+so it is excluded by its literal kind. -/
+private def isNoneConst (j : Json) : Bool :=
+  j.getObjValAs? String "node_type" == .ok "Constant"
+    && (match j.getObjVal? "value" with | .ok .null => true | _ => false)
+    && j.getObjValAs? String "python_literal_kind" != .ok "ellipsis"
+
+/-- The literal kind of a non-`None` `Constant`, read off the shape of its JSON value. -/
+private def constKind (j : Json) : Option String :=
+  if j.getObjValAs? String "node_type" != .ok "Constant" then none
+  else match j.getObjVal? "value" with
+    | .ok (.bool _) => some "bool"
+    | .ok (.num n)  => some (if n.exponent == 0 then "int" else "float")
+    | .ok (.str _)  => some "str"
+    | _ => none
+
+/-- A literal other than `None`. Being a literal is what makes wrapping it in `Option.some` safe:
+unlike a name or a call, it cannot already have an `Option` type. -/
+private def isPlainConst (j : Json) : Bool := (constKind j).isSome
+
+/-- `[None, True]` needs `[none, some true]`: Lean inserts the `Option` coercion only when the
+element type is already concrete, which it is not while the literal is still elaborating against a
+metavariable. Wrapping the literals ourselves settles it at codegen time.
+
+Only when every other element is a literal of one kind, so the element type really is `Option` of
+that kind. A mixed `[None, "x", 3.5]` is heterogeneous and belongs in `PyAny`, and a non-literal
+element may already be `Option`-typed, where wrapping would double it. -/
+private def optionWrapped (elts : Array Json) : Bool :=
+  elts.any isNoneConst
+    && (match (elts.filterMap constKind).toList with
+        | [] => false
+        | k :: rest => rest.all (· == k))
+    && elts.all (fun j => isNoneConst j || isPlainConst j)
+
 @[pygen "List"]
 def listSyntax : (kind : SyntaxNodeKind) → Json →
     PygenM (TSyntax kind)
   | `term, json => do
     let .ok eltsJson := json.getObjValAs? Json "elts" | throwError
       s!"List node does not have an 'elts' field or it is not a JSON value: {json}"
-    let eltCodes ← match eltsJson with
-      | .arr arr => arr.mapM (fun eltJson => getCode eltJson `term)
+    let elts ← match eltsJson with
+      | .arr arr => pure arr
       | _ => throwError s!"List node 'elts' field is not an array: {eltsJson}"
+    let wrap := optionWrapped elts
+    let eltCodes ← elts.mapM fun eltJson => do
+      let code ← getCode eltJson `term
+      if wrap && isPlainConst eltJson then
+        `($(mkIdent ``Option.some) $code)
+      else
+        pure code
     -- An `array_ok`-marked literal in the runnable twin is an `Array` (`#[…]`); else a `List` (`[…]`).
     let arrayBacked := (json.getObjValAs? String "_seq" == .ok "array")
       && (← getNumericMode) == .approx

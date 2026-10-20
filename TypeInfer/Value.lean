@@ -27,7 +27,11 @@ private def ofConstant (json : Json) : PyType :=
   match json.getObjVal? "value" with
   | .ok (.bool _) => .bool
   | .ok (.str _) => .str
-  | .ok .null => .none
+  -- `...` arrives as a null carrying its kind. It is NOT the `None` type: `Callable[..., T]` says
+  -- nothing about the argument list, so the honest answer is `unknown`.
+  | .ok .null =>
+      if (json.getObjValAs? String "python_literal_kind").toOption == some "ellipsis" then .unknown
+      else .none
   | .ok (.num ⟨_, exponent⟩) =>
       if (json.getObjValAs? String "python_literal_kind").toOption == some "float" then .float
       else if exponent == 0 then .int

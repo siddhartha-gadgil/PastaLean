@@ -262,12 +262,12 @@ the papers that say they are the ones that matter, drive exactly which theorems 
 
 **What "correct" means for a lattice-based inferrer, and where each requirement comes from:**
 
-| Requirement — and *why it is the right one* | Established by | Proved as (in `Theorems.lean`, on the real `PyType`) |
+| Requirement — and *why it is the right one* | Established by | Proved as (in `Theorem/`, on the real `PyType`) |
 |---|---|---|
 | The abstract domain is a **bounded join-semilattice** — so the reflow fixpoint is well-defined and its result is independent of the order/grouping in which assignments are merged | Cousot & Cousot, *Abstract Interpretation* (POPL 1977); Davey & Priestley, *Introduction to Lattices and Order* (2002) | `join_unknown_{left,right}` (⊥), `join_any_{left,right}` (⊤), `join_comm`, `join_assoc`, `join_idem` |
 | **`join` is the least upper bound** of the induced precision order `a ⊑ b := a⊔b = b` — the canonical, information-minimal merge | Davey & Priestley (2002) | `le_join_left`, `le_join_right` (upper bound) + `join_le` (least); order is a partial order: `le_refl`, `le_trans`, `le_antisymm` |
 | **`join` is monotone** ⇒ by Knaster–Tarski the fixpoint is a *least* fixpoint, so it exists, is unique, and terminates at bounded lattice height | Tarski, *A lattice-theoretical fixpoint theorem* (1955); Cousot & Cousot (1977) | `join_mono_left`, `join_mono_right`, `join_mono` |
-| **Semantic soundness** — an inferred type never lies about the runtime: every value the program produces lies in the inferred type's denotation (the inference analogue of "well-typed programs can't go wrong") | Milner, *A Theory of Type Polymorphism* (1978); Wright & Felleisen, *A Syntactic Approach to Type Soundness* (1994) | `HasType` + `hasType_join_tower`, `hasType_join_any` (the join over-approximates) — **numeric tower proven; general containers are the open frontier** |
+| **Semantic soundness** — an inferred type never lies about the runtime: every value the program produces lies in the inferred type's denotation (the inference analogue of "well-typed programs can't go wrong") | Milner, *A Theory of Type Polymorphism* (1978); Wright & Felleisen, *A Syntactic Approach to Type Soundness* (1994) | `HasType` + `hasType_join_left`, proved on the **full lattice** (`Theorem/Soundness.lean`); the dual for narrowing is `hasType_meet` (`Theorem/Meet.lean`) |
 | **Gradual-typing consistency** for the dynamic type `PyAny` — reflexive, symmetric, and *non-transitive* (what separates gradual typing from subtyping) | Siek & Taha, *Gradual Typing for Functional Languages* (2006); Siek, Vitousek, Cimini & Boyland, *Refined Criteria for Gradual Typing* (2015) | `consistent_refl`, `consistent_symm`, `consistent_unknown`, `consistent_not_trans` |
 | **`reconcile` is total** — every (expected, actual) pair maps to one of the finite intended coercions, so a value never gets "stuck" with no way to reach its slot | — | `reconcile_refl`, `reconcile_total` |
 
@@ -279,17 +279,59 @@ the papers that say they are the ones that matter, drive exactly which theorems 
   the engine's reachable normal form (it collapses `Optional[Any] → Any` by construction), so the laws hold
   everywhere the engine actually goes. The very same `Optional`/`None` absorption is what makes `join`
   **associative** at the `None`-⊔-conflict junction — `join_assoc` holds on the *full* lattice.
-- Semantic soundness is proved for the numeric tower `bool <: int <: float`; extending it to a general
-  denotation over every container shape is the deepest remaining piece.
+- Semantic soundness now holds on the full lattice (`hasType_join_left`), but the *model* it is stated
+  over is small: `PyType.Val` has seven constructors and no `set`/`dict`/`tuple`/closure inhabitant, so
+  those lattice heads denote the empty set and the claim about them is vacuous. Widening the model —
+  and connecting it to the inference *functions*, which are `partial def` and so have no equation
+  lemmas — is the deepest remaining piece.
 
 **All on the production functions.** Every law — the semilattice, LUB and monotonicity laws, the
 gradual-consistency laws, and `reconcile`'s totality — is proved on the **real** `PyType.join` /
 `consistent` / `reconcile` the engine runs, recursing over the actual `List PyType` in `tuple`/`fn` (the
 diagonal facts by well-founded recursion, the symmetric ones by each function's `.induct` principle, and
-full-lattice associativity by strong induction plus `grind`). There is no stand-in model. `Theorems.lean`
+full-lattice associativity by strong induction plus `grind`). There is no stand-in model. `Theorem/`
 is deliberately **not imported into the default build** (that associativity proof runs `grind` over every
 constructor triple, which is slow); it is compiled by `lake test` (via `TestLattice.lean`) and can be
-re-checked on demand with `lake build TypeInfer.Theorems`.
+re-checked on demand with `lake build TypeInfer.Theorem`.
+
+## The checker hands back a certificate, not just a verdict
+
+Inference answers "what is this?"; the checker (`Diagnostics/`) answers "is this consistent?". Its
+verdict used to be a single boolean, which asks you to trust eight thousand lines of engine. It now
+also produces a **certificate**: for every slot judged, the evidence weighed and the verdict reached.
+
+```bash
+pastalean typeinfer f.py                                # just the inferred types
+pastalean typeinfer f.py --check                        # the verdicts
+pastalean typeinfer f.py --check --certificate certs/   # ... and the record behind them
+pastalean typeinfer f.py --verify-cert certs/           # re-check that record, with no inference
+```
+
+`--check` always certifies — the verdict and the certificate come out of the same pass — and
+`--certificate` decides whether the record is kept. Each file gets two: a readable JSON, and a
+`.lean` whose compilation performs the same check in Lean's kernel instead of in a second program
+(`--emit-proof` writes just that one, for a single file).
+
+Every slot the checker judges is in there: parameters, the return, annotated locals, call arguments,
+and **ordinary local variables**, which the pass did not look at before this — so a `str`/`int`
+conflict is now reported wherever a variable is bound, not only when it arrived as an argument.
+
+The point is an asymmetry: *producing* a certificate needs the whole engine, while *checking* one
+needs none of it, because every judgment is a total function of a slot's evidence. So
+`Certificate/Check.lean` imports nothing from `Solve/`, and the trusted base for "this module has no
+type error" is the requirement algebra plus a few hundred lines of validator.
+
+What an accepted certificate means is proved once, in `Theorem/Certificate.lean`:
+
+- `validate_sound` — wherever the certificate says a slot's uses narrow to `t`, every runtime value
+  of type `t` satisfies every one of those uses (`hasType_commit`).
+- `validate_error_sound` — every error it reports between two scalars is a *real* error: no runtime
+  value inhabits both types. Not "the checker disagreed" — a value-level impossibility.
+
+Three things it does **not** mean — the evidence is taken as recorded (a body-use requirement cannot
+be traced to the expression it was read from), `HasType` is a small model rather than Python, and
+none of this verifies the inference algorithm. `docs/typeinfer-certificates.md` has the design, the
+limits and the status.
 
 ## Algorithm, complexity & prior art
 
@@ -309,7 +351,7 @@ climbs the lattice, it provably settles). Types are recovered three ways, in a f
    just to `list[unknown]`. This is the flow-/usage-driven inference of **Shed Skin** and Agesen's
    **Cartesian Product Algorithm** (Starkiller), specialised to the shapes PastaLean emits.
 3. **Gradual fallback** — a slot that stays `unknown` boxes to `PyAny`, the *Dynamic* type of **Siek &
-   Taha**'s gradual typing; `consistent` (proved non-transitive in `Theorems.lean`) is its consistency
+   Taha**'s gradual typing; `consistent` (proved non-transitive in `Theorem/`) is its consistency
    relation.
 
 **Complexity is deliberately linear-ish and cheap.** The reflow is capped at a small constant number
@@ -340,8 +382,11 @@ J. Palsberg & M. Schwartzbach, *Object-Oriented Type Inference* (OOPSLA 1991); a
 | `Rules.lean` | `typeOfExpr` / `applyStmt` — the type of an expression, and how a statement updates what's known |
 | `Solve.lean` | `inferFunction` (the per-function fixpoint), `collectSigs` / `inferModule` (the cross-function pass), and `stampNode` (write `_ty` back onto the IR) |
 | `Diagnostics/` | the checker: `Basic.lean` (the requirement algebra `Req`, and `checkAnnotation` / `checkValue` / `checkUses` over it), `Render.lean` (a diagnostic as a Lean type error, Python type in a line comment), `Pass.lean` (`diagnoseModule` — the walk over a stamped module: parameters against their body uses, returns against the body re-inferred with return types stripped, `x: T = e` against its value flow, and every call argument against the parameter it is passed to). Reached from the CLI as `pastalean typeinfer --check` (the `checkTypes` task) |
-| `Theorems.lean` | the proofs: the lattice laws, the partial order, monotonicity, semantic soundness, gradual-typing consistency, and `reconcile` totality — all on the real `PyType` |
+| `PyTypeEq.lean` | `LawfulBEq PyType` and `DecidableEq PyType` — Mathlib-free, on the default build path, because the certificate validator decides type equalities inside the standalone binary |
+| `Certificate/` | the checker's positive output: `Basic.lean` (the `Cert` record and its JSON), `Check.lean` (`validate`, which imports nothing from `Solve/`). See `docs/typeinfer-certificates.md` |
+| `Theorem/` | the proofs: the lattice laws, the partial order, monotonicity, semantic soundness, gradual-typing consistency, and `reconcile` totality — all on the real `PyType` |
 
 The `PyAny` runtime fallback lives in `PastaLean/PyAPI/PyAny.lean`. Tests are in
-`PastaLeanTest/TypeInfer/TestLattice.lean` and `TestInfer.lean` (unit checks on the lattice and the
-rules) and `PastaLeanTest/PastaLeanCheck/Typing/` (worked programs).
+`PALC/TypeInfer/`: `TestLattice.lean` and `TestInfer.lean` (unit checks on the lattice and the rules),
+`TestDiagnostics.lean` (the checker's judgments) and `TestCertificate.lean` (the certificate layer,
+including the tamper cases). They are `#guard`s, so `lake test` runs them by compiling them.

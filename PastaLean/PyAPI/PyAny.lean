@@ -88,7 +88,7 @@ namespace PyAny
 partial def toStr (repr : Bool) : PyAny → String
   | .int n   => toString n
   | .bool b  => if b then "True" else "False"
-  | .str s   => if repr then "'" ++ s ++ "'" else s
+  | .str s   => if repr then pyReprString s else s
   | .float q => toString (Rat.toFloat q)
   | .none    => "None"
   | .list xs => "[" ++ String.intercalate ", " (xs.map (toStr true)) ++ "]"
@@ -373,7 +373,9 @@ instance : PyIterable PyAny PyAny where
     | .str s => s.toList.map (fun c => .str c.toString)
     | _ => []
 
-instance : PyPrintable PyAny where pyStringify := PyAny.toStr false
+instance : PyPrintable PyAny where
+  pyStringify := PyAny.toStr false
+  pyReprify := PyAny.toStr true
 /-- `"".join(xs)` where `xs`'s elements are boxed (an un-inferred `str`/`list[str]` param filtered to
 `List PyAny`): a boxed `str` joins as itself, anything else stringifies (Python would `TypeError`, but
 the faithful case only ever holds boxed `str`s). -/

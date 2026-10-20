@@ -351,3 +351,14 @@
   align-self: center; color: var(--lean-teal); font-weight: 700; font-size: 1em;
 }
 .reveal section[data-state="showcase"] .punch { text-align: center; font-size: 0.82em; margin-top: 0.4em; }
+
+/* ---- bar figures (benchmarks): colours follow the theme, highlight = teal ---- */
+.reveal svg.bars { display: block; margin: 0.2em auto; max-width: 100%; height: auto; font-family: inherit; }
+.reveal svg.bars text { fill: currentColor; }
+.reveal svg.bars .b { fill: currentColor; opacity: 0.22; }
+.reveal svg.bars .b.me { fill: var(--lean-teal); opacity: 1; }
+.reveal svg.bars .ttl { font-size: 21px; font-weight: 700; }
+.reveal svg.bars .lab { font-size: 20px; }
+.reveal svg.bars .val { font-size: 19px; opacity: 0.75; }
+.reveal svg.bars .note { font-size: 17px; opacity: 0.6; }
+.reveal svg.bars .grp { font-size: 19px; font-weight: 700; opacity: 0.8; }

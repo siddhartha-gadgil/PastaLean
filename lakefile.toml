@@ -17,8 +17,18 @@ name = "verso-slides"
 scope = "leanprover"
 rev = "v4.31.0"
 
+[[require]]
+name = "verso-snippets"
+git = "https://github.com/AnirudhG07/verso-snippets"
+rev = "master"
+
 [[lean_lib]]
 name = "PastaLean"
+
+# Scratch target for `lean-snippet` (verso-snippets host mode): it copies the
+# .lean being rendered to ./Snippet.lean and builds `Snippet:highlighted`.
+[[lean_lib]]
+name = "Snippet"
 
 [[lean_lib]]
 name = "Libraries"

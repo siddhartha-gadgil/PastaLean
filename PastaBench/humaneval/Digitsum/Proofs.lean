@@ -71,18 +71,75 @@ def digitSum := fun (s : String) ↦
     let _ := Libraries.passta.pyPassAssert (decide (total ≤ (90 : Int) *ₚ PastaLean.pyLen s))
     return total : Id _)
 
+theorem toList_toString (c : Char) : (Char.toString c).toList = [c] := by
+  simp [Char.toString]
+
+theorem get_toString (c : Char) : String.Pos.Raw.get (Char.toString c) 0 = c := by
+  show String.Pos.Raw.utf8GetAux (Char.toString c).toList 0 0 = c
+  rw [toList_toString]
+  rfl
+
+theorem pyOrd_toString (c : Char) : PastaLean.pyOrd (Char.toString c) = (c.toNat : Int) := by
+  unfold PastaLean.pyOrd
+  rw [show (Char.toString c).length = 1 from by simp [Char.toString]]
+  simp only [bne_self_eq_false, Bool.false_eq_true, if_false]
+  rw [String.Pos.Raw.get!_eq_get, get_toString]
+
+theorem isUpper_of_pyIsUpper (c : Char) (h : PastaLean.pyIsUpper (Char.toString c) = true) :
+    c.isUpper = true := by
+  simp only [PastaLean.pyIsUpper, toList_toString] at h
+  by_cases ha : c.isAlpha = true
+  · simpa [ha] using h
+  · simp only [Bool.not_eq_true] at ha
+    simp [ha] at h
+
+theorem pyIsUpper_empty : PastaLean.pyIsUpper "" = false := by rfl
+
+theorem toNat_window (c : Char) (h : c.isUpper = true) :
+    (65 : Int) ≤ (c.toNat : Int) ∧ (c.toNat : Int) ≤ 90 := by
+  simp only [Char.isUpper, decide_eq_true_eq] at h
+  have b1 := UInt32.le_iff_toNat_le.mp (show (65 : UInt32) ≤ c.val from h.1)
+  have b2 := UInt32.le_iff_toNat_le.mp (show c.val ≤ (90 : UInt32) from h.2)
+  rw [show UInt32.toNat 65 = 65 from rfl] at b1
+  rw [show UInt32.toNat 90 = 90 from rfl] at b2
+  rw [show c.toNat = c.val.toNat from rfl]
+  omega
+
+/-- An uppercase one-character slice of a string has its code in the ASCII window `[65, 90]`:
+`s⦋i⦌` is either a singleton (whose `Char.isUpper` is exactly that window) or `""`, and
+`pyIsUpper ""` is `false`. -/
+theorem upper_ord_window (s : String) (i : Int) (h : PastaLean.pyIsUpper (s⦋i⦌) = true) :
+    (65 : Int) ≤ PastaLean.pyOrd (s⦋i⦌) ∧ PastaLean.pyOrd (s⦋i⦌) ≤ 90 := by
+  show (65 : Int) ≤ PastaLean.pyOrd (PastaLean.pyStringGetItemStr s i) ∧
+    PastaLean.pyOrd (PastaLean.pyStringGetItemStr s i) ≤ 90
+  have h2 : PastaLean.pyIsUpper (PastaLean.pyStringGetItemStr s i) = true := h
+  unfold PastaLean.pyStringGetItemStr at h2 ⊢
+  cases hc : PastaLean.pyStringGetItem s i with
+  | none => rw [hc] at h2; simp [pyIsUpper_empty] at h2
+  | some c =>
+      rw [hc] at h2
+      simp only [pyOrd_toString]
+      exact toNat_window c (isUpper_of_pyIsUpper c (by simpa using h2))
+
 @[spec]
 theorem digitSum_spec :
     ⦃⌜∀ c ∈ PastaLean.pyIter s, PastaLean.pyOrd c < (128 : Int)⌝⦄ digitSum s ⦃⇓total =>
       ⌜(total = (0 : Int) ∨ total ≥ (65 : Int)) ∧ total ≤ (90 : Int) *ₚ PastaLean.pyLen s⌝⦄ :=
   by
-  try
-    mvcgen [digitSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-    · ⇓⟨cur, total⟩ =>
-      ⌜let i := (cur.prefix.length : Int);
-        (((0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen s) ∧ (total = (0 : Int) ∨ total ≥ (65 : Int))) ∧ total ≤ (90 : Int) *ₚ i⌝
-  taste?
-  all_goals sorry
+  mvcgen [digitSum, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  · ⇓⟨cur, total⟩ =>
+    ⌜let i := (cur.prefix.length : Int);
+      (((0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen s) ∧ (total = (0 : Int) ∨ total ≥ (65 : Int))) ∧ total ≤ (90 : Int) *ₚ i⌝
+  all_goals (try (simp_all (config := { zetaDelta := true }) [taste_ingr]))
+  case vc1.step.isTrue =>
+    have hb := upper_ord_window s _ ‹PastaLean.pyIsUpper _ = true›
+    have hl := congrArg List.length ‹List.range _ = _ ++ _ :: _›
+    simp only [List.length_range, List.length_append, List.length_cons] at hl
+    omega
+  case vc2.step.isFalse =>
+    have hl := congrArg List.length ‹List.range _ = _ ++ _ :: _›
+    simp only [List.length_range, List.length_append, List.length_cons] at hl
+    omega
 
 theorem digitSum_correct :
     ∀ (s : String),

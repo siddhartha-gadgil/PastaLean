@@ -108,7 +108,41 @@ prediction time, and the slot-weighted totals reported in the paper. `--parallel
 scores N projects at once (default 1; this is a project count, NOT a thread count, so the
 default gives each project the whole machine); `--repo NAME` restricts the run to one project.
 
-## 4. LLM baseline: prompting a model to write Lean directly (Table `tab:llm`)
+## 4. Type checking: precision, recall and certificates (`typecheck_bench`)
+
+Harness: `PastaBench/typecheck_bench/`. A checker needs both numbers, so there are two corpora, and
+a third artifact — the certificate behind each verdict (`docs/typeinfer-certificates.md`).
+
+```bash
+lake build typeinfer
+
+# Precision: 165 files believed correct. Every diagnostic is a candidate FALSE POSITIVE.
+uv run PastaBench/typecheck_bench/check_corpus.py example_scripts --expect clean \
+    --certs _certs/clean --verify --out _certs/clean.json
+
+# Recall: 16 hand-seeded type errors. A file with no diagnostic is a MISS.
+uv run PastaBench/typecheck_bench/check_corpus.py PastaBench/typecheck_bench/negative \
+    --expect error --certs _certs/negative --verify --out _certs/negative.json
+
+# Recall at scale: mechanical annotation flips, scored differentially against the untouched original.
+uv run PastaBench/typecheck_bench/mutate.py example_scripts -o _tcb --per-file 3
+uv run PastaBench/typecheck_bench/bench_checkers.py _tcb --out _tcb/results.json
+```
+
+`--certs` writes one certificate per file plus a run manifest; `--verify` re-checks every one of them
+against its source, which runs no inference at all. That pass is the one worth having in CI: a
+validator that accepted everything would pass every other check here. `--out` keeps the per-file
+verdicts, and `bench_checkers.py --out` the per-mutant catch set, so a regression names the files it
+lost rather than moving a percentage.
+
+A single file's certificate can also be handed to Lean itself:
+
+```bash
+uv run pastalean typeinfer <file.py> --emit-proof f_cert.lean
+lake env lean f_cert.lean          # compiling this IS checking the certificate
+```
+
+## 5. LLM baseline: prompting a model to write Lean directly (Table `tab:llm`)
 
 Harness: `PastaBench/llm_bench/llm_eval.py`. This asks `claude-opus-4-8` for the Lean
 directly, five samples per problem at temperature 1.0, and scores compilation and
@@ -121,7 +155,7 @@ python3 PastaBench/llm_bench/llm_eval.py all --datasets humaneval,livecodebench 
 Stages `generate`, `eval`, `report` can be run separately. This step needs an API key
 for the model provider.
 
-## 5. Verification: contracts and proofs (Appendix `app:contracts`)
+## 6. Verification: contracts and proofs (Appendix `app:contracts`)
 
 The HumanEval problems we wrote contracts for and worked proofs through this path live
 in the `PastaBench` Lean library. The generated code is produced from the contract-carrying
@@ -144,7 +178,7 @@ pastalean translate <file.py> --contracts --prove-asserts
 `--prove-asserts` searches for a tactic and splices the winning proof over
 `:= by taste?`.
 
-## 6. Regression suite (codegen coverage)
+## 7. Regression suite (codegen coverage)
 
 Every program under `example_scripts/` is translated and compile-checked in one warm
 pass; any failure fails the build.
@@ -163,6 +197,7 @@ lake exe palc <dir|file>     # run PALC on a subset
 | Tables `tab:static-*`, `tab:checkers-*` | `pastaeval.py typeinfer`, `run_autogen.sh`, `bench_checkers.py` | `typeinfer_bench/typeinfer_summary.json`, `autogen_summary.json`, stdout |
 | Table `tab:ti-threads` | `run_autogen.sh` with varying `--jobs` | `autogen_summary.json` + log |
 | Table `tab:typybench` | `run_predictions.py`, `score.py --tool ...` | stdout table |
+| Type checking (precision / recall / certificates) | `typecheck_bench/check_corpus.py`, `bench_checkers.py` | `_certs/*.json` + manifests, `_tcb/results.json`, stdout table |
 | Table `tab:llm` | `llm_bench/llm_eval.py all` | `PastaBench/llm_bench/out/` |
 | Appendix `app:contracts` | `pastabench.py regen` + `lake build PastaBench` | build pass/fail (self-checking) |
 | Regression | `lake test` | build pass/fail |

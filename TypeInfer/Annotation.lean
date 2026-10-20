@@ -70,7 +70,11 @@ partial def ofAnnotation (json : Json) : PyType :=
   | some "Constant" =>
       match json.getObjVal? "value" with
       | .ok (.str s) => ofAnnotation (Json.mkObj [("node_type", .str "Name"), ("id", .str s)])
-      | .ok .null => .none
+      -- `...` is a null with its kind named; it claims no type, unlike a literal `None`.
+      | .ok .null =>
+          if (json.getObjValAs? String "python_literal_kind").toOption == some "ellipsis" then
+            .unknown
+          else .none
       | _ => .unknown
   -- `typing.List[int]` if the pre-pass left it alone.
   | some "Attribute" =>

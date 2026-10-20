@@ -113,6 +113,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("bench", type=Path, help="the directory `mutate.py -o` wrote (orig/ + mut/)")
     ap.add_argument("--tools", default=None, help="comma-separated subset of the tool names")
+    ap.add_argument("--out", type=Path, default=None,
+                    help="write the per-mutant catch set as JSON. Without it a regression is a moved "
+                         "percentage; with it, the mutants a tool stopped catching are named.")
     args = ap.parse_args()
 
     manifest = json.loads((args.bench / "manifest.json").read_text())
@@ -131,8 +134,11 @@ def main() -> int:
         clean = runner(exe, args.bench / "orig")
         mutant = runner(exe, args.bench / "mut")
         elapsed = time.perf_counter() - t0
-        caught = sum(1 for i in ids if i in mutant and i not in clean)
-        rows.append((name, caught, len(clean & set(ids)), elapsed))
+        # Differential: credit only an error the seeding introduced, never pre-existing noise the
+        # tool would have reported on the untouched original anyway.
+        per_mutant = {i: (i in mutant and i not in clean) for i in ids}
+        caught = sum(per_mutant.values())
+        rows.append((name, caught, len(clean & set(ids)), elapsed, per_mutant))
         print(f"  {name}: {caught}/{len(ids)} caught, {len(clean & set(ids))} clean flagged "
               f"({elapsed:.1f}s)", file=sys.stderr)
 
@@ -141,9 +147,19 @@ def main() -> int:
           f"files); caught = flagged on the mutant and NOT on its original\n")
     print(f"| {'Tool':<10} | {'Caught':>13} | {'Flagged clean':>13} | {'Time':>7} |")
     print(f"|{'-' * 12}|{'-' * 15}|{'-' * 15}|{'-' * 9}|")
-    for name, caught, clean, elapsed in sorted(rows, key=lambda r: -r[1]):
+    for name, caught, clean, elapsed, _per in sorted(rows, key=lambda r: -r[1]):
         print(f"| {name:<10} | {caught:>5} ({100 * caught / n:4.1f}%) | "
               f"{clean:>5} ({100 * clean / n:4.1f}%) | {elapsed:6.1f}s |")
+
+    if args.out:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(
+            {"mutants": n,
+             "sources": len({m["source"] for m in manifest}),
+             "tools": {name: {"caught": caught, "flagged_clean": clean,
+                              "seconds": round(elapsed, 2), "per_mutant": per}
+                       for name, caught, clean, elapsed, per in rows}}, indent=2), encoding="utf-8")
+        print(f"\nper-mutant results -> {args.out}", file=sys.stderr)
     return 0
 
 

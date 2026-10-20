@@ -14,8 +14,27 @@ runtime values look more like Python when printed.
 -/
 class PyPrintable (α : Type u) where
   pyStringify : α → String
+  /-- Python's `repr`: how the value renders *inside* a container. `print(x)` uses `str(x)`, but a
+  container's own `str` renders its elements with `repr`, so `print("a")` is `a` while
+  `print(["a"])` is `['a']`. Only `String`/`Char` differ; everything else defaults to `pyStringify`. -/
+  pyReprify : α → String := pyStringify
 
-export PyPrintable (pyStringify)
+export PyPrintable (pyStringify pyReprify)
+
+/-- Python's `repr` of a string: single quotes, switching to double when the text contains a `'`
+and no `"`, with the backslash, the active quote and the usual control characters escaped. -/
+def pyReprString (s : String) : String :=
+  let useDouble := s.contains '\'' && !s.contains '"'
+  let quote := if useDouble then '"' else '\''
+  let escaped := s.toList.foldl (init := "") fun acc c =>
+    acc ++
+      if c == '\\' then "\\\\"
+      else if c == quote then "\\" ++ String.singleton c
+      else if c == '\n' then "\\n"
+      else if c == '\r' then "\\r"
+      else if c == '\t' then "\\t"
+      else String.singleton c
+  String.singleton quote ++ escaped ++ String.singleton quote
 
 /--
 One printable argument in a Python-style `print(...)` call.
@@ -56,9 +75,10 @@ def pyPrintRendered (parts : List String) (sep : String := " ") (ending : String
 def pyPrintArgsRendered (parts : List PyPrintArg) (sep : String := " ") (ending : String := "\n") : String :=
   pyPrintRendered (parts.map PyPrintArg.rendered) sep ending
 
-/-- Strings print as themselves, without Lean quotes. -/
+/-- Strings print as themselves, without Lean quotes — but gain Python's quotes inside a container. -/
 instance : PyPrintable String where
   pyStringify s := s
+  pyReprify := pyReprString
 
 /-- Booleans use Python casing. -/
 instance : PyPrintable Bool where
@@ -72,9 +92,10 @@ instance : PyPrintable Unit where
 instance : PyPrintable PUnit where
   pyStringify _ := "None"
 
-/-- Characters print as one-character strings. -/
+/-- Characters print as one-character strings, quoted inside a container like any other string. -/
 instance : PyPrintable Char where
   pyStringify c := String.singleton c
+  pyReprify c := pyReprString (String.singleton c)
 
 /-- Numeric values can use Lean's ordinary string form. -/
 instance : PyPrintable Int where
@@ -103,11 +124,15 @@ instance [PyPrintable α] : PyPrintable (Option α) where
   pyStringify
     | none => "None"
     | some value => pyStringify value
+  pyReprify
+    | none => "None"
+    | some value => pyReprify value
 
-/-- Lists print with Python-style brackets and comma separation. -/
+/-- Lists print with Python-style brackets and comma separation, their elements rendered with
+`repr` as Python's own list formatting does. -/
 instance [PyPrintable α] : PyPrintable (List α) where
   pyStringify xs :=
-    "[" ++ pyJoinPrinted (xs.map pyStringify) ++ "]"
+    "[" ++ pyJoinPrinted (xs.map pyReprify) ++ "]"
 
 /-- The comma-joined inside of a tuple (no surrounding parens), flattening the right-nested product an
 n-tuple `(a, b, c)` = `(a, (b, c))` is. A genuine 2-tuple-of-a-pair `(a, (b, c))` is the same product
@@ -116,14 +141,15 @@ class PyTupleBody (α : Type) where
   body : α → String
 
 instance (priority := 1100) [PyPrintable α] [PyTupleBody β] : PyTupleBody (α × β) where
-  body p := pyStringify p.1 ++ ", " ++ PyTupleBody.body p.2
+  body p := pyReprify p.1 ++ ", " ++ PyTupleBody.body p.2
 
 instance [PyPrintable α] : PyTupleBody α where
-  body a := pyStringify a
+  body a := pyReprify a
 
-/-- Tuples print as Python tuples, flattening the nesting so `(25, 9, 1)` is not `(25, (9, 1))`. -/
+/-- Tuples print as Python tuples, flattening the nesting so `(25, 9, 1)` is not `(25, (9, 1))`.
+Elements render with `repr`, as inside any Python container. -/
 instance [PyPrintable α] [PyTupleBody β] : PyPrintable (α × β) where
-  pyStringify p := "(" ++ pyStringify p.1 ++ ", " ++ PyTupleBody.body p.2 ++ ")"
+  pyStringify p := "(" ++ pyReprify p.1 ++ ", " ++ PyTupleBody.body p.2 ++ ")"
 
 /--
 Hash maps print as Python-style dictionaries.
@@ -136,8 +162,8 @@ instance [PyPrintable α] [PyPrintable β] [BEq α] [Hashable α] :
   pyStringify m :=
     let rendered :=
       m.toList.map fun (k, v) =>
-        let keyText := pyStringify k
-        (keyText, keyText ++ ": " ++ pyStringify v)
+        let keyText := pyReprify k
+        (keyText, keyText ++ ": " ++ pyReprify v)
     let sorted := rendered.mergeSort (fun a b => compare a.1 b.1 != Ordering.gt)
     "{" ++ pyJoinPrinted (sorted.map Prod.snd) ++ "}"
 

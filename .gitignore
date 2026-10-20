@@ -41,3 +41,6 @@ PastaBench/llm_bench
 
 # `pastalean mcp` scratch workspace (translated sources, editable Lean, contracts shim).
 .pastalean-mcp/
+
+# scratch module written by verso-snippets (lean-snippet) when rendering a snippet
+/Snippet.lean

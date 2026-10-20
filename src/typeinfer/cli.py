@@ -9,6 +9,9 @@ package, so `main.py` only forwards to `run`. Modes:
   --check            TYPE CHECK: report the Lean checker's verdicts (`checkTypes`) — an annotation
                      the body contradicts, a slot whose uses no type satisfies — and exit non-zero
                      if there is any. Errors print Lean-first, with the Python type alongside.
+                     With --certificate, also write the record behind each verdict.
+  --verify-cert      Re-check certificates written earlier against the sources they name. Runs no
+                     inference: a rejection is a statement about the certificate, not the Python.
   --unresolved       CI mode: print a diagnostic per unresolved slot (text / GitHub / SARIF) and,
                      with --fail-under (or `[tool.typeinfer]`), exit non-zero below that coverage.
 """
@@ -50,6 +53,25 @@ def add_arguments(p: argparse.ArgumentParser) -> None:
         help="Type-check: report every annotation the body contradicts and every slot whose uses no "
              "single type satisfies, and exit non-zero if there is any. Each error shows the Lean "
              "type the transpiler would emit with its Python type alongside.",
+    )
+    p.add_argument(
+        "--certificate", metavar="DIR",
+        help="With --check: write the certificate behind each verdict to DIR — for every source "
+             "file a readable JSON and a .lean whose compilation is the same check done by Lean's "
+             "kernel, plus a run manifest. A certificate records every slot judged, the evidence "
+             "weighed and the verdict reached, and is re-checkable with --verify-cert without "
+             "re-running inference.",
+    )
+    p.add_argument(
+        "--emit-proof", metavar="FILE",
+        help="Write the certificate for FILE as a Lean file whose compilation is its own check: "
+             "`lake env lean <out>` proves `CertSound`. One file only. Covers the "
+             "certificate-internal half; the program identity stays with --verify-cert.",
+    )
+    p.add_argument(
+        "--verify-cert", metavar="DIR",
+        help="Re-check the certificates in DIR against the file or directory given. Prints one line "
+             "per rejected certificate and exits non-zero if any is rejected.",
     )
     p.add_argument(
         "--unresolved", action="store_true",
@@ -104,8 +126,13 @@ def run(args) -> int:
     try:
         # Checking runs its own Lean pass (`checkTypes` infers twice — once as written, once with the
         # annotations stripped — so the two answers are independent), so it does not reuse `result`.
+        if getattr(args, "emit_proof", None):
+            return _run_emit_proof(path, Path(args.emit_proof))
+        if getattr(args, "verify_cert", None):
+            return _run_verify_cert(path, Path(args.verify_cert), getattr(args, "jobs", None))
         if args.check:
-            return _run_check(path, fmt, getattr(args, "jobs", None))
+            return _run_check(path, fmt, getattr(args, "jobs", None),
+                              getattr(args, "certificate", None))
         if path.is_dir():
             return _run_repo(args, path, fmt, output, include_any, fail_under, t0)
         source = path.read_text(encoding="utf-8")
@@ -144,16 +171,30 @@ def run(args) -> int:
     return 0
 
 
-def _run_check(path: Path, fmt: str, jobs: int | None = None) -> int:
-    """`--check`: the Lean checker's verdicts, mypy-style — nothing printed on success, non-zero exit
-    on any error."""
-    from .check import check_dir, check_source, to_github, to_lines, to_sarif, to_text
+def _sources(path: Path) -> list[str]:
+    """The files a check covers: one, or every `.py` under a directory, in path order."""
+    return [str(p) for p in sorted(path.rglob("*.py"))] if path.is_dir() else [str(path)]
 
-    if path.is_dir():
-        diags = check_dir(path, jobs=jobs)
-    else:
-        diags = [(str(path), d)
-                 for d in check_source(path.read_text(encoding="utf-8"), str(path))]
+
+def _run_check(path: Path, fmt: str, jobs: int | None = None,
+               certificate: str | None = None) -> int:
+    """`--check`: the Lean checker's verdicts, mypy-style — nothing printed on success, non-zero exit
+    on any error. With `certificate`, the record behind every verdict is written out too."""
+    from .check import (certify_paths, to_github, to_lines, to_sarif, to_text,
+                        write_certificates)
+
+    # Checking always certifies: the verdict and the certificate come out of the same pass, so there
+    # is nothing to gain by computing the verdict alone. `--certificate` decides whether the record
+    # behind it is kept.
+    results = certify_paths(_sources(path), jobs=jobs)
+    diags = [(src, d) for src, _ir, res in results for d in res["diagnostics"]]
+    if certificate:
+        out = Path(certificate)
+        manifest = write_certificates(results, out, path if path.is_dir() else None)
+        print(f"wrote {manifest['files']} certificates to {out} "
+              f"({manifest['clean']} clean, {manifest['flagged']} flagged, "
+              f"{manifest['slots']} slots) — JSON and a checkable .lean for each",
+              file=sys.stderr)
     if fmt == "github":
         print(to_github(diags))
     elif fmt == "sarif":
@@ -163,6 +204,44 @@ def _run_check(path: Path, fmt: str, jobs: int | None = None) -> int:
     n = len(diags)
     print(f"{n} type error{'' if n == 1 else 's'}" if n else "no type errors", file=sys.stderr)
     return 1 if diags else 0
+
+
+def _run_emit_proof(path: Path, out: Path) -> int:
+    """`--emit-proof`: the certificate as a Lean file, checked by Lean's kernel rather than by a
+    second program."""
+    from .check import certify_paths
+    from .proof import lean_name, write_proof
+
+    if path.is_dir():
+        print("error: --emit-proof takes a single file", file=sys.stderr)
+        return 1
+    results = certify_paths([str(path)])
+    if not results or results[0][2].get("certificate") is None:
+        print(f"error: could not certify {path}", file=sys.stderr)
+        return 1
+    cert = results[0][2]["certificate"]
+    write_proof(cert, out, lean_name(path.stem), str(path))
+    print(f"wrote {out} ({len(cert['slots'])} slots, {len(cert['diagnostics'])} diagnostics) — "
+          f"check it with `lake env lean {out}`", file=sys.stderr)
+    return 0
+
+
+def _run_verify_cert(path: Path, out: Path, jobs: int | None = None) -> int:
+    """`--verify-cert`: re-check written certificates against their sources.
+
+    This is the half that needs no engine — `TypeInfer/Certificate/Check.lean` imports nothing from
+    `Solve/` — so a rejection here says the certificate does not hold up, not that the Python is
+    wrong."""
+    from .check import verify_written
+
+    srcs = _sources(path)
+    results = verify_written(out, srcs, path if path.is_dir() else None, jobs=jobs)
+    bad = [(src, r) for src, r in results if not r.get("valid")]
+    for src, r in sorted(bad):
+        print(f"{src}: certificate rejected — {r.get('reason', 'unknown')}")
+    n = len(results)
+    print(f"{n - len(bad)}/{n} certificates verified", file=sys.stderr)
+    return 1 if bad else 0
 
 
 def _format_file(fmt: str, source: str, result, args, include_any: bool) -> str:

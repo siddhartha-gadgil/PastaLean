@@ -14,8 +14,11 @@ from pathlib import Path
 
 from ..paths import REPO_ROOT, lake_executable
 
-# `file.lean:12:4: error: unknown identifier 'foo'`
-DIAGNOSTIC_RE = re.compile(r"^(?P<file>[^:]+):(?P<line>\d+):(?P<col>\d+):\s*(?P<severity>error|warning):\s*(?P<message>.*)$")
+# `file.lean:12:4: error: unknown identifier 'foo'`, or with Lean's diagnostic code:
+# `file.lean:12:4: error(lean.unknownIdentifier): Unknown identifier 'foo'`
+DIAGNOSTIC_RE = re.compile(
+    r"^(?P<file>[^:]+):(?P<line>\d+):(?P<col>\d+):\s*(?P<severity>error|warning)(?:\([^)]*\))?:\s*(?P<message>.*)$"
+)
 
 
 @dataclass

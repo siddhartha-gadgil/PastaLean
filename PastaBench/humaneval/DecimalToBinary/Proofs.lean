@@ -56,6 +56,124 @@ def decimal_to_binary := fun (decimal : Int) ↦
 
 attribute [simp] decimal_to_binary
 
+open PastaLean in
+/-- `pySlice` on a `String` is `String.ofList` of the corresponding list slice. -/
+theorem pySlice_string (s : String) (lo hi st : Option Int) :
+    pySlice s lo hi st = String.ofList (pyListSliceStep s.toList lo hi st) := rfl
+
+open PastaLean in
+/-- The fuel-driven walker inside `pyListSliceStep`, at step `1` with a `Nat` bound and cursor,
+collects exactly `(l.take hi).drop i`. -/
+theorem slice_go {α : Type} (l : List α) (hi : Nat) :
+    ∀ (fuel i : Nat), hi - i ≤ fuel → ∀ (acc : List α),
+      pyListSliceStep.go (l.length : Int) 1 l.toArray (hi : Int) (i : Int) fuel acc
+        = acc.reverse ++ ((l.take hi).drop i) := by
+  intro fuel
+  induction fuel with
+  | zero =>
+    intro i hf acc
+    rw [PastaLean.pyListSliceStep.go]
+    simp [List.drop_eq_nil_iff]
+    omega
+  | succ fuel ih =>
+    intro i hf acc
+    rw [PastaLean.pyListSliceStep.go]
+    by_cases hlt : i < hi
+    · by_cases hlen : i < l.length
+      · have hi' : ((i : Int) < (hi : Int)) := by exact_mod_cast hlt
+        have hl' : ((i : Int) < (l.length : Int)) := by exact_mod_cast hlen
+        have hge : ((i : Int) ≥ 0) := by positivity
+        simp only [gt_iff_lt, zero_lt_one, if_true, hi', hl', hge,
+          decide_true, Bool.and_true, if_true]
+        rw [show ((i : Int)).toNat = i by simp, show l.toArray[i]? = some l[i] by simp [hlen]]
+        dsimp only
+        rw [show ((i : Int) + 1) = ((i + 1 : Nat) : Int) by push_cast; ring, ih (i + 1) (by omega)]
+        rw [List.drop_eq_getElem_cons (show i < (l.take hi).length by simp; omega)]
+        simp [List.getElem_take]
+      · have hl' : ¬ ((i : Int) < (l.length : Int)) := by exact_mod_cast hlen
+        simp only [gt_iff_lt, zero_lt_one, if_true, hl', decide_false, Bool.and_false,
+          Bool.false_eq_true, if_false]
+        simp [List.drop_eq_nil_iff]
+        omega
+    · have hi' : ¬ ((i : Int) < (hi : Int)) := by exact_mod_cast hlt
+      simp only [gt_iff_lt, zero_lt_one, if_true, hi', decide_false, Bool.false_and,
+        Bool.false_eq_true, if_false]
+      simp [List.drop_eq_nil_iff]
+      omega
+
+open PastaLean in
+/-- `l[k:]` for `k ≥ 0`. -/
+theorem slice_drop {α : Type} (l : List α) (k : Int) (hk : 0 ≤ k) :
+    pyListSliceStep l (some k) none none = l.drop k.toNat := by
+  rw [PastaLean.pyListSliceStep]
+  simp only [Option.getD_none, beq_iff_eq, one_ne_zero, if_false, gt_iff_lt, zero_lt_one,
+    if_true, if_neg (by omega : ¬ k < 0)]
+  rw [show (min k (l.length : Int)) = ((min k.toNat l.length : Nat) : Int) by omega,
+    slice_go l l.length (l.length + 1) (min k.toNat l.length) (by omega) []]
+  simp only [List.reverse_nil, List.nil_append, List.take_length]
+  by_cases h : k.toNat ≤ l.length
+  · rw [min_eq_left h]
+  · rw [min_eq_right (by omega), List.drop_length, List.drop_eq_nil_iff.mpr (by omega)]
+
+open PastaLean in
+/-- `l[a:b]` for `a, b ≥ 0`. -/
+theorem slice_take_drop {α : Type} (l : List α) (a b : Int) (ha : 0 ≤ a) (hb : 0 ≤ b) :
+    pyListSliceStep l (some a) (some b) none = (l.take b.toNat).drop a.toNat := by
+  rw [PastaLean.pyListSliceStep]
+  simp only [Option.getD_none, beq_iff_eq, one_ne_zero, if_false, gt_iff_lt, zero_lt_one,
+    if_true, if_neg (by omega : ¬ a < 0), if_neg (by omega : ¬ b < 0)]
+  rw [show (min b (l.length : Int)) = ((min b.toNat l.length : Nat) : Int) by omega,
+    show (min a (l.length : Int)) = ((min a.toNat l.length : Nat) : Int) by omega,
+    slice_go l (min b.toNat l.length) (l.length + 1) (min a.toNat l.length) (by omega) []]
+  simp only [List.reverse_nil, List.nil_append]
+  rw [show l.take (min b.toNat l.length) = l.take b.toNat by
+    by_cases h : b.toNat ≤ l.length
+    · rw [min_eq_left h]
+    · rw [min_eq_right (by omega), List.take_length, List.take_of_length_le (by omega)]]
+  by_cases h : a.toNat ≤ l.length
+  · rw [min_eq_left h]
+  · rw [min_eq_right (by omega)]
+    rw [List.drop_eq_nil_iff.mpr (by simp only [List.length_take]; omega),
+      List.drop_eq_nil_iff.mpr (by simp only [List.length_take]; omega)]
+
+/-- Every character of a base-2 numeral is a bit. -/
+theorem toDigits_two_mem (n : Nat) : ∀ c ∈ Nat.toDigits 2 n, c = '0' ∨ c = '1' := by
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    rw [Nat.toDigits_eq_if (by norm_num : (1 : Nat) < 2)]
+    split
+    · intro c hc
+      simp only [List.mem_singleton] at hc
+      subst hc
+      rename_i hlt
+      interval_cases n <;> simp
+    · rename_i hge
+      intro c hc
+      simp only [List.mem_append, List.mem_singleton] at hc
+      rcases hc with hc | hc
+      · exact ih (n / 2) (by omega) c hc
+      · subst hc
+        have : n % 2 < 2 := by omega
+        interval_cases h : (n % 2) <;> simp
+
+/-- The base-2 numeral of `n` is not truncated. -/
+theorem toDigits_len_lt (n : Nat) : n < 2 ^ (Nat.toDigits 2 n).length :=
+  (Nat.length_toDigits_le_iff (b := 2) (n := n) (k := (Nat.toDigits 2 n).length) (by norm_num)
+    Nat.length_toDigits_pos).mp le_rfl
+
+/-- The base-2 numeral of a positive `n` has no leading zero. -/
+theorem toDigits_len_ge (n : Nat) (hn : 0 < n) :
+    2 ^ ((Nat.toDigits 2 n).length - 1) ≤ n := by
+  have hkpos : 0 < (Nat.toDigits 2 n).length := Nat.length_toDigits_pos
+  by_cases h1 : (Nat.toDigits 2 n).length = 1
+  · rw [h1]; simp only [Nat.sub_self, pow_zero]; omega
+  · by_contra hcon
+    have hcon' : n < 2 ^ ((Nat.toDigits 2 n).length - 1) := Nat.lt_of_not_le hcon
+    have := (Nat.length_toDigits_le_iff (b := 2) (n := n)
+      (k := (Nat.toDigits 2 n).length - 1) (by norm_num) (by omega)).mpr hcon'
+    omega
+
+
 @[taste_ingr]
 theorem decimal_to_binary_correct :
     ∀ (decimal : Int),
@@ -71,7 +189,105 @@ theorem decimal_to_binary_correct :
                 c = "0" ∨ c = "1") ∧
             decimal < (2 : Int) ^ₚ (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (4 : Int))) ∧
           (decimal = (0 : Int) ∨ (2 : Int) ^ₚ (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (5 : Int)) ≤ decimal) :=
-  by sorry
+  by
+  intro decimal hd
+  have hneg : ¬ decimal < (0 : Int) := by omega
+  have hmd : ((decimal.natAbs : Nat) : Int) = decimal := Int.natAbs_of_nonneg (by omega)
+  have hk : 0 < (Nat.toDigits 2 decimal.natAbs).length := Nat.length_toDigits_pos
+  have hbin : PastaLean.pyBin decimal
+      = "0b" ++ String.ofList (Nat.toDigits 2 decimal.natAbs) := by
+    rw [show PastaLean.pyBin decimal
+        = (if decimal < 0 then "-" else "") ++ "0b"
+            ++ String.ofList (Nat.toDigits 2 decimal.natAbs) from rfl, if_neg hneg]
+    simp
+  have hpay : PastaLean.pySlice (PastaLean.pyBin decimal) (some (2 : Int)) none none
+      = String.ofList (Nat.toDigits 2 decimal.natAbs) := by
+    rw [pySlice_string, slice_drop _ _ (by norm_num), hbin]
+    simp only [String.toList_append, String.toList_ofList,
+      show ("0b" : String).toList = ['0', 'b'] from by decide]
+    simp [show ((2 : Int)).toNat = 2 from rfl]
+  have hres : decimal_to_binary decimal
+      = "db" ++ String.ofList (Nat.toDigits 2 decimal.natAbs) ++ "db" := by
+    rw [show decimal_to_binary decimal
+        = "db" ++ PastaLean.pySlice (PastaLean.pyBin decimal) (some (2 : Int)) none none
+            ++ "db" from rfl, hpay]
+  have hresL : (decimal_to_binary decimal).toList
+      = ['d', 'b'] ++ Nat.toDigits 2 decimal.natAbs ++ ['d', 'b'] := by
+    rw [hres]
+    simp only [String.toList_append, String.toList_ofList,
+      show ("db" : String).toList = ['d', 'b'] from by decide]
+  have hlen : PastaLean.pyLen (decimal_to_binary decimal)
+      = (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int) + 4 := by
+    rw [show PastaLean.pyLen (decimal_to_binary decimal)
+        = ((decimal_to_binary decimal).length : Int) from by simp [PastaLean.pyLen, PyLen.pyLen],
+      ← String.length_toList, hresL]
+    simp
+    push_cast
+    ring
+  refine ⟨⟨⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩, ?_⟩, ?_⟩
+  · rw [show PastaLean.pyStringStartswith (decimal_to_binary decimal) "db"
+        = (decimal_to_binary decimal).startsWith "db" from rfl, hres, String.append_assoc]
+    simp
+  · rw [show PastaLean.pyStringEndswith (decimal_to_binary decimal) "db"
+        = (decimal_to_binary decimal).endsWith "db" from rfl, hres]
+    simp only [String.endsWith, String.Slice.endsWith_string_iff, String.copy_toSlice,
+      String.toList_append]
+    exact List.suffix_append _ _
+  · rw [hlen]; omega
+  · have hsub : (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (2 : Int))
+        = (((Nat.toDigits 2 decimal.natAbs).length + 2 : Nat) : Int) := by
+      rw [show (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (2 : Int))
+          = PastaLean.pyLen (decimal_to_binary decimal) - 2 from rfl, hlen]
+      push_cast; ring
+    have hmid : PastaLean.pySlice (decimal_to_binary decimal) (some (2 : Int))
+          (some (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (2 : Int))) none
+        = String.ofList (Nat.toDigits 2 decimal.natAbs) := by
+      rw [pySlice_string, hsub, slice_take_drop _ _ _ (by norm_num) (by positivity), hresL,
+        show ((((Nat.toDigits 2 decimal.natAbs).length + 2 : Nat) : Int)).toNat
+          = (Nat.toDigits 2 decimal.natAbs).length + 2 from by omega,
+        show ((2 : Int)).toNat = 2 from rfl]
+      rw [List.take_append_of_le_length (by simp), List.take_of_length_le (by simp),
+        List.drop_append_of_le_length (by simp)]
+      simp
+    rw [hmid]
+    rw [show (PastaLean.pyIter (String.ofList (Nat.toDigits 2 decimal.natAbs)) : List String)
+        = (Nat.toDigits 2 decimal.natAbs).map (fun c => c.toString) from by
+      rw [show (PastaLean.pyIter (String.ofList (Nat.toDigits 2 decimal.natAbs)) : List String)
+          = (String.ofList (Nat.toDigits 2 decimal.natAbs)).toList.map (fun c => c.toString)
+          from rfl, String.toList_ofList]]
+    intro c hc
+    rw [List.mem_map] at hc
+    obtain ⟨ch, hch, rfl⟩ := hc
+    rcases toDigits_two_mem _ ch hch with h | h <;> rw [h]
+    · left; decide
+    · right; decide
+  · rw [show (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (4 : Int))
+        = PastaLean.pyLen (decimal_to_binary decimal) - 4 from rfl, hlen]
+    rw [show (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int) + 4 - 4
+        = (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int) by ring]
+    rw [show ((2 : Int) ^ₚ (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int))
+        = ((2 ^ (Nat.toDigits 2 decimal.natAbs).length : Nat) : Int) from by
+      rw [show ((2 : Int) ^ₚ (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int))
+          = (2 : Int) ^ ((((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int)).toNat from rfl]
+      push_cast; simp]
+    rw [← hmd]
+    exact_mod_cast toDigits_len_lt decimal.natAbs
+  · by_cases h0 : decimal = 0
+    · exact Or.inl h0
+    · right
+      have hmpos : 0 < decimal.natAbs := by omega
+      rw [show (PastaLean.pyLen (decimal_to_binary decimal) -ₚ (5 : Int))
+          = PastaLean.pyLen (decimal_to_binary decimal) - 5 from rfl, hlen]
+      rw [show (((Nat.toDigits 2 decimal.natAbs).length : Nat) : Int) + 4 - 5
+          = (((Nat.toDigits 2 decimal.natAbs).length - 1 : Nat) : Int) by omega]
+      rw [show ((2 : Int) ^ₚ (((Nat.toDigits 2 decimal.natAbs).length - 1 : Nat) : Int))
+          = ((2 ^ ((Nat.toDigits 2 decimal.natAbs).length - 1) : Nat) : Int) from by
+        rw [show ((2 : Int) ^ₚ (((Nat.toDigits 2 decimal.natAbs).length - 1 : Nat) : Int))
+            = (2 : Int) ^ ((((Nat.toDigits 2 decimal.natAbs).length - 1 : Nat) : Int)).toNat
+            from rfl]
+        push_cast; simp]
+      rw [← hmd]
+      exact_mod_cast toDigits_len_ge decimal.natAbs hmpos
 
 def decimal_to_binary'rn := fun (decimal : Int) ↦
   "db" +ₚ PastaLean.pySlice (PastaLean.pyBin decimal) (some (2 : Int)) none none +ₚ "db"

@@ -18,11 +18,11 @@ open PastaLean
 #guard_msgs in
 #eval pyPrintStr ([1, 2, 3] : List Int)
 
-/-- info: "(7, ok)" -/
+/-- info: "(7, 'ok')" -/
 #guard_msgs in
 #eval pyPrintStr ((7 : Int), "ok")
 
-/-- info: "{a: 1, b: 2}" -/
+/-- info: "{'a': 1, 'b': 2}" -/
 #guard_msgs in
 #eval pyPrintStr (Std.HashMap.ofList [("b", 2), ("a", 1)] : Std.HashMap String Int)
 
@@ -30,9 +30,24 @@ open PastaLean
 #guard_msgs in
 #eval pyPrintStr (fun x : Int => x + 1)
 
-/-- info: "[a, b, c]" -/
+/-- info: "['a', 'b', 'c']" -/
 #guard_msgs in
 #eval pyPrintStr (['a', 'b', 'c'] : List Char)
+
+/-! A container renders its elements with `repr`, so a string gains Python's quotes inside one while
+`print("a")` stays bare. Quote choice and escaping follow CPython. -/
+
+/-- info: "['a', 'b']" -/
+#guard_msgs in
+#eval pyPrintStr (["a", "b"] : List String)
+
+/-- info: "[\"it's\", 'say \"hi\"']" -/
+#guard_msgs in
+#eval pyPrintStr (["it's", "say \"hi\""] : List String)
+
+/-- info: "[None, 'x']" -/
+#guard_msgs in
+#eval pyPrintStr ([none, some "x"] : List (Option String))
 
 /-- info: print me -/
 #guard_msgs in

@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Proving Python correct by Verifying Correctness">
+<title>Proving Python by Translating It</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one measured column of running text; code and figures break out wider. */
+:root {
+  --ink:#16161d; --muted:#5a5a6e; --bg:#fbfbfd; --surface:#f3f3f8; --line:#d9d9e3;
+  --accent:#4b43b0; --accent-soft:#ece9fb; --amber:#9c6a0b;
+  --display:"Newsreader", Georgia, serif;
+  --body:"Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --measure: 34rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink:#e8e8f0; --muted:#9d9db2; --bg:#0e0e14; --surface:#191921; --line:#2d2d3a;
+    --accent:#a699ff; --accent-soft:#1d1a33; --amber:#e0a54a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink:#e8e8f0; --muted:#9d9db2; --bg:#0e0e14; --surface:#191921; --line:#2d2d3a;
+  --accent:#a699ff; --accent-soft:#1d1a33; --amber:#e0a54a;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 1.0625rem; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 4rem;
+  -webkit-text-size-adjust: 100%;
+}
+.col { max-width: var(--measure); margin: 0 auto; }
+.wide { max-width: 52rem; margin: 0 auto; }
+
+/* ---- masthead ---- */
+header.mast { max-width: 52rem; margin: 0 auto; padding-block: 3.5rem 2.25rem; border-bottom: 1px solid var(--line); }
+header.mast .eyebrow {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 1.1rem;
+}
+h1 {
+  font-family: var(--display); font-weight: 600; font-size: clamp(2.1rem, 6.2vw, 3.4rem);
+  line-height: 1.07; letter-spacing: -.018em; text-wrap: balance; margin: 0 0 1rem; max-width: 30ch;
+}
+.standfirst {
+  font-family: var(--display); font-style: italic; font-size: clamp(1.1rem, 2.6vw, 1.33rem);
+  line-height: 1.5; color: var(--muted); margin: 0 0 1.6rem; max-width: 46ch;
+}
+.byline { font-family: var(--mono); font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; }
+.byline b { color: var(--ink); font-weight: 500; }
+
+/* ---- running text ---- */
+main { padding-top: 2.5rem; }
+h2, h3 { font-family: var(--display); text-wrap: balance; max-width: var(--measure);
+         margin-inline: auto; letter-spacing: -.01em; }
+h2 { font-weight: 600; font-size: clamp(1.5rem, 3.6vw, 1.95rem); line-height: 1.18; margin: 3.3rem auto 1rem; }
+h3 { font-weight: 600; font-size: 1.22rem; line-height: 1.25; margin: 2.5rem auto .75rem; color: var(--ink); }
+h3::before { content: ""; display: block; width: 2.1rem; height: 2px; background: var(--accent); margin-bottom: .85rem; opacity: .85; }
+p, ul, ol { max-width: var(--measure); margin-inline: auto; }
+p { margin-block: 0 1.15rem; }
+ul, ol { margin-block: 0 1.3rem; padding-left: 1.25rem; }
+li { margin-bottom: .5rem; }
+li::marker { color: var(--accent); }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+strong { font-weight: 600; }
+hr { max-width: var(--measure); margin: 3rem auto; border: 0; border-top: 1px solid var(--line); }
+code { font-family: var(--mono); font-size: .86em; background: var(--surface);
+       border: 1px solid var(--line); border-radius: 4px; padding: .08em .32em; }
+p.kicker { font-size: .93rem; color: var(--muted); border-left: 2px solid var(--line); padding-left: 1rem; }
+p.snip-note { font-size: .82rem; color: var(--muted); font-style: italic; margin-bottom: .45rem; max-width: 60rem; }
+
+/* ---- notation key: the two bits of syntax this post leans on ---- */
+.notation { max-width: 52rem; margin: 2rem auto; background: var(--surface);
+            border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem 1.25rem; }
+.notation h4 { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase;
+               color: var(--muted); margin: 0 0 .8rem; font-weight: 500; }
+.notation dl { display: grid; grid-template-columns: auto 1fr; gap: .55rem 1rem; margin: 0; align-items: baseline; }
+.notation dt { font-family: var(--mono); font-size: .9rem; color: var(--accent); white-space: nowrap; }
+.notation dd { margin: 0; font-size: .93rem; color: var(--ink); min-width: 0; }
+@media (max-width: 520px) { .notation dl { grid-template-columns: 1fr; gap: .15rem; } .notation dd { margin-bottom: .5rem; } }
+
+/* ---- code ---- */
+.codeblock { max-width: 52rem; margin: 1.5rem auto 1.75rem; position: relative; }
+.codelab { position: absolute; top: .55rem; right: .7rem; font-family: var(--mono); font-size: .66rem;
+           letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.codeblock pre { margin: 0; background: var(--surface); border: 1px solid var(--line);
+                 border-radius: 10px; padding: 1.1rem 1.15rem; overflow-x: auto; min-width: 0; }
+.codeblock pre code { font-family: var(--mono); font-size: .82rem; line-height: 1.6;
+                      background: none; border: 0; padding: 0; white-space: pre; }
+
+/* a small hand-rolled theme over highlight.js class names */
+.hljs-keyword, .hljs-literal { color: var(--accent); font-weight: 500; }
+.hljs-string { color: var(--amber); }
+.hljs-comment { color: var(--muted); font-style: italic; }
+.hljs-number { color: #1a7f6b; }
+.hljs-title, .hljs-title.function_ { color: var(--ink); font-weight: 600; }
+.hljs-built_in { color: #2b6cb0; }
+.hljs-params { color: var(--ink); }
+:root[data-theme="dark"] .hljs-number, :root[data-theme="dark"] .hljs-built_in { color: #6fd3bd; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hljs-number,
+  :root:not([data-theme="light"]) .hljs-built_in { color: #6fd3bd; }
+}
+
+/* ---- live Lean snippets ---- */
+.snipwrap { max-width: 60rem; margin: 0 auto 1.9rem; border: 1px solid var(--line);
+            border-radius: 10px; overflow: hidden; background: var(--surface); }
+iframe.snip { display: block; width: 100%; border: 0; height: 420px; background: transparent; }
+
+/* ---- tables ---- */
+.tablewrap { max-width: 52rem; margin: 1.6rem auto 1.9rem; overflow-x: auto; min-width: 0;
+             border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: .62rem .85rem; border-bottom: 1px solid var(--line); }
+thead th { font-family: var(--mono); font-size: .7rem; letter-spacing: .07em; text-transform: uppercase;
+           color: var(--muted); font-weight: 500; background: var(--surface); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: 0; }
+td:not(:first-child), th:not(:first-child) { text-align: right; }
+tbody td:first-child { font-weight: 500; }
+
+/* ---- the pipeline figure ---- */
+figure.flow { max-width: 44rem; margin: 2rem auto 2.4rem; padding: 0; }
+figure.flow svg { display: block; max-width: 100%; }
+
+/* ---- footer ---- */
+footer { max-width: 52rem; margin: 3.5rem auto 0; padding-top: 1.5rem; border-top: 1px solid var(--line);
+         font-size: .88rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* ---- theme toggle ---- */
+.themebtn { position: fixed; top: .9rem; right: .9rem; z-index: 50; font: 500 .75rem/1 var(--mono);
+            letter-spacing: .04em; text-transform: uppercase; color: var(--muted); cursor: pointer;
+            background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
+            padding: .45rem .8rem; }
+.themebtn:hover { color: var(--accent); border-color: var(--accent); }
+.themebtn span { display: none; }
+:root[data-theme="light"] .themebtn span[data-when="light"],
+:root[data-theme="dark"]  .themebtn span[data-when="dark"] { display: inline; }
+@media (max-width: 34rem) { .themebtn { top: .5rem; right: .5rem; padding: .35rem .6rem; } }
+
+/* ---- worked-example explorer ---- */
+.explorer { max-width: 60rem; margin: 1.6rem auto 2rem; }
+.explorer > label { font-family: var(--mono); font-size: .78rem; letter-spacing: .04em;
+                    text-transform: uppercase; color: var(--muted); }
+.explorer select { font: inherit; font-size: .92rem; padding: .3rem .4rem; margin-left: .4rem;
+                   color: var(--ink); background: var(--surface);
+                   border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
+.ex[hidden] { display: none; }
+.ex h4 { font-family: var(--mono); font-size: .78rem; letter-spacing: .04em; text-transform: uppercase;
+         color: var(--muted); font-weight: 500; margin: 1.4rem 0 .5rem; }
+p.exnote { max-width: 60rem; margin: .9rem auto .2rem; font-size: .92rem; color: var(--muted); }
+.ex .codeblock, .ex .snipwrap { max-width: 60rem; margin-left: 0; margin-right: 0; }
+</style>
+
+</head>
+<body>
+<button id="themebtn" class="themebtn" type="button" aria-label="Switch between light and dark">
+  <span data-when="light">Dark</span><span data-when="dark">Light</span></button>
+<script>
+(function () {
+  var root = document.documentElement, btn = document.getElementById('themebtn');
+  function osDark() {
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('pastalean-blog-theme'); } catch (e) {}
+  function set(t) {
+    root.setAttribute('data-theme', t);
+    try { localStorage.setItem('pastalean-blog-theme', t); } catch (e) {}
+  }
+  set(saved === 'dark' || saved === 'light' ? saved : (osDark() ? 'dark' : 'light'));
+  btn.addEventListener('click', function () {
+    set(root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+})();
+</script>
+<header class="mast">
+  <p class="eyebrow">Python &rarr; Lean 4</p>
+  <h1>Proving Python correct by Verifying Correctness</h1>
+  <p class="standfirst">A deterministic transpiler, the seven design decisions behind it, and why the
+  translation step is the one place a language model must not be.</p>
+  <p class="byline"><span>By <b>Anirudh Gupta</b></span><span>17 October 2026</span><span>~25 min read</span></p>
+</header>
+
+<main>
+<p>A test tells you your code works on the inputs you thought of. A proof tells you it works on every input there is. This is the new notion of correctness that the world is adopting. Formal verification is a field of computer science which helps you in showing correctness of software by mathematically proving it(notion of correctness depends on whatever you want) and computer scientists have been developing this field ever since theory of computer science came about.</p>
+<p>However, most people never try proving correctness and go for testing, because the languages where you can write proofs — Lean 4, Rocq, Dafny, F\* — are not the ones anyone writes programs in. The code that needs checking is in, say Rust or Python, a language every developer these days use and quite popular for AI development. Since correctness of your program is very important for you, your company, research lab, etc.,  great deal of time and effort goes in finding the right and "exhaustive" set of tests to see if things work. Yet this does not rule out possibility of corner cases and such bugs are quite hard to find. Now, as you just read in previous line what formal verification can do for you, is rule out possibility of any such bugs if you prove your code is correct, want to see if it works. But you have a problem, that would have to convert logic/algorithm you write in the Python, in some other language like Lean4 for formal verification. </p>
+<p>Good news is that Agents in 2026 are super smart that they can do the conversion for you, but do you trust their implementation of your code? Do you trust the notion of correctness they used in proving your theorem? Let me fill in the mind gap for you. </p>
+<p>From the picture above, all you need is a verified and trustable tool to convert your code(Python, Rust, etc.) in Lean4 and write the correctness theorem you described. Now you can employ an agent to fill the proof which Lean4 can check. Thus you have successfully removed the "non-determinism" in your pipeline and you can rest assure that the AI didn't do anything wrong, it just <strong>can't</strong>. </p>
+<p><a href="https://github.com/siddhartha-gadgil/PastaLean">PastaLean</a>(comes from Py+AST+Lean) is the tool you would want to use to fill in that gap. You write ordinary Python. A fixed, deterministic translator turns it into Lean 4. Lean then checks it — and if you have said what the code is <em>supposed</em> to do, Lean proves it.</p>
+<div class="notation">
+  <h4>Two bits of notation, so the code reads</h4>
+  <dl>
+    <dt>+&#8346; &nbsp;%&#8346; &nbsp;//&#8346;</dt>
+    <dd>An operator with <em>Python's</em> meaning rather than Lean's. The subscript p is the whole
+        point of the runtime: <code>7 //&#8346; -2</code> is <code>-4</code>, as Python says, where
+        Lean's own division would give <code>-3</code>.</dd>
+    <dt>&#10835;P&#10836; prog &#10835;Q&#10836;</dt>
+    <dd>A Hoare triple, read as a sentence: <em>assuming P holds, running prog leaves Q true.</em>
+        P comes from <code>Requires</code> in the Python, Q from <code>Ensures</code>.</dd>
+  </dl>
+</div>
+<h2>Why this matters more than it did two years ago</h2>
+<p>An enormous share of the Python running in the world right now was drafted by a language model. Agentic systems lean on it even harder: they write a script, run it, read the number, and build the next step on that number. If the script is subtly wrong, the conclusion is wrong, and nothing in the pipeline notices. And as you would know, model's can convince you that a wrong answer is in fact correct!</p>
+<p>As discussed before, testing is the usual answer and a weak one here, because the tests are written by the same process that wrote the bug(the agent). If you employ a model for this task again, you trod the way of non-determinism and blind shooting the correctness aim, only hoping the gun is good enough.</p>
+<p>Proving things instead sounds unaffordable. It is not, for a reason specific to how agents work. An agent generates a lot of exploratory code and only a small slice of it feeds the final answer, the main <strong>logic</strong>. That slice is the only part worth proving, and proving it blocks nothing, because verification runs in parallel with the exploration that follows. You are not paying to verify everything — only the handful of functions whose output someone will act on. This is a design choice that I emphasize on since proving stub code like writing to files, loading datasets, making network connections, etc. doesn't give you as much value since they are mostly IO work. However, any logic that goes into the algorithm of how data is processed, is very important and correctness is invaluable.</p>
+<p>Lean 4 suits this because it is two things at once: a proof assistant with a friendly, super-smart people behind it, a mathematics library called Mathlib and Computer Science library called CSLib, and a real compiled language that goes through C to native code. So the translated program can actually run, at competitive speed, <em>and</em> be reasoned about — and the reasoning reuses Mathlib instead of a verification stack built for this one purpose. </p>
+<h2>Why not just ask a model to write the Lean from Python?</h2>
+<p>This is the obvious shortcut, and rejecting it is the most important decision in the project. Three reasons, in increasing order of force.</p>
+<p><strong>It is not reproducible.</strong> Run a model twice and you get two translations. There is no line in any table you can point at and say <em>this</em> is why <code>append</code> became <code>pyAppend</code>. Auditing a non-deterministic translator audits one sample of it.</p>
+<p><strong>It defeats the purpose.</strong> A model translating Python to Lean <strong>might quietly fix the bug</strong>: clean up an off-by-one, pick the sensible branch, write the code you obviously <em>meant</em>. Desirable in an assistant, fatal in a verifier — a model can translate <strong>incorrect Python into correct Lean</strong>. The proof closes, you ship, and the bug is still sitting in the Python that actually runs. The method does not get weaker. You may counter that models are smart these days to not pull it off. You wanna bet with your software?</p>
+<p><strong>And it measures poorly comparatively.</strong> We tested on Claude Opus 4.8 with a benchmark of Python source, the same test harness PastaLean is scored with, the signature pinned in the prompt so the output is callable, five independent samples per problem at temperature 1.0.</p>
+<div class="tablewrap"><table><thead><tr><th></th><th>HumanEvalplus</th><th>LiveCodeBench</th></tr></thead><tbody><tr><td>LLM, pass@1 — one sample works</td><td>75.4%</td><td>52.5%</td></tr><tr><td>LLM, pass@5 — at least one of five works</td><td>87.2%</td><td>74.9%</td></tr><tr><td>LLM, pass⁵ — <strong>all five</strong> work</td><td>62.8%</td><td>31.4%</td></tr><tr><td>PastaLean, generated Lean compiles</td><td>92.1%</td><td>98.5%</td></tr><tr><td>PastaLean, test cases matching CPython</td><td>100%</td><td>100%</td></tr></tbody></table></div>
+<p>The number to look at is the distance between pass@5 and pass⁵. On LiveCodeBench the model finds a working translation within five tries three-quarters of the time, and produces five that all work less than a third of the time. That spread <em>is</em> the unreliability. A deterministic transpiler has pass⁵ equal to pass@1 by construction, because there is only ever one output. (When the model failed it was usually by calling a Mathlib lemma that does not exist under that name, or writing a recursive <code>def</code> Lean cannot show terminates.)</p>
+<p>Two neighbouring questions. <strong>Why not write in a verification language like Dafny from the start?</strong> Because the risk just moves to the specification: if the spec is mistranslated from what you meant, your code is provably correct about the wrong thing and nothing flags it. <strong>Why write the specifications in Python rather than Lean, then?</strong> You can actually, and I would recommend it too. A lot of specifications might not be writable in Python due to less mathematical notation availability meanwhile Lean provides an aresenal of all Mathematics to back you up and support you. You can write it in Python or Lean and  PastaLean will pick it up for you.</p>
+<p>Now that we know PastaLean is the right tool for you, let's dive into how it works.</p>
+<h2>How PastaLean cooks</h2>
+<p>PastaLean converts Python to its Abstract Syntax Tree(AST) from where it is transpiled into Lean. The process of converting a language into another is called transpilation. There are net Four stages in this conversion.</p>
+<figure class="flow"><svg viewBox="0 0 660 272" role="img" aria-labelledby="pipe-t pipe-d" style="width:100%;height:auto;font-family:ui-sans-serif,system-ui,sans-serif">
+  <title id="pipe-t">The PastaLean pipeline</title>
+  <desc id="pipe-d">Python source is parsed to an AST and JSON IR; TypeInfer annotates it and the code generator emits Lean 4 as a provable twin and a runnable twin; if the Python carries contracts, the pipeline continues into a machine-checked proof.</desc>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g style="color:var(--line,#64748b)" stroke="currentColor" fill="none" stroke-width="1.6">
+    <rect x="60" y="8" width="200" height="36" rx="6" stroke-dasharray="5 4"/>
+    <path d="M 160 44 L 160 62" marker-end="url(#ah)"/>
+    <rect x="60" y="66" width="200" height="56" rx="6"/>
+    <rect x="400" y="66" width="200" height="56" rx="6"/>
+    <path d="M 266 94 L 393 94" marker-end="url(#ah)"/>
+    <path d="M 500 122 C 500 156 160 156 160 184" marker-end="url(#ah)"/>
+    <rect x="60" y="188" width="200" height="64" rx="6"/>
+    <rect x="400" y="188" width="200" height="64" rx="6" stroke-dasharray="5 4"/>
+    <path d="M 266 220 L 393 220" marker-end="url(#ah)"/>
+  </g>
+  <g fill="var(--ink,#0f172a)" text-anchor="middle">
+    <text x="160" y="31" font-size="13" font-style="italic" fill="var(--muted,#64748b)">contracts (optional)</text>
+    <text x="160" y="90" font-size="15" font-weight="600">Python source</text>
+    <text x="160" y="110" font-size="12" fill="var(--muted,#64748b)">ordinary, unmodified</text>
+    <text x="500" y="90" font-size="15" font-weight="600">AST → JSON IR</text>
+    <text x="500" y="110" font-size="12" fill="var(--muted,#64748b)">one node per construct</text>
+    <text x="160" y="212" font-size="15" font-weight="600">Lean 4</text>
+    <text x="160" y="230" font-size="12" fill="var(--muted,#64748b)">provable twin +</text>
+    <text x="160" y="245" font-size="12" fill="var(--muted,#64748b)">runnable twin</text>
+    <text x="500" y="214" font-size="15" font-weight="600">Proof</text>
+    <text x="500" y="234" font-size="12" fill="var(--muted,#64748b)">machine-checked</text>
+  </g>
+  <g fill="var(--muted,#64748b)" text-anchor="middle" font-size="12">
+    <text x="330" y="88">parse</text>
+    <text x="330" y="150">TypeInfer annotates, then codegen emits</text>
+    <text x="330" y="214">prove, if contracts</text>
+  </g>
+</svg></figure>
+<p><strong>Parse.</strong> Python's own <code>ast</code> module does it, so there is no second grammar to keep in sync with CPython. The tree becomes JSON, one object per node, tagged with its <code>node_type</code>.</p>
+<p><strong>Annotate.</strong> Lean needs a type for every binder; Python supplies almost none. A type inference engine <code>TypeInfer</code> (more below) walks the IR and writes a <code>_ty</code> field onto every binder whose type it can work out — and changes <strong>nothing else</strong>. No expression is rewritten, no node removed. That restraint is the point: the generator reads an inferred type in exactly the place it reads a hand-written annotation, so there is no second code path, and a fully annotated program produces identical Lean whether the engine ran or not.</p>
+<p><strong>Generate.</strong> Each IR node type has a Lean function registered against it by an attribute — <code>@[pygen &quot;FunctionDef&quot;]</code>, <code>@[pygen &quot;BinOp&quot;]</code> — and a dispatcher looks the function up by <code>node_type</code> and calls it, recursing into children. Supporting new Python syntax means writing one tagged function; nothing else in the pipeline changes.</p>
+<p>One quiet detail is load-bearing. These generators do not return strings. They return Lean's own <strong>typed syntax</strong> objects, so Lean's compiler type-checks the generator itself: a generator cannot emit something that is not well-formed Lean. The output then goes through Lean's elaborator, which decides whether it type-checks against the runtime.</p>
+<p>This is another design paradigm while working with Lean: <strong>the Lean elaborator is the oracle.</strong> We are not comparing output against a golden file written by hand. We are asking a compiler whether the translation makes sense(type checking), and it answers for every program, including the ones nobody thought to test.</p>
+<p>PastaLean conversion is very fast, and it can convert your most files within a second on a warm backend. One practical note: the expensive part is loading Mathlib, four to five seconds. So the generator runs as one persistent backend that statements are streamed into, paying that cost once for a whole dataset rather than once per file.</p>
+<h3>Understanding an Example</h3>
+<p>This is HumanEval problem 85 — <em>add the even elements at odd indices</em>. First the Python, with its specification written in it. Note that the Final Condition is chosen to be a simple one in this example however you can write it to be as complex as your needs support.</p>
+<div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">from contracts import *
+
+def add(lst):
+    Requires(len(lst) &gt; 0)
+    # THE POINT: only even elements are ever added, so the answer is even.
+    Ensures(Result() % 2 == 0)
+
+    s = 0
+    for i in range(1, len(lst), 2):
+        Invariant(s % 2 == 0)          # the running sum stays even
+        Invariant(1 &lt;= i)              # index bounds, so lst[i] is defined
+        Invariant(i &lt; len(lst))
+        Invariant(i % 2 == 1)          # range(1, _, 2) yields only odd indices
+        if lst[i] % 2 == 0:
+            s += lst[i]
+    return s</code></pre></div>
+<p><code>Requires</code>, <code>Ensures</code> and <code>Invariant</code> are imported from a small module and are thin wrappers around <code>assert</code>, so this file still runs under CPython exactly as before — the contract behaves like an ordinary assertion while your test suite exercises it. The translator, though, does not evaluate them. It lifts them out of the syntax tree and turns them into the statement of a theorem.</p>
+<p>The code below is the output you get. The loop is a real Lean <code>for</code> loop over mutable state, the operators carry a small <code>ₚ</code> to mark Python semantics, and the proof underneath is four lines:</p>
+<p class="snip-note">Hover or click any name below for its real type, docstring or proof state &mdash; this is the Lean compiler's own data.</p>
+<div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/pipeline.html?v=1792239311" title="Interactive Lean snippet"></iframe></div>
+<p>Read the theorem as a sentence: <em>assuming the list is non-empty, running <code>add</code> on it gives back an <code>s</code> that is even.</em> The brackets <code>⦃ ⦄</code> are a Hoare triple — precondition, program, postcondition — and <code>mvcgen</code> is the tactic that chops it into separate goals, one per path through the function, which the line underneath closes automatically. A second theorem in the same file, <code>add_correct</code>, restates it without the Hoare brackets for callers who just want the plain fact.</p>
+<p>This example is not hard. The point is that <em>nothing about this is a test</em>. There is no list of inputs. The statement covers every list of integers that exists.</p>
+<h2>Design choices</h2>
+<p>Lean is statically typed functional programming language, meanwhile Python is a dynamically typed Object Oriented language. Python and Lean disagree about almost everything that matters: mutation, types, objects, effects, numbers. Every one of those disagreements had to be settled in a particular direction, and the direction was almost always chosen to protect provability. Let's understand some of them in order to strengthen the  concepts around this tool.</p>
+<h3>What we support</h3>
+<p>The sections below are the choices that shaped everything else, but it helps to see the surface they cover first. PastaLean targets the part of Python that logic is actually written in:</p>
+<ul><li><strong>Values and operators</strong> — <code>int</code>, <code>float</code>, <code>bool</code>, <code>str</code>, tuples, <code>list</code>, <code>dict</code>, <code>set</code>, slicing, f-strings, chained comparisons, and Python's own <code>//</code>, <code>%</code> and <code>**</code>.</li><li><strong>Control flow</strong> — <code>if</code>/<code>elif</code>/<code>else</code>, <code>for</code>, <code>while</code>, <code>break</code>/<code>continue</code>, <code>match</code>, list/dict/set comprehensions and generator expressions.</li><li><strong>Functions</strong> — default arguments, several <code>return</code>s of different types, nested functions, closures, currying, decorators, <code>lambda</code>, <code>yield</code>, <code>@cache</code>.</li><li><strong>Objects</strong> — classes with <code>__init__</code>, methods, <code>@staticmethod</code>/<code>@classmethod</code>/<code>@property</code>, dunder operators, single and multiple inheritance.</li><li><strong>Effects</strong> — <code>try</code>/<code>except</code>/<code>finally</code>, <code>raise</code>, <code>print</code>, <code>input</code>.</li><li><strong>Libraries</strong> — <code>math</code>, <code>typing</code>, <code>heapq</code>, <code>numpy</code>, <code>pandas</code>, <code>scipy</code>, and anything else somebody writes a mapping for.</li><li><strong>Contracts</strong> — <code>Requires</code>, <code>Ensures</code>, <code>Invariant</code>, <code>Decreases</code>, <code>Assert</code>, all written in Python.</li></ul>
+<p>Every item on that list is a Python feature that Lean does not have in the same shape, so every one of them is a decision. Here are the seven that the rest follow from.</p>
+<h3>1. Every function is translated twice</h3>
+<p>One Python function becomes two Lean definitions: <code>foo</code>, the <strong>provable</strong> twin, and <code>foo&#x27;rn</code>, the <strong>runnable</strong> one — same IR, same generators, differing in only a few places.</p>
+<p class="snip-note">Hover or click any name below for its real type, docstring or proof state &mdash; this is the Lean compiler's own data.</p>
+<div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/twins.html?v=1792239311" title="Interactive Lean snippet"></iframe></div>
+<p>Why not just pick one? Because the two jobs want opposite things.</p>
+<p>For proving, a Python <code>float</code> becomes an exact rational, ℚ. Lean has a <code>Float</code>, but it is IEEE floating point: <code>0.1 + 0.2</code> is not <code>0.3</code>, and you cannot build a proof on arithmetic that is approximately true. And a Python <code>list</code> becomes Lean's <code>List</code>, because <code>List</code> is what Mathlib's thousands of lemmas are stated about.</p>
+<p>For running, both choices are bad. <code>List</code> is a linked list, so appending is O(n) and indexing position <code>i</code> costs O(i), where Python's <code>list</code> is a dynamic array and both are constant time. A loop that is linear in Python becomes quadratic in Lean. Apart from this, since proving does not require IO side effects, Exceptional handling(apart from passing down information), we have special duals for both provable and runnable twin. The provable twin is primarily a noop, but a runnable twin behaves like how Python would behave, printing statements, throwing exception errors, etc.</p>
+<h3>2. Pure vs Monadic Functions</h3>
+<p>Lean distinguishes pure functions from ones that have side-effects, which become monadic. PastaLean tries to lower each function to the <strong>least powerful shape that can express it</strong>:</p>
+<ol><li>a plain term, for a function that just computes;</li><li><code>Id.run do</code>, for local mutation and loops — imperative to read, still pure, because <code>Id</code> is the identity monad;</li><li>an exception monad, for <code>raise</code> / <code>try</code> / <code>except</code>;</li><li>real <code>IO</code>, only when the program talks to the outside world.</li></ol>
+<p>The reason to stay low is simple: <strong>it is easier to prove pure functions than monadic</strong> A plain term can be proved about directly. An <code>Id.run do</code> block needs Hoare triples to specify the postconditions to prove, depends on precondition and loop invariants given by you. <code>IO</code> action is opaque and its result depends on the world making it significantly harder to prove. This motivates behind the design choice of keeping the logic(to be proved) separate from IO based operations.</p>
+<p>To illustate the ideas mentioned above, let us take a simple example which is a division of two numbers:</p>
+<p class="snip-note">Hover or click any name below for its real type, docstring or proof state &mdash; this is the Lean compiler's own data.</p>
+<div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/effects.html?v=1792239311" title="Interactive Lean snippet"></iframe></div>
+<p>The runnable twin uses <code>IO</code> and <code>ExceptT</code>, while the provable twin uses a pure exception layer, so <code>divide</code> is a no-op for external effects. Even <code>print</code> follows this pattern: it is a no-op in the provable twin, while the runnable twin performs the real output. Nothing is discarded, no effect escapes, and <strong>what a program prints becomes a value a theorem can talk about.</strong></p>
+<h3>3. Operators are typeclasses whose result type is computed</h3>
+<p>Python's <code>+</code> is not one operation. It adds numbers, concatenates strings and lists, treats booleans as integers so that <code>True + True</code> is <code>2</code>, and mixes numeric types freely. Lean's <code>+</code> does none of this.</p>
+<p>So each Python operator gets its own class — <code>PyHAdd</code>, <code>PyHSub</code> and so on, written <code>+ₚ</code> and <code>-ₚ</code> — with the result type as an <code>outParam</code>, <em>computed from the operands</em> rather than supplied by the caller. The conversions do not depend on which operator you are using, so they are declared once in a single class recording how any two numeric types meet, and one generic instance per operator reads them off. Generated code therefore never states a result type: <code>int + float</code> lands on a rational by itself. The examples below pin their operands only because a bare literal in isolation has no type.</p>
+<p class="snip-note">Hover or click any name below for its real type, docstring or proof state &mdash; this is the Lean compiler's own data.</p>
+<div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/operators.html?v=1792239311" title="Interactive Lean snippet"></iframe></div>
+<p>Two things come free with the class, and they are the reason it is a class and not a function. The first is every other Python name whose meaning depends on what you hand it: <code>len</code> is one class with one instance per container, so <code>len([1,2,3])</code>, <code>len(&quot;Hello&quot;)</code> and <code>len({&quot;k&quot;: &quot;v&quot;})</code> are a single name with three implementations, and a proof about lists never has to step around the string case. The second is the last line of the snippet. Where Python's operator agrees with Lean's, the instance delegates straight to Lean's, which is why Mathlib's existing theorems about <code>+</code> apply to <code>+ₚ</code> unchanged.</p>
+<p>Agreement is the exception, though, and the disagreements are the dangerous part. Mathlib already defines addition on lists, and it defines it <strong>pointwise</strong>. If Lean reaches that instance first, <code>[1,2] + [3,4]</code> quietly elaborates to <code>[4,6]</code> instead of <code>[1,2,3,4]</code> — a wrong answer that no type error will ever catch, in a program that compiles cleanly. Our instance is declared at a higher priority so Python's reading wins. Instance priority is not a tuning knob here; it <em>is</em> the semantics.</p>
+<p>The same care applies to numbers. Python's tower is <code>bool &lt; int &lt; float</code>, and a value widens only at the operator that mixes it with a wider one — driven by the operands, never by the surrounding context, so a <code>-&gt; float</code> annotation does not make an integer variable a float. Python's <code>/</code> is always float division, so <code>7 / 2</code> is a rational in the provable twin and a <code>Float</code> in the runnable one even though both operands are integers. And <code>//</code> rounds toward negative infinity while <code>%</code> takes the sign of the divisor, where Lean's <code>Int</code> division truncates: <code>7 // -2</code> is <code>-4</code> in Python and <code>-3</code> in Lean, <code>7 % -2</code> is <code>-1</code> against <code>1</code>. Both conventions are defensible and neither raises an error, which is precisely what makes the disagreement dangerous. </p>
+<p>We have made Lean definitions which implement Python's builtins — <code>len</code>, <code>sorted</code>, <code>abs</code>, <code>divmod</code>, <code>zip</code>, <code>sum</code>, <code>min</code>, <code>max</code>, <code>chr</code>, <code>ord</code>, the <code>int</code>, <code>str</code>, <code>float</code>, <code>list</code>, <code>set</code> and <code>dict</code> constructors — plus other string, list, dict and set methods. Two lookup tables connect the languages: one is a match on names, so <code>len(xs)</code> becomes <code>pyLen xs</code>, and one does the same for methods, so <code>s.split(&quot;,&quot;)</code> becomes <code>pyStringSplit s &quot;,&quot;</code>.</p>
+<h3>4. Python mutates objects; Lean rebuilds values</h3>
+<p>Python containers are mutable objects. Lean values are not. So every in-place mutation becomes a rebuild-and-rebind:</p>
+<div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">xs.append(3)      #  -&gt;  xs := pyAppend xs 3
+d[k] = v          #  -&gt;  d  := pySetItem d k v</code></pre></div>
+<p>The runtime helper returns a <em>new</em> container and codegen stores it back into the same <code>let mut</code> name. That reads as though it copies the whole list on every append, and it does not. Because the name is rebound, nothing else holds the old value, and Lean's reference counting mutates the buffer in place when a value has exactly one owner. The runnable twin gets Python's constant-time append out of a translation that is purely functional on paper — which is the only reason the array backing from choice 1 is fast <em>and</em> sound.</p>
+<p>The same mismatch shows up with names instead of values. Python is <strong>function-scoped</strong>: a variable first assigned inside an <code>if</code>, a <code>for</code> or a <code>try</code> is still visible after that block ends. Lean is <strong>block-scoped</strong>, so that binding would die with the block. Codegen therefore hoists it — one <code>let mut y : T := default</code> before the outermost block that needs it, with every assignment inside becoming a reassignment of that single variable.</p>
+<div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">for i in range(n):
+    for j in range(n):
+        y = i * j      # first bound in the inner loop
+return y               # still visible here, so `y` is declared before the outer loop</code></pre></div>
+<p>The type <code>T</code> comes from the inference engine. Only <code>def</code>, <code>lambda</code> and comprehensions get a scope of their own, which is exactly Python 3's rule.</p>
+<h3>5. Nested functions are lifted, generators are computed up front</h3>
+<p>Lean has no nested <code>def</code>, and no mutable enclosing scope for a closure to point back at. So a nested function becomes a <em>sibling</em> <code>private partial def</code> whose captured names are extra parameters, filled in at every call site; what gets lifted is precisely the names the inner function reads that the outer one binds, so globals and builtins stay out. When the closure escapes as a value — returned from its parent, or a decorator's wrapper — we emit a genuine Lean closure that partially applies the sibling with the captures baked in. Returned closures, currying and decorators all work, and the sibling keeps its <code>simp</code> tag, so they stay provable.</p>
+<p>Why a sibling rather than Lean's own <code>where</code>? Because a <code>where</code> clause inherits <code>partial</code> from the definition it sits inside, so the <strong>enclosing</strong> function would become <code>partial</code>, lose its unfolding and stop being provable — the helper's convenience would cost the proof you wanted. Lifting confines <code>partial</code> to the helper. The rule for which names get lifted is subtle enough that its scope-preservation argument is itself machine-checked in Lean.</p>
+<p><code>yield</code> is handled in the same spirit: a generator's body is rewritten to build a list and return it, so every consumer — <code>for x in g()</code>, <code>list(g())</code>, <code>sum(g())</code>, a comprehension — sees an ordinary list and no separate machinery for lazy streams exists at all. The rewrite runs before type inference, which is what gives the accumulator a real element type and makes recursive generators and generator pipelines work. The price is honest and listed later: computing the sequence up front means an infinite generator consumed lazily never finishes.</p>
+<p><code>@cache</code> is the one place the twins differ in algorithm rather than representation. The provable twin stays the plain recursion, because that is the shape induction reasons about. The runnable twin threads one hash map through the recursion, so an exponential cached dynamic program runs in polynomial time. Memoization returns the same answers either way, so the twins still agree on what is computed — only on how long it takes.</p>
+<h3>6. Classes are values, and the heap is opt-in</h3>
+<p>A Python <code>class</code> becomes a Lean <code>structure</code> paired with a namespace of functions. Attributes are fields, <code>__init__</code> becomes <code>C.new</code>, a method takes <code>self</code> as an ordinary first argument, and a method that mutates <code>self</code> returns an updated object which the call site rebinds — value semantics, exactly as in choice 5. Dunders map onto the typeclasses carrying the same notation, so <code>__add__</code> keeps working as <code>+ₚ</code> instead of turning into a named call, and <code>__str__</code> makes <code>print(obj)</code> print. Inheritance is <code>structure Derived extends Base</code>, which embeds the parent's fields.</p>
+<p>This is faithful whenever an object has a single handle, which covers most of the code we target, and it keeps the program in the pure fragment where Lean's equational reasoning works directly. It is wrong the moment a program aliases. In Python <code>b = a</code> makes two names for one object, and incrementing through <code>b</code> is visible through <code>a</code>; under value semantics the two names hold two values, and the program quietly computes a different answer.</p>
+<p>The fix is deliberately <em>not</em> a change to the default. Reference semantics is a second, opt-in tier (<code>--heap</code>), so a program pays for a heap only when it needs one. There, a heap is a map from addresses to values, the translated program runs in a monad carrying that heap alongside Python's exceptions, every value Python passes by reference is allocated in it and represented by a typed reference <code>Ref α</code>, and attribute reads and writes go through that reference. Aliasing then works with nothing special done for it, because <code>b = a</code> copies an address.</p>
+<p>Two things stop the tier from being a tax on the whole program. An analysis across function calls decides which functions actually need the heap monad, so pure helpers keep their pure translation. And specifications are separation-logic Hoare triples: the precondition names only the cells the function touches, and Lean's <code>vcgen</code> carries everything else across the call automatically. So a heap appears only where the program has one, and a proof mentions only the object it is about.</p>
+<p><strong>And when a line has no translation at all.</strong> Real Python is full of statements that carry no logic — logging, a progress print, a metrics call — and a translator that stopped at the first <code>logging.getLogger</code> would be useless on exactly the code we want to verify. Such a line becomes a placeholder holding its own source text: the binding still elaborates, the variable stays declared, a linter warns you, and the loop doing the real work is translated and verified as normal, while <code>--strict</code> turns the placeholder into a hard error for anyone who would rather not have one. The cost is measured, not asserted — <strong>5 of 2,589</strong> LeetCode problems are skipped for importing something outside the supported set, and HumanEval translates with <strong>zero</strong> placeholders.</p>
+<h2>Does it work? The Layer of Trust</h2>
+<p>After understanding briefly about the internal working of PastaLean, a question may arise is, </p>
+<p><strong>How do you know PastaLean is correct?</strong></p>
+<p>Proving correctness of a transpiler cannot be proved formally without writing a Python interpreter which is a very hard task. We do not claim either that PastaLean is 100% bug free either, since we donot model all of Python and capturing semantics of a dynamically typed object oriented Programming language into Lean comes with great deal of design decisions to make it correct.</p>
+<p>Hence, in such places, we must go with emperical evidence for how good PastaLean is.</p>
+<p>We evaluate on three benchmarks with two questions each: does the generated Lean compile, and does it compute what Python computes. A program counts as <em>elaborated</em> when its Lean type-checks. A solution counts as <em>passed</em> only when the runnable twin returns CPython's answer on <strong>every one</strong> of the dataset's own test cases — not most of them.</p>
+<div class="tablewrap"><table><thead><tr><th>Dataset</th><th>Problems</th><th>Elaborated</th><th>Test cases</th><th>Passed</th></tr></thead><tbody><tr><td>HumanEval⁺</td><td>164</td><td>151 (92.1%)</td><td>7,007</td><td>7,007 (100%)</td></tr><tr><td>LeetCode</td><td>2,589</td><td>2,391 (92.4%)</td><td>215,126</td><td>208,736 (97.0%)</td></tr><tr><td>LiveCodeBench</td><td>476</td><td>469 (98.5%)</td><td>10,213</td><td>10,213 (100%)</td></tr></tbody></table></div>
+<p>Across the three, 94.3% of programs elaborate and 99.0% of test cases agree. Each LeetCode disagreement is recorded with the input that separated it, and each points at a specific runtime function returning a wrong value rather than at a limit of the translation.</p>
+<p>It is also not slow: one warm backend sustains about <strong>12,000 IR nodes per second</strong>, so an average solution file converts in roughly 10 milliseconds.</p>
+<p>The most useful result is the failure analysis. The 13 HumanEval programs that do not elaborate are mostly not generator bugs. They are <strong>genuine type ambiguities</strong>:</p>
+<div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">def split_words(txt):
+    # words on whitespace, else on commas, else a letter count
+    if any(c in txt for c in &#x27; \n\r\t&#x27;): return txt.split()
+    if &#x27;,&#x27; in txt: return txt.split(&#x27;,&#x27;)
+    return sum(1 for c in txt if c.islower() and (ord(c) - ord(&#x27;a&#x27;)) % 2 == 1)</code></pre></div>
+<p>For most inputs this returns a list of strings. For an input with no spaces and no commas it returns an integer. Both are correct Python. Nothing in the code or the signature says which one this function "is" — it depends on the input, at run time. Python is fine with that. Lean is not, because a function has one return type.</p>
+<p>Add a single type hint at the ambiguous spot and all 13 compile: <strong>164 of 164</strong>. That is the honest shape of the limitation. It is not "the tool is 92% good". It is "92% of these need nothing from you, and the rest need one word."</p>
+<h2>Two proofs, start to finish</h2>
+<p>Everything above is one piece of the pipeline at a time. Here are two whole ones, taken from the five problems the paper works end to end, and these are the two hardest of the five. Pick one and read it in two steps: the Python with its contract attached, then the Lean that came out of it with the proof that closes it. Nothing is abridged — the proof is the file exactly as it is committed, and it is interactive because it compiles.</p>
+<div class="explorer"><label for="exsel">Explore a proved problem:</label> <select id="exsel"><option value="count_up_to">count_up_to — a prime sieve (HumanEval/96)</option><option value="double_the_difference">double_the_difference — a function restated as a sum (HumanEval/151)</option></select><section class="ex" id="ex-count_up_to"><p class="exnote">Nested loops. Six invariants on the outer loop and two on the inner, and from them three postconditions: the answer is no longer than n, and every entry lies in the window 2 … n-1.</p><h4>1 &middot; The Python, carrying its contract</h4><div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">from typing import *
+from contracts import *
+
+def count_up_to(n: int):
+    &quot;&quot;&quot;Implement a function that takes an non-negative integer and returns an array of the first n
+    integers that are prime numbers and less than n.
+    &quot;&quot;&quot;
+    Requires(n &gt;= 0)
+    # THE POINT: the answer is drawn from the window {2, ..., n-1} — the sieve only ever appends
+    # its own loop counter, which runs over exactly that range — and since at most one number is
+    # appended per counter value, the list can never be longer than n.
+    Ensures(len(Result()) &lt;= n)
+    Ensures(all(2 &lt;= p for p in Result()))
+    Ensures(all(p &lt; n for p in Result()))
+    ans = []
+    isprime = [True] * (n + 1)
+    for i in range(2, n):
+        Invariant(2 &lt;= i)
+        Invariant(i &lt;= n)
+        Invariant(len(isprime) == n + 1)
+        # At most one append per counter value.
+        Invariant(len(ans) &lt;= i)
+        # Everything appended so far was a counter value already passed.
+        Invariant(all(2 &lt;= p for p in ans))
+        Invariant(all(p &lt; i for p in ans))
+        if isprime[i]:
+            ans.append(i)
+            for j in range(i + i, n, i):
+                # Index bound for `isprime[j]`.
+                Invariant(2 &lt;= j)
+                Invariant(j &lt; n)
+                isprime[j] = False
+    return ans</code></pre></div><h4>2 &middot; The Lean it becomes, and the proof that closes it</h4><div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/ex_count_up_to.html?v=1792239311" title="Lean translation and proof"></iframe></div></section><section class="ex" id="ex-double_the_difference" hidden><p class="exnote">The postcondition restates the entire function as a summation, so proving it means proving the loop computes that sum and nothing else. The heaviest of the paper&#x27;s five.</p><h4>1 &middot; The Python, carrying its contract</h4><div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">from contracts import *
+
+def double_the_difference(lst):
+    &#x27;&#x27;&#x27;
+    Given a list of numbers, return the sum of squares of the numbers
+    in the list that are odd. Ignore numbers that are negative or not integers.
+    
+    double_the_difference([1, 3, 2, 0]) == 1 + 9 + 0 + 0 = 10
+    double_the_difference([-1, -2, 0]) == 0
+    double_the_difference([9, -2]) == 81
+    double_the_difference([0]) == 0  
+   
+    If the input list is empty, return 0.
+    &#x27;&#x27;&#x27;
+    # No precondition: the recorded inputs deliberately mix ints, floats and negatives, so any
+    # `Requires` restricting the element type would be false.
+    #
+    # The point: the result is the sum of squares over exactly the positive odd integers of `lst`
+    # (floats and non-positives contribute nothing), hence it is a sum of odd squares.
+    Ensures(Result() == sum([v * v for v in lst if v % 2 == 1 and v &gt; 0 and &quot;.&quot; not in str(v)]))
+    # An odd square is odd, so the parity of the answer is the parity of the number of contributors.
+    Ensures(Result() % 2 == len([v for v in lst if v % 2 == 1 and v &gt; 0 and &quot;.&quot; not in str(v)]) % 2)
+    Ensures(Result() &gt;= 0)
+
+    ans = 0
+    for num in lst:
+        Invariant(ans &gt;= 0)
+        if num % 2 == 1 and num &gt; 0 and &quot;.&quot; not in str(num):
+            ans += num ** 2
+
+    Assert(ans &gt;= 0)
+    return ans</code></pre></div><h4>2 &middot; The Lean it becomes, and the proof that closes it</h4><div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/ex_double_the_difference.html?v=1792239311" title="Lean translation and proof"></iframe></div></section></div>
+<p>What to watch for is where the human work actually goes. The theorem statement is not written by hand: it is generated from the <code>Requires</code> and <code>Ensures</code> lines sitting in the Python. The loop invariants are not either — each <code>Invariant(...)</code> becomes one bullet of the <code>mvcgen</code> call. What is left for a person, or for a model with a person checking it, is the tactic script underneath: the argument for <em>why</em> those invariants survive a round of the loop and together give the postcondition. That is the one step nobody has automated, and these two show how much of the rest is already machinery.</p>
+<h2><code>TypeInfer</code>: The type inference engine</h2>
+<p>One structural problem remains. Lean fixes a definition's parameter types <em>before</em> it looks at the body, so every binder needs a type up front. Python supplies almost none — and the hints it does supply are not enforced:</p>
+<div class="codeblock"><span class="codelab">Python</span><pre><code class="language-python">def add(a: int, b: int) -&gt; int:
+    return a + b
+
+add(&quot;Hi&quot;, &quot;!&quot;)      # this works fine. Python does not check the hints.</code></pre></div>
+<p>So a hint is evidence, not truth, and most code carries none. PastaLean ships its own engine, <code>TypeInfer</code>, to recover the rest: it gives every IR node a type from a small lattice, joins in whatever each statement implies, and repeats until nothing changes. Because the engine is itself written in Lean, the laws it rests on are <strong>machine-checked</strong> — the join really is the least upper bound, and widening a type never excludes a value the program can produce.</p>
+<p>One detail shows it is inferring rather than guessing. Python promotes silently, so <code>True + 1</code> is <code>2</code> and a list holding both <code>5</code> and <code>float(&#x27;inf&#x27;)</code> is a list of floats. The join therefore widens along Python's own tower, <code>bool &lt; int &lt; float</code>. A flat design would send <code>join(int, float)</code> to the top of the lattice and box an entirely ordinary list, losing provability for no reason.</p>
+<p>When the join genuinely does reach the top — a parameter used at incompatible types by different callers, a function returning a string on one path and an integer on another — the value is boxed as <code>PyAny</code>, a tagged union. That keeps the translator total: the program compiles and runs instead of being rejected. The cost is provability, since a boxed value is not a commutative ring and the algebra tactics stall on it. But not all of it:</p>
+<p class="snip-note">Hover or click any name below for its real type, docstring or proof state &mdash; this is the Lean compiler's own data.</p>
+<div class="snipwrap"><iframe class="snip" loading="lazy" src="snippets/pyany.html?v=1792239311" title="Interactive Lean snippet"></iframe></div>
+<p><code>pyany_cases</code> splits the goal into one case per runtime type the value could hold, closes every mismatched combination automatically, and leaves real goals stated in <code>Int</code>, <code>String</code> and so on. And here is the part I like: commutativity of this boxed <code>+</code> is <strong>not</strong> provable, which is the correct answer — on strings and lists it concatenates, so <code>a ++ b = b ++ a</code> is false. The split establishes a property exactly where it holds and nowhere else.</p>
+<p><code>TypeInfer</code> is measured on two benchmarks, and they test genuinely different things.</p>
+<p>The first is per file. On TypeEvalPy every ground-truth annotation is one <em>fact</em> keyed by its source location, and a tool is scored by how many facts it recovers by exact match. On the large autogen set — 5,453 snippets, 77,268 facts — it is the <strong>best static tool on the leaderboard</strong>:</p>
+<div class="tablewrap"><table><thead><tr><th>Tool</th><th>Return</th><th>Param</th><th>Var</th><th>Matched</th><th>Match</th></tr></thead><tbody><tr><td><strong>TypeInfer</strong></td><td><strong>16,220</strong></td><td><strong>404</strong></td><td><strong>39,560</strong></td><td><strong>56,184</strong></td><td><strong>72.7%</strong></td></tr><tr><td>HeaderGen</td><td>14,086</td><td>346</td><td>36,370</td><td>50,802</td><td>65.7%</td></tr><tr><td>Jedi</td><td>13,160</td><td>0</td><td>15,403</td><td>28,563</td><td>37.0%</td></tr><tr><td>Scalpel</td><td>15,383</td><td>171</td><td>18</td><td>15,572</td><td>20.2%</td></tr><tr><td>Type4Py</td><td>3,143</td><td>38</td><td>2,243</td><td>5,424</td><td>7.0%</td></tr></tbody></table></div>
+<p>That is 5,382 facts ahead of HeaderGen, the previous static leader, and 12th of 26 on the full board — above several instruction-tuned language models, while producing one deterministic type per fact with no model and no sampling. The breakdown is the more informative part. Returns are <strong>90.1%</strong>, competitive with the strongest LLMs on the board, because a return type is pinned by the body you are already looking at. Parameters are <strong>45.1%</strong> and are the hardest category for <em>every</em> tool there, for the same reason in reverse: a parameter's type is evidence collected from call sites, and nothing inside the function states it. On the smaller hand-written micro set it matches 607 of 850 facts (71.4%), 3.2% ahead of HeaderGen.</p>
+<p>The second benchmark is the one that matters for real code, because a type usually has to cross a file boundary to be recovered at all. TypyBench strips the annotations from 50 real projects (67,897 slots) and scores graded similarity between the inferred and the true type trees. There <code>TypeInfer</code> leads every accuracy metric, and it is also the fastest and the second-lightest:</p>
+<div class="tablewrap"><table><thead><tr><th>Tool</th><th>TypeSim</th><th>Exact</th><th>Coverage</th><th>Time</th><th>Peak memory</th></tr></thead><tbody><tr><td><strong>TypeInfer</strong></td><td><strong>0.284</strong></td><td><strong>0.249</strong></td><td><strong>0.380</strong></td><td><strong>135 s</strong></td><td>0.70 GiB</td></tr><tr><td>pyrefly</td><td>0.243</td><td>0.236</td><td>0.281</td><td>228 s</td><td>3.09 GiB</td></tr><tr><td>pyre</td><td>0.239</td><td>0.228</td><td>0.272</td><td>259 s</td><td>1.84 GiB</td></tr><tr><td>pytype</td><td>0.158</td><td>0.137</td><td>0.208</td><td>2,015 s</td><td>1.27 GiB</td></tr><tr><td>hityper</td><td>0.105</td><td>0.084</td><td>0.168</td><td>11,652 s</td><td>0.19 GiB</td></tr></tbody></table></div>
+<p>The two tables answer two different questions. The per-file numbers say the lattice and the fixpoint are right. The repository numbers say the pass that flows types across imports is right — and that is the one a transpiler actually depends on, since a function you call is usually defined in another file.</p>
+<p>The speed comes from what it does not do. Inference is a pure JSON-to-JSON computation that never touches a Lean environment, so it ships as a binary that never loads Mathlib and starts in 30 milliseconds; and because what a snippet infers depends only on that snippet, thousands of them run as independent tasks in one process sharing one read-only copy of the code, where the checkers it is compared against load a full checking state per worker. The known gap, plainly: no union types yet, so <code>int</code> joined with <code>str</code> is boxed rather than typed <code>int | str</code>.</p>
+<h2>Discussion: Eating PastaLean everyday, Making your code Healthier and Fit</h2>
+<p>Let's discuss about impacts of PastaLean in verifying correctness of your software and how it changes the way you ship your production code. As mentined before, the division of labour falls out of the design almost mechanically. <strong>The model writes the Python, you propose the correctness specification. A fixed translator does the translation. Agent proves it and Lean checks correctness.</strong> Each party does the thing it is actually reliable at, and the model is never in the trusted path for <em>meaning</em>.</p>
+<p>The contract is the real interface here, and its being Python is underrated. It is the one artifact a human has to read and agree with, and the review question is small and concrete: <em>does this sentence say what I wanted?</em> In case you employ it for writing the specification, it is ultimately your job to make sure that the contracts of correctness cannot be wrong. A human must sit in the loop to make sure the right thing is being proved. Your job of writing code, proving it correct and shiping it is now just boiled down to <strong>Is this correctness notion for your code Correct</strong>? And don't worry, in case the code or the specification is wrong, Lean will never prove it correct, so rest assured that you are in good hands.</p>
+<p>PastaLean ships an MCP server, so a model can drive it directly: annotate, translate, read back the open obligations, attempt them, call the verifier. A Lean certificate means, <strong>The checker's verdict is the only Trustworthy verdict.</strong>  and backing your software with such a certificate is the upcoming future.</p>
+
+</main>
+<footer>
+  <p>PastaLean is open source at <a href="https://github.com/siddhartha-gadgil/PastaLean">github.com/siddhartha-gadgil/PastaLean</a>.
+  Every Lean block on this page is real generated output, rendered with
+  <a href="https://github.com/AnirudhG07/verso-snippets">verso-snippets</a> &mdash; which renders only
+  Lean that compiles, so the code here has been checked by the same elaborator the project relies on.</p>
+</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+(function () {
+  // Python gets highlight.js; Lean arrives pre-highlighted by Lean itself.
+  try {
+    if (window.hljs) {
+      hljs.configure({ languages: ['python'] });
+      document.querySelectorAll('code.language-python').forEach(function (el) { hljs.highlightElement(el); });
+    }
+  } catch (e) {}
+
+  // Keep the embedded snippets on the same theme as the page, and sized to their content.
+  var frames = Array.prototype.slice.call(document.querySelectorAll('iframe.snip'));
+  function effectiveTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+    catch (e) { return 'light'; }
+  }
+  function pushTheme() {
+    var t = effectiveTheme();
+    frames.forEach(function (f) {
+      try { f.contentWindow.postMessage({ type: 'snippet-theme', theme: t }, '*'); } catch (e) {}
+    });
+  }
+  window.addEventListener('message', function (e) {
+    var d = e && e.data;
+    if (!d || d.type !== 'snippet-height' || !d.height) return;
+    frames.forEach(function (f) {
+      if (f.contentWindow === e.source) f.style.height = (d.height + 8) + 'px';
+    });
+  });
+  frames.forEach(function (f) { f.addEventListener('load', pushTheme); });
+  try {
+    new MutationObserver(pushTheme).observe(document.documentElement,
+      { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', pushTheme); } catch (e) {}
+  pushTheme();
+  setTimeout(pushTheme, 400);
+
+  // The explorer dropdown: show one example at a time. A hidden iframe reports no
+  // usable height, so nudge the one we just revealed into reporting again.
+  var sel = document.getElementById('exsel');
+  if (sel) {
+    sel.addEventListener('change', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('section.ex'), function (s) {
+        var on = s.id === 'ex-' + sel.value;
+        s.hidden = !on;
+        if (on) { var f = s.querySelector('iframe.snip'); if (f) setTimeout(function () {
+          try { f.contentWindow.postMessage({ type: 'snippet-theme', theme: effectiveTheme() }, '*'); } catch (e) {}
+        }, 60); }
+      });
+    });
+  }
+})();
+</script>
+
+</body>
+</html>

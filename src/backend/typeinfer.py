@@ -7,6 +7,11 @@ side: it hands a JSON IR module to the exe and reads back the type-stamped AST. 
 a persistent exe process scoped to one unit of work (a file or a repo) that answers many tasks over a
 single ~40 ms spawn; the module-level `infer_ast`/`infer_batch`/`infer_repo` are one-shot wrappers
 over it. No Mathlib to boot either way.
+
+`certify_ast` / `verify_cert` are the certificate pair: the first returns the record behind a
+checking verdict, the second re-checks that record against the program without running inference. Both
+must go over the server's line protocol rather than argv — an AST plus its certificate is routinely
+past `ARG_MAX`.
 """
 
 from __future__ import annotations
@@ -92,6 +97,33 @@ class TypeInferServer:
         resp = self.run({"task": "checkTypes", "ast": ast})
         return {"ok": resp.get("ok", True), "diagnostics": resp.get("diagnostics", [])}
 
+    def certify_ast(self, ast: dict) -> dict:
+        """Check one module and return the CERTIFICATE behind the verdict (the `certify` task):
+        `{"ok", "diagnostics", "certificate"}`. The certificate records every slot the checker judged,
+        the evidence it weighed and the verdict it reached; `verify_cert` re-checks it."""
+        resp = self.run({"task": "certify", "ast": ast})
+        return {"ok": resp.get("ok", True), "diagnostics": resp.get("diagnostics", []),
+                "certificate": resp.get("certificate")}
+
+    def verify_cert(self, ast: dict, certificate: dict) -> dict:
+        """Re-check a certificate against the program it claims to be about (the `verifyCert` task):
+        `{"valid": bool, "reason": str}`. This runs NO inference — see
+        `TypeInfer/Certificate/Check.lean`, whose imports exclude the whole engine."""
+        resp = self.run({"task": "verifyCert", "ast": ast, "certificate": certificate})
+        return {"valid": resp.get("valid", False), "reason": resp.get("reason", "")}
+
+    def certify_batch(self, asts: list[dict]) -> list[dict]:
+        """Certify a list of independent modules in one call, fanned across cores in the exe."""
+        results = self.run({"task": "certifyBatch", "asts": asts}).get("results", [])
+        return [{"ok": r.get("ok", True), "diagnostics": r.get("diagnostics", []),
+                 "certificate": r.get("certificate")} for r in results]
+
+    def verify_batch(self, pairs: list[dict]) -> list[dict]:
+        """Verify many `{"ast", "certificate"}` pairs in one call. A corpus run re-checks every
+        certificate it wrote, so this is the hot path for the benchmark's verify pass."""
+        results = self.run({"task": "verifyBatch", "pairs": pairs}).get("results", [])
+        return [{"valid": r.get("valid", False), "reason": r.get("reason", "")} for r in results]
+
     def check_batch(self, asts: list[dict]) -> list[dict]:
         """Check a list of independent modules in one call, fanned across cores in the exe. Returns
         one `{"ok", "diagnostics"}` per input, in order."""
@@ -161,6 +193,16 @@ def infer_batch(asts: list[dict]) -> list[dict]:
 def check_ast(ast: dict) -> dict:
     with TypeInferServer() as srv:
         return srv.check_ast(ast)
+
+
+def certify_ast(ast: dict) -> dict:
+    with TypeInferServer() as srv:
+        return srv.certify_ast(ast)
+
+
+def verify_cert(ast: dict, certificate: dict) -> dict:
+    with TypeInferServer() as srv:
+        return srv.verify_cert(ast, certificate)
 
 
 def infer_repo(modules: dict[str, dict]) -> dict[str, dict]:

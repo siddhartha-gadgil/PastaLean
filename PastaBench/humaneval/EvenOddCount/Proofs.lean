@@ -86,6 +86,122 @@ def even_odd_count := fun (num : Int) ↦
     let __py_ret_1 := (even, odd)
     return __py_ret_1 : Id _)
 
+open PastaLean in
+/-- `x in s` for two strings is the substring test. -/
+theorem pyContains_string (h n : String) :
+    pyContains h n = pyStrContainsSubstr h n := rfl
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 4000000 in
+open PastaLean in
+/-- Which of `"02468"` the one-character digit strings are. -/
+theorem contains_even_table :
+    pyContains "02468" "0" = true ∧ pyContains "02468" "1" = false ∧
+    pyContains "02468" "2" = true ∧ pyContains "02468" "3" = false ∧
+    pyContains "02468" "4" = true ∧ pyContains "02468" "5" = false ∧
+    pyContains "02468" "6" = true ∧ pyContains "02468" "7" = false ∧
+    pyContains "02468" "8" = true ∧ pyContains "02468" "9" = false ∧
+    pyContains "02468" "-" = false := by
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
+    (simp only [pyContains_string, pyStrContainsSubstr]
+     simp +decide only [if_false, if_true]
+     rw [String.splitOn]
+     simp +decide only [if_false, if_true]
+     repeat (rw [String.splitOnAux]; simp +decide only [if_true, if_false]))
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 4000000 in
+open PastaLean in
+/-- Which of `"13579"` the one-character digit strings are. -/
+theorem contains_odd_table :
+    pyContains "13579" "0" = false ∧ pyContains "13579" "1" = true ∧
+    pyContains "13579" "2" = false ∧ pyContains "13579" "3" = true ∧
+    pyContains "13579" "4" = false ∧ pyContains "13579" "5" = true ∧
+    pyContains "13579" "6" = false ∧ pyContains "13579" "7" = true ∧
+    pyContains "13579" "8" = false ∧ pyContains "13579" "9" = true ∧
+    pyContains "13579" "-" = false := by
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩ <;>
+    (simp only [pyContains_string, pyStrContainsSubstr]
+     simp +decide only [if_false, if_true]
+     rw [String.splitOn]
+     simp +decide only [if_false, if_true]
+     repeat (rw [String.splitOnAux]; simp +decide only [if_true, if_false]))
+/-- Every character of a decimal numeral is a digit character. -/
+theorem toDigits_ten_mem (n : Nat) : ∀ c ∈ Nat.toDigits 10 n,
+    c = '0' ∨ c = '1' ∨ c = '2' ∨ c = '3' ∨ c = '4' ∨
+    c = '5' ∨ c = '6' ∨ c = '7' ∨ c = '8' ∨ c = '9' := by
+  induction n using Nat.strong_induction_on with
+  | _ n ih =>
+    rw [Nat.toDigits_eq_if (by norm_num : (1 : Nat) < 10)]
+    split
+    · intro c hc
+      simp only [List.mem_singleton] at hc
+      subst hc
+      rename_i hlt
+      interval_cases n <;> simp
+    · rename_i hge
+      intro c hc
+      simp only [List.mem_append, List.mem_singleton] at hc
+      rcases hc with hc | hc
+      · exact ih (n / 10) (by omega) c hc
+      · subst hc
+        have : n % 10 < 10 := by omega
+        interval_cases h : (n % 10) <;> simp
+
+/-- The one-character strings of a decimal numeral. -/
+theorem digits_map_mem (m : Nat) :
+    ∀ x ∈ (Nat.toDigits 10 m).map (fun c => c.toString),
+      x = "0" ∨ x = "1" ∨ x = "2" ∨ x = "3" ∨ x = "4" ∨
+      x = "5" ∨ x = "6" ∨ x = "7" ∨ x = "8" ∨ x = "9" := by
+  intro x hx
+  rw [List.mem_map] at hx
+  obtain ⟨c, hc, rfl⟩ := hx
+  rcases toDigits_ten_mem m c hc with h|h|h|h|h|h|h|h|h|h <;> subst h <;> decide
+
+open PastaLean in
+/-- Each digit character is counted by exactly one of the two membership tests. -/
+theorem count_digit_strings : ∀ (l : List String),
+    (∀ x ∈ l, x = "0" ∨ x = "1" ∨ x = "2" ∨ x = "3" ∨ x = "4" ∨
+      x = "5" ∨ x = "6" ∨ x = "7" ∨ x = "8" ∨ x = "9") →
+    l.countP (fun x => pyContains "02468" x) + l.countP (fun x => pyContains "13579" x)
+      = l.length := by
+  obtain ⟨e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, -⟩ := contains_even_table
+  obtain ⟨o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, -⟩ := contains_odd_table
+  intro l
+  induction l with
+  | nil => intro _; simp
+  | cons x xs ih =>
+    intro h
+    have hih := ih (fun y hy => h y (List.mem_cons_of_mem _ hy))
+    rw [List.countP_cons, List.countP_cons, List.length_cons]
+    rcases h x (List.mem_cons_self ..) with hx|hx|hx|hx|hx|hx|hx|hx|hx|hx <;> subst hx <;>
+      simp +decide only [e0, e1, e2, e3, e4, e5, e6, e7, e8, e9,
+        o0, o1, o2, o3, o4, o5, o6, o7, o8, o9, if_true, if_false] <;> omega
+
+open PastaLean in
+/-- `countP` on a predicate that only looks at the value ignores `enumerate`'s indices. -/
+theorem countP_pyEnumerate {β : Type} (p : β → Bool) : ∀ (l : List β) (start : Int),
+    (pyEnumerate l start).countP (fun q => p q.2) = l.countP p := by
+  intro l
+  induction l with
+  | nil => intro start; rfl
+  | cons x xs ih =>
+    intro start
+    rw [show pyEnumerate (x :: xs) start = (start, x) :: pyEnumerate xs (start + 1) from rfl,
+      List.countP_cons, List.countP_cons, ih (start + 1)]
+open PastaLean in
+/-- `str(n)` is the decimal numeral of `|n|`, with a leading `'-'` when `n` is negative. -/
+theorem pyStr_toList (num : Int) :
+    (pyStr num).toList
+      = (if num < 0 then ['-'] else []) ++ Nat.toDigits 10 num.natAbs := by
+  rw [show pyStr num = toString num from rfl, Int.toString_eq_repr, Int.repr_eq_if]
+  by_cases hn : 0 ≤ num
+  · rw [if_pos hn, if_neg (by omega : ¬ num < 0)]
+    simp [show num.toNat = num.natAbs by omega]
+  · rw [if_neg hn, if_pos (by omega : num < 0)]
+    simp [String.toList_append, show (-num).toNat = num.natAbs by omega,
+      show ("-" : String).toList = ['-'] from by decide]
+
 @[spec]
 theorem even_odd_count_spec :
     ⦃⌜True⌝⦄ even_odd_count num ⦃⇓result =>
@@ -94,14 +210,59 @@ theorem even_odd_count_spec :
             if num < (0 : Int) then PastaLean.pyLen (PastaLean.pyStr num) -ₚ (1 : Int)
             else PastaLean.pyLen (PastaLean.pyStr num)⌝⦄ :=
   by
-  try
-    mvcgen [even_odd_count, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-    · ⇓⟨cur, even, odd⟩ =>
-      ⌜((((0 : Int) ≤ i ∧ i ≤ PastaLean.pyLen s) ∧ even ≥ (0 : Int)) ∧ odd ≥ (0 : Int)) ∧
-          (num ≥ (0 : Int) ∧ even +ₚ odd = i ∨
-            num < (0 : Int) ∧ even +ₚ odd = if i > (0 : Int) then i -ₚ (1 : Int) else (0 : Int))⌝
-  taste?
-  all_goals sorry
+  mvcgen [even_odd_count, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  · ⇓⟨cur, even, odd⟩ =>
+    ⌜even = ((cur.prefix.countP (fun p => PastaLean.pyContains "02468" p.2) : Nat) : Int) ∧
+      odd = ((cur.prefix.countP (fun p => PastaLean.pyContains "13579" p.2) : Nat) : Int)⌝
+  case vc6.post.success =>
+    rename_i s r ret h
+    obtain ⟨hE, hO⟩ := h
+    have hE' : r.fst = ((List.countP (fun p : Int × String => PastaLean.pyContains "02468" p.2)
+        (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyStr num))) : Nat) : Int) := hE
+    have hO' : r.snd = ((List.countP (fun p : Int × String => PastaLean.pyContains "13579" p.2)
+        (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyStr num))) : Nat) : Int) := hO
+    have hlen : PastaLean.pyLen (PastaLean.pyStr num)
+        = ((Nat.toDigits 10 num.natAbs).length : Int) + (if num < (0 : Int) then 1 else 0) := by
+      rw [show PastaLean.pyLen (PastaLean.pyStr num) = ((PastaLean.pyStr num).length : Int)
+          from by simp [PastaLean.pyLen, PyLen.pyLen], ← String.length_toList, pyStr_toList]
+      by_cases hn : num < 0 <;> simp [hn]
+    have hcount :
+        List.countP (fun p : Int × String => PastaLean.pyContains "02468" p.2)
+            (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyStr num)))
+          + List.countP (fun p : Int × String => PastaLean.pyContains "13579" p.2)
+            (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyStr num)))
+        = (Nat.toDigits 10 num.natAbs).length := by
+      rw [show (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyStr num)) : List (Int × String))
+          = PastaLean.pyEnumerate ((PastaLean.pyStr num).toList.map (fun c => c.toString))
+            (0 : Int) from rfl,
+        countP_pyEnumerate (fun x => PastaLean.pyContains "02468" x),
+        countP_pyEnumerate (fun x => PastaLean.pyContains "13579" x), pyStr_toList]
+      have hds := count_digit_strings _ (digits_map_mem num.natAbs)
+      rw [List.length_map] at hds
+      by_cases hn : num < 0
+      · rw [if_pos hn]
+        obtain ⟨-, -, -, -, -, -, -, -, -, -, em⟩ := contains_even_table
+        obtain ⟨-, -, -, -, -, -, -, -, -, -, om⟩ := contains_odd_table
+        simp only [List.cons_append, List.nil_append, List.map_cons, List.countP_cons,
+          show ('-' : Char).toString = "-" from by decide]
+        simp +decide only [em, om, if_true, if_false]
+        omega
+      · rw [if_neg hn]
+        simp only [List.nil_append]
+        omega
+    have hz : ret⦋(0 : Int)⦌ = r.fst := PastaLean.pyGetItem_pair_zero _ _
+    have ho : ret⦋(1 : Int)⦌ = r.snd := PastaLean.pyGetItem_pair_one _ _
+    have hadd : ∀ a b : Int, a +ₚ b = a + b := fun _ _ => rfl
+    have hsub : ∀ a b : Int, a -ₚ b = a - b := fun _ _ => rfl
+    rw [hz, ho, hE', hO', hadd]
+    refine ⟨⟨by omega, by omega⟩, ?_⟩
+    by_cases hn : num < 0
+    · rw [if_pos hn, hsub, hlen, if_pos hn]; omega
+    · rw [if_neg hn, hlen, if_neg hn]; omega
+  all_goals
+    simp_all (config := { zetaDelta := true })
+      [taste_ingr, List.countP_append, List.countP_singleton]
+  all_goals omega
 
 theorem even_odd_count_correct :
     ∀ (num : Int),

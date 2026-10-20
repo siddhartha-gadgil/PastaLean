@@ -422,12 +422,19 @@ class ASTToJsonLeanVisitorBase:
         # Source position, for diagnostics. Stamped here (the one dispatcher every node goes
         # through) rather than per visit_X. `_pl_foreign` marks a def inlined from ANOTHER file by
         # `resolve_local_imports`, whose line number would point into the wrong source.
-        if (isinstance(out, dict) and "node_type" in out and "_line" not in out
-                and not getattr(node, "_pl_foreign", False)):
-            line = getattr(node, "lineno", None)
-            if line is not None:
-                out["_line"] = line
-                out["_col"] = getattr(node, "col_offset", 0) + 1
+        if isinstance(out, dict) and "node_type" in out:
+            if getattr(node, "_pl_foreign", False):
+                # Carried into the IR, not just used to withhold the line: inference WANTS these
+                # inlined defs (that is why imports are resolved at all), but the checker must not
+                # JUDGE them. They belong to another file, which is checked on its own, so a verdict
+                # here is a duplicate — one `Float.__new__` inlined by forty sympy modules was
+                # reported forty times, each at line 0.
+                out["_foreign"] = True
+            elif "_line" not in out:
+                line = getattr(node, "lineno", None)
+                if line is not None:
+                    out["_line"] = line
+                    out["_col"] = getattr(node, "col_offset", 0) + 1
         return out
 
     def generic_visit(self, node):
@@ -517,6 +524,12 @@ class ASTToJsonLeanVisitorBase:
 
     def visit_Constant(self, node):
         """Translates ast.Constant (e.g., 42, "hello") to a JSON IR node."""
+        # `...` is a real constant (`def f(): ...`, `Callable[..., T]`, `a[...]`) and the `Ellipsis`
+        # singleton is not JSON-serializable, so passing it through raised `TypeError` and lost the
+        # whole file. It is carried as a null with its kind named instead: the type readers answer
+        # `unknown` for it rather than mistaking it for `None`, which is a different type.
+        if node.value is Ellipsis:
+            return {"node_type": "Constant", "value": None, "python_literal_kind": "ellipsis"}
         result = {
             "node_type": "Constant",
             "value": node.value

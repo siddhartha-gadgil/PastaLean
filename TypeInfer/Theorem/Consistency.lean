@@ -1,5 +1,6 @@
 import PastaLean.Imports
 import TypeInfer.PyType
+import TypeInfer.PyTypeEq
 
 /-!
 # Gradual-typing consistency (`consistent`) and coercions (`reconcile`)
@@ -15,22 +16,16 @@ interchangeable. Non-transitivity is exactly what separates gradual typing from 
 `beq`/`consistent` recurse over the nested `tuple`/`fn` with size-based recursion, so `PyType` has no
 plain structural induction: the diagonal facts (`beq_refl`, `consistent_refl`) go by well-founded
 recursion mirroring the functions themselves, and the symmetric facts drive each function's `.induct`
-principle and close the nested list cases with the `zip` helpers below.
+principle and close the nested list cases with the `zip` helpers.
+
+`beq_refl` and `zip_self_eq` live in `TypeInfer/PyTypeEq.lean` (imported above), which also proves
+`LawfulBEq PyType`: that one is needed Mathlib-free and on the default build path, because the
+certificate validator decides type equalities inside the standalone `typeinfer` binary.
 -/
 
 namespace TypeInfer.PyType
 
 set_option maxHeartbeats 4000000
-
-/-- On `as.zip as` both components of every pair coincide. -/
-theorem zip_self_eq {a b : PyType} {as : List PyType} (h : (a, b) ∈ as.zip as) : a = b := by
-  induction as with
-  | nil => simp at h
-  | cons x xs ih =>
-      simp only [List.zip_cons_cons, List.mem_cons] at h
-      rcases h with h | h
-      · simp_all
-      · exact ih h
 
 /-- `List.all` of a symmetric `Bool` op is the same over `as.zip bs` and `bs.zip as` — what the
 `tuple`/`fn` cases of `beq`/`consistent` symmetry reduce to once the outer function is unfolded. -/
@@ -51,24 +46,6 @@ theorem all_zip_comm (f : PyType → PyType → Bool) : ∀ (as bs : List PyType
 `beq` has no absorption, so both hold on *all* of `PyType`. Reflexivity is a direct recursion; symmetry
 drives `beq.induct` and closes the single `_, _ => false` catch-all by casing the two constructors (the
 mismatch makes both sides `false`). -/
-
-theorem beq_refl : (a : PyType) → beq a a = true
-  | .unknown | .any | .int | .bool | .str | .float | .none => by simp [beq]
-  | .list e | .set e | .opt e => by simp only [beq]; exact beq_refl e
-  | .dict k v => by simp only [beq, beq_refl k, beq_refl v, Bool.and_self]
-  | .cls n => by simp only [beq, beq_self_eq_true]
-  | .tuple es => by
-      simp only [beq, beq_self_eq_true, Bool.true_and, List.all_eq_true]
-      rintro ⟨⟨a, b⟩, hmem⟩ _; obtain rfl := zip_self_eq hmem; exact beq_refl a
-  | .fn as r => by
-      simp only [beq, beq_self_eq_true, Bool.true_and, beq_refl r, Bool.and_true, List.all_eq_true]
-      rintro ⟨⟨a, b⟩, hmem⟩ _; obtain rfl := zip_self_eq hmem; exact beq_refl a
-  termination_by a => sizeOf a
-  decreasing_by
-    all_goals simp_wf
-    all_goals first
-      | omega
-      | (have := List.sizeOf_lt_of_mem (List.of_mem_zip ‹_ ∈ List.zip _ _›).1; omega)
 
 theorem beq_comm (a b : PyType) : beq a b = beq b a := by
   induction a, b using PyType.beq.induct with

@@ -98,18 +98,20 @@ CHUNK_TIMEOUT = 90
 def _run_chunk() -> int:
     """The `chunk` subcommand: check the newline-separated paths on stdin, print the diagnostics as
     JSON. Its own process so the parent can impose a hard deadline (see `_chunk_diags`)."""
-    from pastalean.typeinfer.check import check_paths  # noqa: PLC0415
+    from pastalean.typeinfer.check import check_paths_report  # noqa: PLC0415
 
     paths = [ln for ln in sys.stdin.read().splitlines() if ln]
     sink = io.StringIO()
     with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-        diags = check_paths(paths, jobs=1)
-    print(json.dumps([[f, d["message"]] for f, d in diags]))
+        rep = check_paths_report(paths, jobs=1)
+    # `checked`/`ir_failed` ride along so the parent's denominator is the files actually read.
+    print(json.dumps({"diags": [[f, d["message"]] for f, d in rep["diagnostics"]],
+                      "checked": rep["checked"], "ir_failed": rep["ir_failed"]}))
     return 0
 
 
-def _run_paths(paths: list[str], timeout: float) -> tuple[str, list[list[str]]]:
-    """Check `paths` in a child process under a hard deadline: `("ok"|"timeout"|"error", diags)`.
+def _run_paths(paths: list[str], timeout: float) -> tuple[str, dict]:
+    """Check `paths` in a child process under a hard deadline: `("ok"|"timeout"|"error", report)`.
 
     The deadline has to be enforced from outside the work, not inside it. The Lean side is a blocking
     request/response over a pipe with no deadline of its own, and an in-process `SIGALRM` does not
@@ -119,21 +121,25 @@ def _run_paths(paths: list[str], timeout: float) -> tuple[str, list[list[str]]]:
         p = subprocess.run([sys.executable, __file__, "chunk"], input="\n".join(paths),
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return "timeout", []
+        return "timeout", {}
     try:
         return "ok", json.loads(p.stdout.strip().splitlines()[-1])
     except (ValueError, IndexError):
-        return "error", []
+        return "error", {}
 
 
 def _chunk_diags(job: tuple[str, list[str]]) -> tuple[str, int, int, list[str], list[str], int]:
-    """One chunk: `(project, files, diagnostics, samples, timed-out files, failed files)`.
+    """One chunk: `(project, files checked, diagnostics, samples, timed-out files, failed files)`.
 
     A chunk that blows the deadline is bisected rather than written off, so only the pathological
-    module is lost and the other 49 files in its chunk are still measured. Every file is accounted
-    for in exactly one of the three counts — nothing is silently dropped."""
+    module is lost and the other 49 files in its chunk are still measured.
+
+    `files checked` counts the files whose IR the front end actually built. It used to count the
+    files *handed over*, which silently credited coverage for files that were dropped — one project
+    (`graphql-core`) was losing 50 of 354 that way, so the corpus-wide diagnostic rate was computed
+    over a denominator that included files nothing had read."""
     project, paths = job
-    status, diags = _run_paths(paths, CHUNK_TIMEOUT)
+    status, rep = _run_paths(paths, CHUNK_TIMEOUT)
     if status == "timeout" and len(paths) > 1:
         mid = len(paths) // 2
         out = [0, 0, [], [], 0]
@@ -144,8 +150,10 @@ def _chunk_diags(job: tuple[str, list[str]]) -> tuple[str, int, int, list[str], 
     if status == "timeout":
         return project, len(paths), 0, [], list(paths), 0
     if status == "error":
-        return project, len(paths), 0, [], [], len(paths)
-    return project, len(paths), len(diags), [f"{f}: {m}" for f, m in diags[:3]], [], 0
+        return project, 0, 0, [], [], len(paths)
+    diags = rep["diags"]
+    return (project, rep["checked"], len(diags), [f"{f}: {m}" for f, m in diags[:3]], [],
+            rep["ir_failed"])
 
 
 def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
@@ -191,10 +199,10 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
 
     total_files = sum(r["files"] for r in per_project.values())
     total_diags = sum(r["diags"] for r in per_project.values())
-    print(f"\nmypy_primer corpus: {len(per_project)} projects, {total_files} .py files")
+    print(f"\nmypy_primer corpus: {len(per_project)} projects, {total_files} .py files CHECKED")
     print(f"  diagnostics       {total_diags} "
           f"({total_diags / max(total_files, 1) * 1000:.2f} per 1000 files)")
-    print(f"  front-end failed  {failed}")
+    print(f"  front-end failed  {failed} (IR could not be built; excluded from the rate above)")
     print(f"  timed out         {len(timeouts)} files (> {CHUNK_TIMEOUT}s, bisected)")
     print(f"  wall              {wall:.1f}s ({total_files / max(wall, 1e-9):.0f} files/s)")
     for row in sorted(per_project.values(), key=lambda r: -r["diags"])[:10]:

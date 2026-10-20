@@ -1,0 +1,58 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<script>
+(function () {
+  // Python gets highlight.js; Lean arrives pre-highlighted by Lean itself.
+  try {
+    if (window.hljs) {
+      hljs.configure({ languages: ['python'] });
+      document.querySelectorAll('code.language-python').forEach(function (el) { hljs.highlightElement(el); });
+    }
+  } catch (e) {}
+
+  // Keep the embedded snippets on the same theme as the page, and sized to their content.
+  var frames = Array.prototype.slice.call(document.querySelectorAll('iframe.snip'));
+  function effectiveTheme() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark' || attr === 'light') return attr;
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+    catch (e) { return 'light'; }
+  }
+  function pushTheme() {
+    var t = effectiveTheme();
+    frames.forEach(function (f) {
+      try { f.contentWindow.postMessage({ type: 'snippet-theme', theme: t }, '*'); } catch (e) {}
+    });
+  }
+  window.addEventListener('message', function (e) {
+    var d = e && e.data;
+    if (!d || d.type !== 'snippet-height' || !d.height) return;
+    frames.forEach(function (f) {
+      if (f.contentWindow === e.source) f.style.height = (d.height + 8) + 'px';
+    });
+  });
+  frames.forEach(function (f) { f.addEventListener('load', pushTheme); });
+  try {
+    new MutationObserver(pushTheme).observe(document.documentElement,
+      { attributes: true, attributeFilter: ['data-theme'] });
+  } catch (e) {}
+  try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', pushTheme); } catch (e) {}
+  pushTheme();
+  setTimeout(pushTheme, 400);
+
+  // The explorer dropdown: show one example at a time. A hidden iframe reports no
+  // usable height, so nudge the one we just revealed into reporting again.
+  var sel = document.getElementById('exsel');
+  if (sel) {
+    sel.addEventListener('change', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('section.ex'), function (s) {
+        var on = s.id === 'ex-' + sel.value;
+        s.hidden = !on;
+        if (on) { var f = s.querySelector('iframe.snip'); if (f) setTimeout(function () {
+          try { f.contentWindow.postMessage({ type: 'snippet-theme', theme: effectiveTheme() }, '*'); } catch (e) {}
+        }, 60); }
+      });
+    });
+  }
+})();
+</script>

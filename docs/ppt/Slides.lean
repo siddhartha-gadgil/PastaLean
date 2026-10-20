@@ -819,27 +819,81 @@ def pyNumpyNorm {α} [PyNumpyScalar α] (xs : List α) : Float :=
 :::::
 ::::::
 
-# Achievements
+# Every benchmark compiles above 92%, and what compiles matches CPython
 
-Transpiled, compiled, and *run* across two full benchmarks — the Lean twin's answers matched against the reference test cases.
+:::table +colHeaders +rowSeps
+*
+  * Benchmark
+  * Problems
+  * Elaborated
+  * Test cases
+  * Matching CPython
+*
+  * HumanEval⁺
+  * 164
+  * 151 · 92.1%
+  * 7,007
+  * 100%
+*
+  * LeetCode
+  * 2,589
+  * 2,391 · 92.4%
+  * 215,126
+  * 97.0%
+*
+  * LiveCodeBench
+  * 476
+  * 469 · 98.5%
+  * 10,213
+  * 100%
+:::
 
-*LeetCode* — all *2,589* problems:
+:::class "punch" "fragment"
+_elaborated_ = the generated Lean type-checks · _matching_ = the runnable twin returns CPython's
+answer on *every* test case of that problem
+:::
 
-```html
-<div class="stats">
-  <div class="stat">&gt;92%<small>2,391 problems compile</small></div>
-  <div class="stat">&gt;97%<small>test cases pass</small></div>
-</div>
+# The 13 HumanEval misses are ambiguities, not bugs
+
+```code python
+def split_words(txt):
+    if any(c in txt for c in ' \n\r\t'): return txt.split()   # list[str]
+    if ',' in txt: return txt.split(',')                       # list[str]
+    return sum(1 for c in txt if c.islower())                  # int
 ```
 
-*HumanEval+* — all *164* problems:
+:::class "steps"
+* Correct Python. The return type depends on the *input*, at run time.
+* Lean gives a function one return type, so this one is rejected.
+* One type hint at the ambiguous spot → *164 / 164*.
+:::
+
+# A model gets one translation right; it rarely gets five right
 
 ```html
-<div class="stats">
-  <div class="stat">92.1%<small>151 / 164 compile</small></div>
-  <div class="stat">100%<small>test cases pass · 7,007 / 7,007</small></div>
-</div>
+<svg class="bars" viewBox="0 0 980 332" width="980">
+  <text class="ttl" x="0" y="22">Reliability, not luck</text>
+  <text class="grp" x="0" y="64">HumanEval⁺</text>
+  <text class="lab" x="288" y="97" text-anchor="end">LLM, all 5 samples work</text>
+  <rect class="b" x="300" y="76" width="301" height="28" rx="4"/>
+  <text class="val" x="611" y="97">62.8%</text>
+  <text class="lab" x="288" y="141" text-anchor="end">PastaLean, compiles</text>
+  <rect class="b me" x="300" y="120" width="442" height="28" rx="4"/>
+  <text class="val" x="752" y="141">92.1%</text>
+  <text class="grp" x="0" y="190">LiveCodeBench</text>
+  <text class="lab" x="288" y="223" text-anchor="end">LLM, all 5 samples work</text>
+  <rect class="b" x="300" y="202" width="151" height="28" rx="4"/>
+  <text class="val" x="461" y="223">31.4%</text>
+  <text class="lab" x="288" y="267" text-anchor="end">PastaLean, compiles</text>
+  <rect class="b me" x="300" y="246" width="473" height="28" rx="4"/>
+  <text class="val" x="783" y="267">98.5%</text>
+  <text class="note" x="300" y="314">Claude Opus 4.8, 5 samples at temperature 1.0 · a transpiler has one output, so pass⁵ = pass@1</text>
+</svg>
 ```
+
+:::class "punch" "fragment"
+The gap between _one of five works_ and _all five work_ is the unreliability. A transpiler has no gap.
+:::
 
 # Showcases
 
@@ -1358,6 +1412,190 @@ We need Python's dynamism _without_ poisoning everything with unions.
 :::
 
 
+# `TypeInfer` assigns a type to every binder before codegen runs
+
+%%%
+state := "typeinfer"
+%%%
+
+:::class "steps"
+* Every IR node gets a `PyType` from one lattice; each statement joins in what it implies; iterate to a *fixpoint*.
+* The join widens along Python's own tower, `bool < int < float` — so a list of `5` and `inf` is a list of floats, not a boxed list.
+* Written in Lean, so the lattice laws are *machine-checked*: the join is the least upper bound, and widening never excludes a value the program can produce.
+* Ships as its own Mathlib-free binary — *30 ms* to start, and it runs over a whole repository, types flowing across imports.
+:::
+
+```code bash
+pastalean typeinfer script.py            # the source back, with annotations
+pastalean typeinfer myrepo/ --check      # type errors, Lean-style; exit 1 if any
+```
+
+# It recovers more type facts than any other static tool
+
+```html
+<svg class="bars" viewBox="0 0 980 304" width="980">
+  <text class="ttl" x="0" y="22">TypeEvalPy autogen · 77,268 type facts recovered</text>
+  <text class="lab" x="178" y="61" text-anchor="end">TypeInfer</text>
+  <rect class="b me" x="190" y="40" width="560" height="28" rx="4"/>
+  <text class="val" x="760" y="61">72.7%</text>
+  <text class="lab" x="178" y="107" text-anchor="end">HeaderGen</text>
+  <rect class="b" x="190" y="86" width="506" height="28" rx="4"/>
+  <text class="val" x="706" y="107">65.7%</text>
+  <text class="lab" x="178" y="153" text-anchor="end">Jedi</text>
+  <rect class="b" x="190" y="132" width="285" height="28" rx="4"/>
+  <text class="val" x="485" y="153">37.0%</text>
+  <text class="lab" x="178" y="199" text-anchor="end">Scalpel</text>
+  <rect class="b" x="190" y="178" width="156" height="28" rx="4"/>
+  <text class="val" x="356" y="199">20.2%</text>
+  <text class="lab" x="178" y="245" text-anchor="end">Type4Py</text>
+  <rect class="b" x="190" y="224" width="54" height="28" rx="4"/>
+  <text class="val" x="254" y="245">7.0%</text>
+  <text class="note" x="190" y="294">+5,382 facts over HeaderGen, the previous static leader · 1.25 s against its 36.2 s</text>
+</svg>
+```
+
+:::class "punch" "fragment"
+12th of 26 on the full leaderboard — above several instruction-tuned LLMs — with one deterministic
+answer per fact and no sampling.
+:::
+
+# At repository scale it leads accuracy, time and memory
+
+```html
+<svg class="bars" viewBox="0 0 980 304" width="980">
+  <text class="ttl" x="0" y="22">TypyBench · 50 real projects, TypeSim similarity</text>
+  <text class="lab" x="178" y="61" text-anchor="end">TypeInfer</text>
+  <rect class="b me" x="190" y="40" width="560" height="28" rx="4"/>
+  <text class="val" x="760" y="61">0.284</text>
+  <text class="lab" x="178" y="107" text-anchor="end">pyrefly</text>
+  <rect class="b" x="190" y="86" width="479" height="28" rx="4"/>
+  <text class="val" x="679" y="107">0.243</text>
+  <text class="lab" x="178" y="153" text-anchor="end">pyre</text>
+  <rect class="b" x="190" y="132" width="471" height="28" rx="4"/>
+  <text class="val" x="671" y="153">0.239</text>
+  <text class="lab" x="178" y="199" text-anchor="end">pytype</text>
+  <rect class="b" x="190" y="178" width="312" height="28" rx="4"/>
+  <text class="val" x="512" y="199">0.158</text>
+  <text class="lab" x="178" y="245" text-anchor="end">hityper</text>
+  <rect class="b" x="190" y="224" width="207" height="28" rx="4"/>
+  <text class="val" x="407" y="245">0.105</text>
+  <text class="note" x="190" y="294">and the fastest: 135 s against pyrefly’s 228 s, at 0.70 GiB against 3.09 GiB</text>
+</svg>
+```
+
+:::class "punch" "fragment"
+Returns are *90.1%*, parameters *45.1%* — the two a transpiler must have. The known gap: no union
+types yet, so `int ⊔ str` boxes instead of typing `int | str`.
+:::
+
+# Type checking
+
+:::class "steps"
+* Inference asks _what type_ a slot has. Checking asks whether its uses can be satisfied _at all_, and whether they agree with a type you wrote.
+* A *slot* is a parameter, a return, a call argument, an annotated binder, or a local variable.
+* Inference *joins* — a value widens what a slot may hold. Checking *meets* — every use narrows what it can be. An empty meet is a type error.
+:::
+
+::::hstack
+:::class "excode" "fragment"
+```code python
+def mangle(items):
+    buf = items[0]
+    k = buf.isalpha()   # buf must be a str
+    m = buf << 1        # ...and an int. No type is both.
+```
+:::
+
+:::class "arrow-right" "fragment"
+→
+:::
+
+:::class "excode" "fragment"
+```code python
+real_conflict.py:2:5: error:
+  unsatisfiable constraints — mangle.buf
+one use requires  String   (python: str)
+another requires  Int      (python: int)
+```
+:::
+::::
+
+:::class "punch" "fragment"
+Locals are checked, not just a function's signature — nothing declares `buf`, so a boundary-only checker cannot see this.
+:::
+
+# Certificates
+
+:::class "steps"
+* Each verdict is written down: the slot, the evidence weighed, and the verdict reached — one record per file.
+* *Producing* one needs the whole engine. *Checking* one needs none of it, because every verdict is a function of the recorded evidence.
+* So a 280-line validator replays them, importing no part of the inference engine. That is the trusted base, instead of 6,400 lines.
+* One Lean theorem, proved once — every accepted certificate is an instance of it, so nothing is proved per file.
+:::
+
+::::fragment
+:::table +colHeaders +rowSeps +border
+*
+  * Theorem
+  * What an accepted certificate means
+*
+  * `validate_sound`
+  * Where a slot's uses narrow to `t`, every runtime value of type `t` satisfies _every one_ of those uses.
+*
+  * `validate_error_sound`
+  * A reported error between two scalars is _real_: no runtime value inhabits both types.
+:::
+::::
+
+:::class "punch" "fragment"
+`sorry`-free, no `native_decide`. Tamper with a certificate and the validator refuses it, naming what failed.
+:::
+
+# Type checking against the production checkers
+
+One annotation is flipped per mutant. A tool scores only if it flags the mutant _and_ leaves the untouched original alone — so nothing is credited for pre-existing noise.
+
+:::table +colHeaders +rowSeps +border
+*
+  * Tool
+  * Caught (of 204)
+  * Flagged clean
+  * Time
+*
+  * *PastaLean*
+  * *169 · 82.8%*
+  * *0 · 0.0%*
+  * 0.8 s
+*
+  * ty
+  * 149 · 73.0%
+  * 47 · 23.0%
+  * 0.1 s
+*
+  * pyright
+  * 143 · 70.1%
+  * 54 · 26.5%
+  * 5.5 s
+*
+  * pyrefly
+  * 140 · 68.6%
+  * 56 · 27.5%
+  * 0.5 s
+*
+  * zuban
+  * 132 · 64.7%
+  * 42 · 20.6%
+  * 1.6 s
+*
+  * mypy
+  * 119 · 58.3%
+  * 80 · 39.2%
+  * 1.5 s
+:::
+
+:::class "punch" "fragment"
+Read the second column with the first — the originals are known-good. On 158 `mypy_primer` projects, all of which type-check in their own CI, we report *294* diagnostics over *68,542* files.
+:::
 # {name}`PyAny` — opening the door to dynamic typing
 
 %%%

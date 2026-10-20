@@ -3,6 +3,7 @@ import PALC.PyAPI
 import PALC.TypeInfer.TestLattice
 import PALC.TypeInfer.TestInfer
 import PALC.TypeInfer.TestDiagnostics
+import PALC.TypeInfer.TestCertificate
 import PALC.Libraries.numpy.numpy_test
 import PALC.Libraries.numpy.numpy_extended_test
 import PALC.Libraries.math.math_test

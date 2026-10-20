@@ -94,13 +94,17 @@ def fib := fun (n : Int) ↦
 @[spec]
 theorem fib_spec : ⦃⌜n ≥ (0 : Int)⌝⦄ fib n ⦃⇓b => ⌜b ≥ n -ₚ (1 : Int) ∧ (n ≤ (0 : Int) ∨ b ≥ (1 : Int))⌝⦄ :=
   by
-  try
-    mvcgen [fib, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
-    · ⇓cur =>
-      ⌜let i := (cur.prefix.length : Int);
-        ((((3 : Int) ≤ i ∧ i ≤ n +ₚ (1 : Int)) ∧ a ≥ (1 : Int)) ∧ b ≥ a) ∧ b ≥ i -ₚ (2 : Int)⌝
-  taste?
-  all_goals sorry
+  mvcgen [fib, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
+  · ⇓⟨cur, a, b⟩ =>
+    ⌜let i := (3 : Int) + (cur.prefix.length : Int);
+      ((((3 : Int) ≤ i ∧ i ≤ n +ₚ (1 : Int)) ∧ a ≥ (1 : Int)) ∧ b ≥ a) ∧ b ≥ i -ₚ (2 : Int)⌝
+  all_goals (try (simp_all (config := { zetaDelta := true }) [taste_ingr]))
+  case vc3.step =>
+    -- `pref.length + 1 ≤ (n - 2).toNat` is the strict index bound the invariant alone cannot give.
+    have hl := congrArg List.length ‹List.range _ = _ ++ _ :: _›
+    simp only [List.length_range, List.length_append, List.length_cons] at hl
+    omega
+  all_goals omega
 
 theorem fib_correct :
     ∀ (n : Int),
