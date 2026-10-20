@@ -9,18 +9,8 @@ description = "Library to convert Python to Lean"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "bs4>=0.0.2",
-    "datasets>=4.8.5",
-    "lxml>=6.1.0",
-    "matplotlib>=3.11.1",
-    "numpy>=2.4.5",
-    "online-judge-tools>=11.5.1",
     "openai>=2.44.0",
-    "pandas>=3.0.3",
     "python-dotenv>=1.2.2",
-    "requests>=2.34.2",
-    "scipy>=1.17.1",
-    "setuptools>=82.0.1",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +23,15 @@ server = [
 # `pastalean mcp` only: the Model Context Protocol server for LLM clients.
 mcp = [
     "mcp>=2.3",
+]
+# Not imported by `pastalean` itself: needed to *run* the scientific programs under
+# `example_scripts/showcase/` and the dataset/plot paths of `cp_harness/cpasta_eval.py`.
+# Translating and compile-checking them (what PALC and CI do) needs none of this.
+showcase = [
+    "datasets>=4.8.5",
+    "matplotlib>=3.11.1",
+    "numpy>=2.4.5",
+    "scipy>=1.17.1",
 ]
 
 [project.scripts]
