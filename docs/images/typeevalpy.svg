@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" width="340" height="190" role="img" style="font-family:ui-sans-serif,system-ui,sans-serif">
+  <title>TypeEvalPy (autogen)</title>
+  <rect width="340" height="190" rx="8" fill="#ffffff"/>
+  <text x="14" y="24" font-size="13" font-weight="600" fill="#1c1917">TypeEvalPy (autogen)</text>
+  <text x="14" y="40" font-size="10" fill="#78716c">exact-match facts recovered, of 77,268 · higher is better</text>
+  <text x="73" y="68" font-size="10" text-anchor="end" fill="#1c1917" font-weight="600">TypeInfer</text>
+  <rect x="78" y="59" width="148.3" height="12" rx="2" fill="#a16207"/>
+  <text x="230.3" y="68" font-size="9.5" fill="#1c1917" font-weight="600">72.7%</text>
+  <text x="73" y="88" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">HeaderGen</text>
+  <rect x="78" y="79" width="134.0" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="216.0" y="88" font-size="9.5" fill="#78716c" font-weight="400">65.7%</text>
+  <text x="73" y="108" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">Jedi</text>
+  <rect x="78" y="99" width="75.5" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="157.5" y="108" font-size="9.5" fill="#78716c" font-weight="400">37.0%</text>
+  <text x="73" y="128" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">Scalpel</text>
+  <rect x="78" y="119" width="41.2" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="123.2" y="128" font-size="9.5" fill="#78716c" font-weight="400">20.2%</text>
+  <text x="73" y="148" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">Type4Py</text>
+  <rect x="78" y="139" width="14.3" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="96.3" y="148" font-size="9.5" fill="#78716c" font-weight="400">7.0%</text>
+  <text x="14" y="178" font-size="9.5" fill="#78716c">best static tool · returns 90.1%, params 45.1%</text>
+</svg>

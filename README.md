@@ -5,23 +5,29 @@
 <p>Pasta for All - Python - in Lean4</p>
 </div>
 
-PastaLean is a tool that transpiles and verifies Python code into Lean 4. As the name suggests, this tool is not just for a small use-case but for all(not actually all, but as much as possible) Python code and it's behaviors. Modelling Python code in Lean 4 can be extremely annoying since it's a dynamically typed and, well, Python trying to make life easy for everyday users, harder for us.
+PastaLean transpiles Python code into Lean 4 and verifies it there. As the name suggests, it is not meant for one small use-case but for all Python code (well, as much of it as possible) and its behaviours. Modelling Python in Lean 4 is hard: Python is dynamically typed and, well, Python, making life easy for everyday users and harder for us.
 
 
-> PastaLean originates from "PyAstLean"(which mean Python to Lean via AST). Who doesn't love Pasta. It's Pasta for all, which if you didn't yet guess, comes from the Lean's "for all" logo.
+> PastaLean originates from "PyAstLean" (which means Python to Lean via AST). Who doesn't love Pasta. It's Pasta for all, which if you didn't yet guess, comes from the Lean's "for all" logo.
+
+**Blog:** [PastaLean: proving Python correct](https://anirudhg07.github.io/blogs/pastalean-proving-python-correct/) · **Paper:** [OpenReview](https://openreview.net/forum?id=7vrdqmHlL1)
 
 ## Table of Contents
 
 - [Features](#features)
+- [Results](#results)
 - [How it works?](#how-it-works)
 - [Type Inference (TypeInfer)](#type-inference-typeinfer)
+- [Verifying with contracts](#verifying-with-contracts-and-how-postcondition-proving-can-fail)
 - [Libraries](#libraries)
   - [How to add your own library](#how-to-add-your-own-library)
 - [Install](#install)
 - [Using PastaLean everyday](#using-pastalean-everyday)
   - [Command line](#command-line)
+  - [Type checking](#type-checking)
   - [HTTP API](#http-api)
   - [Python API](#python-api)
+  - [MCP server and skill](#mcp-server-and-skill-llm-driven-verification)
 - [Testing](#testing)
 - [Reproducing the paper results](#reproducing-the-paper-results)
 
@@ -31,10 +37,56 @@ PastaLean is a tool that transpiles and verifies Python code into Lean 4. As the
 - The tool gives 2 functions for the same piece of code, one `provable` and one `computable`(marked with `'rn`).
 - These functions have subtle differences in their implementation, for their respective purposes as you can guess.
 - Verification of the code(using assert and contract statements) using tactics like `taste?`, `mvcgen`, etc.
+- A standalone type inference engine and type checker for Python, [TypeInfer](#type-inference-typeinfer), that runs without Mathlib.
+
+## Results
+
+<table align="center">
+<tr>
+<td valign="top">
+
+| Dataset | Elaborated | Tests passed |
+|---|---|---|
+| HumanEval⁺ | **151/164 (92.1%)** | **7,007/7,007 (100%)** |
+| LeetCode | **2,391/2,589 (92.4%)** | **208,736/215,126 (97.0%)** |
+| LiveCodeBench | **469/476 (98.5%)** | **10,213/10,213 (100%)** |
+
+</td>
+<td valign="top">
+
+| | HumanEval⁺ | LiveCodeBench |
+|---|---|---|
+| LLM writes Lean, pass@1 | 75.4% | 52.5% |
+| LLM writes Lean, pass⁵ (all 5 work) | 62.8% | 31.4% |
+| **PastaLean, Lean compiles** | **92.1%** | **98.5%** |
+
+</td>
+</tr>
+</table>
+
+<p align="center">
+  <img src="./docs/images/typeevalpy.svg" alt="TypeEvalPy autogen: TypeInfer 72.7% exact match vs HeaderGen 65.7%, Jedi 37.0%, Scalpel 20.2%, Type4Py 7.0%" width="32%"/>
+  <img src="./docs/images/typybench.svg" alt="TypyBench: TypeInfer TypeSim 0.284 vs pyrefly 0.243, pyre 0.239, pytype 0.158, hityper 0.105" width="32%"/>
+  <img src="./docs/images/typecheck.svg" alt="Type checking: pastalean catches 82.8% of seeded errors and flags 0% of clean files; ty 73.0/23.0, pyright 70.1/26.5, pyrefly 68.6/27.5, zuban 64.7/20.6, mypy 58.3/39.2" width="32%"/>
+</p>
+
+*Elaborated* means the generated Lean type-checks. *Tests passed* means the runnable twin gives
+CPython's answer on every one of that problem's test cases. The type checker's precision on
+mypy_primer and the per-category numbers are under [Type checking](#type-checking) and in
+[TypeInfer](#type-inference-typeinfer).
 
 ## How it works?
 
 Let's give a brief overview of how PastaLean works here.
+
+<p align="center"><img src="./docs/images/pipeline.svg" alt="The PastaLean pipeline: Python source → AST/JSON IR → TypeInfer + codegen → Lean 4 (provable and runnable twins) → proof, if contracts" width="80%"/></p>
+
+1. **Parse.** Python's own `ast` module parses the source, and [`node_visitor.py`](./src/transpile/node_visitor.py) turns the tree into a JSON IR, one object per node. A few Python-side passes tag it (IO/exception effects, library imports, top-level state).
+2. **Annotate.** [`TypeInfer`](./TypeInfer/) infers a type for every binder it can and stamps it on the IR — it rewrites nothing else.
+3. **Generate.** One persistent Lean backend (`py2lean`, booting Mathlib once) receives the IR a statement at a time; each node type has one `@[pygen "Node"]` generator in [`PastaLean/PyGens/`](./PastaLean/PyGens/) that emits typed Lean syntax calling the runtime in [`PastaLean/PyAPI/`](./PastaLean/PyAPI/).
+4. **Elaborate.** The result is checked by Lean's elaborator — the oracle for whether a translation makes sense — and, if the Python carries contracts, the emitted spec theorems are proved with `taste?`/`mvcgen`.
+
+The design rationale for each of these choices is in [`docs/design-choices.md`](./docs/design-choices.md).
 
 ### Some Unique Python Features and How we handle them
 
@@ -43,11 +95,11 @@ Python has some unique features that make it hard to model in Lean because of th
 <details><summary>Dynamic Typing</summary>
 
 Python supports dynamic typing, while Lean is a statically typed language. The key to solving a lot of problems in modelling Python in Lean is to have a type system that can handle dynamic typing.
-Among all the problems, this has been the toughest one. The answer to this We found was something called [Gradual Typing](https://jsiek.github.io/home/WhatIsGradualTyping.html). The idea is to have a special total fallback type — we call it `PyAny` in the code which any Python value can box into.
+Among all the problems, this has been the toughest one. The answer we found was something called [Gradual Typing](https://jsiek.github.io/home/WhatIsGradualTyping.html). The idea is to have a special total fallback type — we call it `PyAny` in the code which any Python value can box into.
 
 We constructed a [TypeInfer](./TypeInfer/) engine which can infer the types of the variables in the Python code, made a Lattice following the rules of gradual typing and fine-tuning it for Python's type system. It infers a _concrete_ Lean type (`Int`, `List String`, ...) wherever it can, and only falls back to `PyAny` for the slots it genuinely can't pin — so `PyAny` is rare, not everywhere.
 
-For example: `int` and `bool` in Python can be used interchangeably in some cases(like `if 1 = True`), so we have to make sure that the type inference engine can handle this. `PyAny` has given us a lot of flexibility in modelling Python's dynamic typing in Lean.
+For example: `int` and `bool` in Python can be used interchangeably in some cases (like `1 == True`), so we have to make sure that the type inference engine can handle this. `PyAny` has given us a lot of flexibility in modelling Python's dynamic typing in Lean.
 
 </details>
 
@@ -150,7 +202,7 @@ len("Hello") # returns 5
 len({"key": "value"}) # returns 1
 ```
 
-We create a TypeClass called `PyLen` under which instances for Types like `List`, `String`, `Dict` are created. Each instance has it's own implementation of the `len` function. See [PyLen](./PastaLean/PyAPI/CommonProtocols/Length.lean) for more details.
+We create a TypeClass called `PyLen` under which instances for Types like `List`, `String`, `Dict` are created. Each instance has its own implementation of the `len` function. See [PyLen](./PastaLean/PyAPI/CommonProtocols/Length.lean) for more details.
 
 Similarly other functions behaving differently for different types but have the same syntax, are modelled using TypeClasses and instances.
 
@@ -165,7 +217,7 @@ def add (a : Int) (b : Int := (10 : Int)) :=
   a +ₚ b
 ```
 
-Moreover, if the input types are not given, we can infer them using the `TypeInfer` engine for other arguments as well. Thanks for clarifying the types of the arguments, otherwise you only get `PyAny` as the type of the arguments and return type.
+If an argument's type is not given, `TypeInfer` infers it from the default value and from how the argument is used. If it cannot, the argument (and possibly the return type) falls back to `PyAny`, so annotate it when you want a provable function.
 
 </details>
 
@@ -202,7 +254,7 @@ def avg(a: int, b: int):
 
 OOP is handled like namespaces. The `__init__` function is used to create the structure of the class, and the methods are added as functions under the namespace of the class. For example, a class `A` with a method `foo` will be modelled as a structure `A` with a function `foo` under the namespace of `A`. The methods can be called using the dot notation, like `A.foo()`.
 
-We donot support a lot of OOP features like polymorphism, very basic inheritance, etc. If you try jipsies with OOP, which python allows but not standard/best practise of OOP, the tool might not work as expected. We are working on improving the OOP support in the tool.
+Supported: `__init__`, methods, `@staticmethod`/`@classmethod`/`@property`, dunder operators, and single and multiple inheritance. By default classes have value semantics, so a mutating method rebuilds and reassigns the object. Pass `--heap` to opt into reference semantics, where instances alias like real Python objects (trees, linked lists). Highly dynamic tricks (monkey-patching, metaclasses, attributes added outside `__init__`) are not supported.
 
 </details>
 
@@ -276,13 +328,27 @@ def f(n):
 
 <details><summary>Python Decorators</summary>
 
-Python has decorators which are functions that modify the behavior of other functions. We support decorators in PastaLean by translating them to Lean functions that take a function as an argument and return a new function like a wrapper OR do syntax changes/noops since every decorator in Python hasn't been well translated. For example:
+Python decorators are functions that modify the behaviour of other functions (`@d def f` means `f = d(f)`). A user-defined decorator is lowered by emitting the undecorated function and binding the decorated name to the application. Transparent decorators (`@cache`, `@staticmethod`, `@classmethod`, `@property`) leave the function's value unchanged. For example:
 
 ```python
+def double(f):
+    def w(x: int) -> int:
+        return 2 * f(x)
+    return w
 
+@double
+def inc(x: int) -> int:
+    return x + 1
 ```
 
-Multiple decorators can be applied to a function, and they are applied in the order they are listed.
+```lean
+private def _double'w := fun (x : Int) ↦ fun (f : Int → Int) ↦ (2 : Int) *ₚ f x
+def double := fun (f : Int → Int) ↦ fun (x : Int) ↦ _double'w x f
+def inc'undecorated := fun (x : Int) ↦ x +ₚ (1 : Int)
+def inc := double inc'undecorated
+```
+
+`TypeInfer` unifies the decorator's parameter with the function it decorates, so `f : Int → Int` above needs no annotation. Multiple decorators stack bottom-up, the one nearest the `def` first (`@a @b def f` is `a(b(f))`); see `example_scripts/general/decorators.py`.
 You can declare your own decorators in Python or use commonly supported OOP/library decorators like `@staticmethod`, `@classmethod`, `@property`, etc. We support a few of them, and you can add more by writing Lean definitions for them and adding them.
 
 </details>
@@ -307,7 +373,7 @@ Recursive self-calls in the body are lowered to `(← fib'memo'rn …)`, so the 
 
 </details>
 
-any many more... like many many many more small annoying features...
+...and many, many more small annoying features. [`docs/design-choices.md`](./docs/design-choices.md) walks through all of them.
 
 ## Type Inference (TypeInfer)
 
@@ -326,7 +392,19 @@ pastalean typeinfer script.py --check         # type-check it: Lean-style errors
 pastalean typeinfer my_project/               # repo mode: annotate a whole project
 ```
 
-**On benchmarks.** On the file-level TypeEvalPy benchmark, TypeInfer is the top-scoring static tool on the micro set and leads on return and parameter facts on the autogen set. On the repository-level TypyBench benchmark (50 real projects with their annotations stripped) it leads every accuracy metric against the other inference-capable tools (pyrefly, pyre, pytype), while being the fastest at repository scale and using the least memory. See [Reproducing the paper results](#reproducing-the-paper-results).
+**On benchmarks.** On the file-level TypeEvalPy benchmark, TypeInfer is the top-scoring static tool on the micro set and leads on return and parameter facts on the autogen set. On the repository-level TypyBench benchmark (50 real projects with their annotations stripped) it leads every accuracy metric against the other inference-capable tools (pyrefly, pyre, pytype), while being the fastest at repository scale and using less memory than every tool except hityper. On the TypeEvalPy autogen set (5,453 snippets, 77,268 facts, exact match):
+
+| Tool | Return | Param | Var | Matched | Match |
+|---|---|---|---|---|---|
+| **TypeInfer** | **16,220** | **404** | **39,560** | **56,184** | **72.7%** |
+| HeaderGen | 14,086 | 346 | 36,370 | 50,802 | 65.7% |
+| Jedi | 13,160 | 0 | 15,403 | 28,563 | 37.0% |
+| Scalpel | 15,383 | 171 | 18 | 15,572 | 20.2% |
+| Type4Py | 3,143 | 38 | 2,243 | 5,424 | 7.0% |
+
+pyrefly takes the overall total there (78.6% to 72.7%) on the strength of variable types, while
+TypeInfer leads on returns and parameters — the two a transpiler needs. The TypyBench numbers are
+charted in [Results](#results); to regenerate any of them, see [Reproducing the paper results](#reproducing-the-paper-results).
 
 ## Verifying with contracts (and how postcondition proving can fail)
 
@@ -372,9 +450,9 @@ Two lessons:
 
 ## Libraries
 
-Python libraries can be supported in PastaLean by writing Lean definitions that correspond to the Python library's API. These definitions can be made by implementing the necessary translation logic in the Lean backend, then added to PastaLean by creating a mapping using `Mapping.lean` which is simply a map from python name for a function to Your Lean definition.
+Python libraries are supported by writing Lean definitions for the library's API, plus a `Mapping.lean` that maps each Python member name to its Lean definition. No library names live in the code generator. Shims currently ship for `math`, `bisect`, `collections`, `functools`, `hashlib`, `heapq`, `itertools`, `operator`, `random`, `string`, `sortedcontainers`, `numpy`, `pandas` and `scipy` (`pastalean libraries` lists them).
 
-For example, see [math](./Libraries/math/) library, which uses Mathlib to implement some of the functions from Python's `math` module.
+For example, see the [math](./Libraries/math/) library, which uses Mathlib to implement Python's `math` module.
 
 ### How to add your own library
 
@@ -384,24 +462,26 @@ See [Libraries](./Libraries/) for examples of how to add a library and use it.
 
 ## Install
 
-If you would like to use this as a Library, you can install it by adding it in your `lakefile.toml`:
+You need [elan](https://github.com/leanprover/elan) (the toolchain is pinned by `lean-toolchain`) and [uv](https://docs.astral.sh/uv/) for the Python side. From the repository root:
+
+```bash
+lake exe cache get   # fetch prebuilt Mathlib
+lake build           # builds the PastaLean runtime and the py2lean backend
+uv sync              # Python environment in .venv/
+```
+
+To use the runtime as a Lean library, add it to your `lakefile.toml`:
 
 ```toml
 [[require]]
 name = "PastaLean"
-scope = "<scope>"
-rev = "v4.31.0"
-```
-
-Build the Lean side from the repository root:
-
-```bash
-lake build
+git = "https://github.com/siddhartha-gadgil/PastaLean"
+rev = "master"
 ```
 
 ## Using PastaLean everyday
 
-We give a Python API for developers to run a backend server and translate Python to Lean on the fly. We use `uv` for handling the Python environment management — it installs the project, it's binaries, `.venv/` on first use, so there is no separate install step:
+We give a Python API for developers to run a backend server and translate Python to Lean on the fly. We use `uv` for Python environment management. It creates `.venv/` and installs the project and its console script on first use, so there is no separate install step:
 
 ```bash
 uv sync
@@ -454,6 +534,8 @@ pastalean typeinfer myrepo/ -o myrepo_typed -r
 Inference is parallel inside the engine: a batch or a repo fans out across the machine's cores in a
 single process (no per-file backend boot).
 
+#### Type checking
+
 `--check` **type-checks** instead of inferring: the Lean checker (`TypeInfer/Diagnostics/`) reports
 every annotation the body contradicts and every slot whose uses no single type satisfies, prints
 nothing when the file is clean, and exits non-zero when it is not. Errors read like Lean's, because
@@ -491,17 +573,19 @@ one that never flags a known-good file:
 
 | Tool | Caught | Flagged clean | Time |
 |---|---|---|---|
-| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.7s |
-| ty | 149 (73.0%) | 47 (23.0%) | 0.2s |
-| pyright | 141 (69.1%) | 56 (27.5%) | 6.4s |
-| pyrefly | 137 (67.2%) | 59 (28.9%) | 0.8s |
-| zuban | 131 (64.2%) | 43 (21.1%) | 0.5s |
-| mypy | 119 (58.3%) | 80 (39.2%) | 3.8s |
+| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.8 s |
+| ty | 149 (73.0%) | 47 (23.0%) | 0.1 s |
+| pyright | 143 (70.1%) | 54 (26.5%) | 5.5 s |
+| pyrefly | 140 (68.6%) | 56 (27.5%) | 0.5 s |
+| zuban | 132 (64.7%) | 42 (20.6%) | 1.6 s |
+| mypy | 119 (58.3%) | 80 (39.2%) | 1.5 s |
 
 Reproduce with `PastaBench/typecheck_bench/mutate.py` and `bench_checkers.py`. The corpus is
 `example_scripts/`, Python that PastaLean fully supports; the "flagged clean" column is mostly extra
 strictness for the other tools rather than a bug, which is exactly why recall is scored
-differentially.
+differentially. One caveat: those originals are the corpus PastaLean's own filters were written
+against, so the zero has home advantage — the differential rule protects the *caught* column, not the
+*flagged clean* one.
 
 #### False positives on the mypy_primer corpus
 
@@ -512,14 +596,18 @@ useful: a project is on the list only if it already type-checks in its own CI, s
 PastaLean emits on it is a candidate false positive**.
 
 ```
-mypy_primer corpus: 158 projects, 72,923 .py files
-  diagnostics       238 (3.26 per 1000 files)
-  front-end failed  72
-  timed out         0 files (> 90s, bisected)
+mypy_primer corpus: 158 projects, 68,542 .py files CHECKED
+  diagnostics       294 (4.29 per 1000 files)
+  front-end failed  6,221 (IR could not be built; excluded from the rate above)
+  timed out         8 files (> 90s, bisected)
+  wall              2,343s (29 files/s)
 ```
 
-One diagnostic per ~310 files, on 10M lines nobody here wrote, with **every** file checked — nothing
-skipped for size, and nothing the checker cannot finish. The largest module in the corpus is a 4.1 MB
+One diagnostic per ~230 files, on 10M lines nobody here wrote, with nothing skipped for size. The rate
+is over files whose IR was actually built; earlier runs (238 / 72,923) also counted unparsed files in
+the denominator, so the two are not comparable — see
+[`docs/typeinfer-certificates.md`](./docs/typeinfer-certificates.md#precision-at-scale-mypy_primer).
+The 8 timeouts are a known recursion in local-import inlining, not in the checker. The largest module in the corpus is a 4.1 MB
 generated test (`manticore/tests/native/test_x86.py`) at 12.8 s; the 33k-line GraphQL schema dump
 that used to run for minutes is 3.7 s. Both were the same bug: the signature fixpoint propagated
 inherited members by rescanning the whole table for every subclass/base pair on every pass, which is
@@ -536,8 +624,8 @@ The sweep is what the current filters were written against: a class must be in a
 (two `__exit__`s in one module are not one slot), a judgment may not name a class the module does not
 define (a `TypeVar` is a binder, not a nominal type), a use-conflict is reported only between two
 committed scalars, and a `yield` function's `-> None` is not contradicted by the list its
-materialisation builds. Together those took the corpus from 860 diagnostics to 234 at **no cost to
-recall** — still 169/204.
+materialisation builds. Together those took the corpus from 860 diagnostics to 234 (under the older
+accounting) at **no cost to recall** — still 169/204.
 
 What the corpus does *not* give us is a scoreboard. The published one is the
 [typing conformance suite](https://github.com/python/typing/tree/main/conformance), scored by exact
@@ -588,7 +676,7 @@ construction.
 
 ### Python API
 
-You can also use PastaLean from Python code after downloading this as a python package in your virtual environment(though you would need to install the Lean side as well, see [Install](#install)):
+You can also use PastaLean from Python once the package is installed in your virtual environment (the Lean side must be built too, see [Install](#install)):
 
 ```python
 import pastalean
@@ -603,7 +691,7 @@ with pastalean.Session(target="command", mode="run") as session:
         ...
 ```
 
-Booting the backend imports Mathlib(the first run will take a lot of time, subsequent are faster), so a `Session` is much faster than one process per file. `pastalean.compile_check` and `pastalean.run_program` take Lean text
+Booting the backend imports Mathlib (the first run is slow, later ones are faster), so a `Session` is much faster than one process per file. `pastalean.compile_check` and `pastalean.run_program` take Lean text
 and shell out to `lake env lean`.
 
 ### MCP server and skill (LLM-driven verification)
@@ -629,7 +717,7 @@ translate → prove only the proofs → `verify_theorems` → differential check
 
 ## Testing
 
-PastaLeanCheck (PALC) (pronounced - "pal" + "ack" like PAL Acknowledge) is the testing framework for PastaLean. It is used to check that the generated Lean code matches the expected output.
+PastaLeanCheck (PALC) (pronounced "pal" + "ack", like PAL Acknowledge) is the testing framework for PastaLean. It translates every Python program under `example_scripts/` in one warm pass and compile-checks the generated Lean in-process. Each file gets a verdict (`OK`, `CONVERT_FAIL`, `COMPILE_FAIL` or `UNSUPPORTED`), and any non-`OK` fails the run. There are no golden files: the Lean elaborator is the oracle. Runtime unit checks (`#guard`s under `PALC/PyAPI/` and `PALC/Libraries/`) are built along with it.
 
 To run all tests:
 
@@ -637,11 +725,13 @@ To run all tests:
 lake test
 ```
 
-If you want to run a specific test case, you can do so with:
+To run PALC on a single file or directory:
 
 ```bash
-lake exe palc <case_file.py>
+lake exe palc <file.py | dir>
 ```
+
+To add coverage, drop a representative `.py` into the matching `example_scripts/` subdirectory.
 
 ## Reproducing the paper results
 

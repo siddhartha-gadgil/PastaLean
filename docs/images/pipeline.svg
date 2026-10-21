@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 684 296" width="684" height="296" role="img" aria-labelledby="pipe-t pipe-d" style="font-family:ui-sans-serif,system-ui,sans-serif">
+  <rect x="-12" y="-12" width="684" height="296" rx="8" fill="#ffffff"/>
+  <title id="pipe-t">The PastaLean pipeline</title>
+  <desc id="pipe-d">Python source is parsed to an AST and JSON IR; TypeInfer annotates it and the code generator emits Lean 4 as a provable twin and a runnable twin; if the Python carries contracts, the pipeline continues into a machine-checked proof.</desc>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+  <g style="color:#64748b" stroke="currentColor" fill="none" stroke-width="1.6">
+    <rect x="60" y="8" width="200" height="36" rx="6" stroke-dasharray="5 4"/>
+    <path d="M 160 44 L 160 62" marker-end="url(#ah)"/>
+    <rect x="60" y="66" width="200" height="56" rx="6"/>
+    <rect x="400" y="66" width="200" height="56" rx="6"/>
+    <path d="M 266 94 L 393 94" marker-end="url(#ah)"/>
+    <path d="M 500 122 C 500 156 160 156 160 184" marker-end="url(#ah)"/>
+    <rect x="60" y="188" width="200" height="64" rx="6"/>
+    <rect x="400" y="188" width="200" height="64" rx="6" stroke-dasharray="5 4"/>
+    <path d="M 266 220 L 393 220" marker-end="url(#ah)"/>
+  </g>
+  <g fill="#0f172a" text-anchor="middle">
+    <text x="160" y="31" font-size="13" font-style="italic" fill="#64748b">contracts (optional)</text>
+    <text x="160" y="90" font-size="15" font-weight="600">Python source</text>
+    <text x="160" y="110" font-size="12" fill="#64748b">ordinary, unmodified</text>
+    <text x="500" y="90" font-size="15" font-weight="600">AST → JSON IR</text>
+    <text x="500" y="110" font-size="12" fill="#64748b">one node per construct</text>
+    <text x="160" y="212" font-size="15" font-weight="600">Lean 4</text>
+    <text x="160" y="230" font-size="12" fill="#64748b">provable twin +</text>
+    <text x="160" y="245" font-size="12" fill="#64748b">runnable twin</text>
+    <text x="500" y="214" font-size="15" font-weight="600">Proof</text>
+    <text x="500" y="234" font-size="12" fill="#64748b">machine-checked</text>
+  </g>
+  <g fill="#64748b" text-anchor="middle" font-size="12">
+    <text x="330" y="88">parse</text>
+    <text x="330" y="180">TypeInfer annotates, then codegen emits</text>
+    <text x="330" y="214">prove, if contracts</text>
+  </g>
+</svg>

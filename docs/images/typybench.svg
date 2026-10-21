@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 190" width="340" height="190" role="img" style="font-family:ui-sans-serif,system-ui,sans-serif">
+  <title>TypyBench (50 real repos)</title>
+  <rect width="340" height="190" rx="8" fill="#ffffff"/>
+  <text x="14" y="24" font-size="13" font-weight="600" fill="#1c1917">TypyBench (50 real repos)</text>
+  <text x="14" y="40" font-size="10" fill="#78716c">TypeSim similarity, 67,897 slots · higher is better</text>
+  <text x="73" y="68" font-size="10" text-anchor="end" fill="#1c1917" font-weight="600">TypeInfer</text>
+  <rect x="78" y="59" width="181.0" height="12" rx="2" fill="#a16207"/>
+  <text x="263.0" y="68" font-size="9.5" fill="#1c1917" font-weight="600">0.284</text>
+  <text x="73" y="88" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">pyrefly</text>
+  <rect x="78" y="79" width="154.9" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="236.9" y="88" font-size="9.5" fill="#78716c" font-weight="400">0.243</text>
+  <text x="73" y="108" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">pyre</text>
+  <rect x="78" y="99" width="152.4" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="234.4" y="108" font-size="9.5" fill="#78716c" font-weight="400">0.239</text>
+  <text x="73" y="128" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">pytype</text>
+  <rect x="78" y="119" width="100.7" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="182.7" y="128" font-size="9.5" fill="#78716c" font-weight="400">0.158</text>
+  <text x="73" y="148" font-size="10" text-anchor="end" fill="#78716c" font-weight="400">hityper</text>
+  <rect x="78" y="139" width="66.9" height="12" rx="2" fill="#c7c2bc"/>
+  <text x="148.9" y="148" font-size="9.5" fill="#78716c" font-weight="400">0.105</text>
+  <text x="14" y="178" font-size="9.5" fill="#78716c">fastest: 135 s vs pyrefly 228 s · 0.70 GiB vs 3.09 GiB</text>
+</svg>
