@@ -55,6 +55,9 @@ class TranslationResult:
     #: Source lines that best-effort replaced with `pyUnsupported(...)` placeholders. Non-empty
     #: means the Lean compiles but does not faithfully implement the Python.
     unsupported: list[str] = field(default_factory=list)
+    #: Goals `taste?` refuted instead of proving (only with `prove_asserts`): each has the theorem
+    #: (`decl`), the witness as Python (`python`) and the kernel-checked `refute_at` proof.
+    counterexamples: list[dict] = field(default_factory=list)
 
     @property
     def degraded(self) -> bool:
@@ -226,6 +229,7 @@ class Session:
             mode=opts["mode"],
             source_path=path,
             unsupported=unsupported,
+            counterexamples=list(raw.get("counterexamples") or []),
         )
 
     def translate_file(self, path: str | Path, **overrides) -> TranslationResult:

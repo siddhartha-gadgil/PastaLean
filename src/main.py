@@ -273,6 +273,150 @@ def cmd_typeinfer(args) -> int:
     return run(args)
 
 
+def cmd_refute(args) -> int:
+    """Counterexamples to the file's property functions and contracts, confirmed in all three worlds."""
+    from .refute import EXPLAIN, VERDICT_ORDER, refute_file
+
+    if args.float_report:
+        return _float_report(args)
+    if args.stdin or args.against or args.stdin_examples:
+        return _refute_stdin(args)
+    from .refute.obligations import collect, reads_stdin
+
+    source = Path(args.file).read_text(encoding="utf-8")
+    if not collect(source) and reads_stdin(source) and not args.equiv:
+        # No contracts or properties, but a stdin program: compare the worlds on generated inputs.
+        return _refute_stdin(args)
+    equiv = []
+    for pair in args.equiv or []:
+        f, _, g = pair.partition("=")
+        if not f or not g:
+            print(f"error: --equiv expects f=g, got {pair!r}", file=sys.stderr)
+            return 2
+        equiv.append((f.strip(), g.strip()))
+    tests = args.tests or 1000
+    try:
+        report = refute_file(args.file, seed=args.seed, time_ms=args.time, only=args.only, tests=tests,
+                             equiv=equiv, cpython_search=not args.no_cpython_search,
+                             lean_search=not args.no_lean_search)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    if args.json:
+        import dataclasses
+        print(json.dumps({"error": report.error,
+                          "obligations": [dataclasses.asdict(o) for o in report.obligations]}, indent=2))
+    else:
+        if report.error:
+            print(f"error: {report.error}", file=sys.stderr)
+        for o in report.obligations:
+            name = o.theorem or o.name
+            s = o.searches
+            py = s.get("cpython") or {}
+            lean_tested = sum((s.get(w) or {}).get("tested", 0) for w in ("prov", "run"))
+            stats = (f"{py.get('valid', 0)} valid CPython inputs ({py.get('rejected', 0)} rejected by Requires), "
+                     f"{lean_tested} Lean tests")
+            if o.witness is None:
+                print(f"{name:28} no counterexample: {stats}, seed {args.seed}")
+                if py.get("plan"):
+                    print(f"{'':28} generated from: {', '.join(py['plan'])}")
+                continue
+            w = o.witness
+            print(f"{name:28} {o.verdict:24} {o.witness_text()}")
+            print(f"{'':28} {EXPLAIN[o.verdict]}")
+            if w.explain and w.explain.get("sides"):
+                (lt, lv), (rt, rv) = w.explain["sides"]
+                print(f"{'':28} {lt} = {lv}, but {rt} = {rv}")
+            if w.explain and w.explain.get("failed"):
+                call = f"{o.name}({', '.join(w.python)})"
+                print(f"{'':28} {call} returned {w.explain['returned']}, breaking: "
+                      + "; ".join(w.explain["failed"]))
+                if o.verdict == "REFUTED":
+                    print(f"{'':28} so either the code is wrong on this input or that Ensures is too strong")
+            print(f"{'':28} provable: {w.prov} · runnable: {w.run} · CPython: {w.py}"
+                  + (f" ({w.exc})" if w.exc else "")
+                  + (f" · IEEE enclosure: {w.interval}" if w.interval else "") + f" · found by {w.origin}")
+            print(f"{'':28} searched: {stats}")
+            if o.kernel_proof:
+                print(f"{'':28} kernel-checked: theorem {name}_counterexample : ¬ type_of% @{name} := by {o.kernel_proof}")
+            # Other findings on the same obligation (e.g. a fidelity bug beside a genuine refutation).
+            seen = {o.verdict}
+            for other in o.witnesses:
+                if other.verdict and other.verdict not in seen:
+                    seen.add(other.verdict)
+                    shown = ", ".join(f"{n} = {v}" for n, v in zip(o.params, other.python))
+                    print(f"{'':28} also {other.verdict}: {shown} ({EXPLAIN[other.verdict]})")
+    if report.error and not report.obligations:
+        return 2
+    return 1 if any(o.verdict in VERDICT_ORDER for o in report.obligations) else 0
+
+
+def _refute_stdin(args) -> int:
+    from .refute import EXPLAIN
+    from .refute.stdin import refute_stdin
+
+    examples = [Path(p).read_text(encoding="utf-8") for p in (args.stdin_examples or [])]
+    against = Path(args.against).read_text(encoding="utf-8") if args.against else None
+    report = refute_stdin(Path(args.file).read_text(encoding="utf-8"), against=against, examples=examples,
+                          tests=args.tests or 150, seed=args.seed, negative=args.negative, heap=args.heap)
+    if args.json:
+        import dataclasses
+        print(json.dumps(dataclasses.asdict(report), indent=2))
+    else:
+        if report.error:
+            print(f"error: {report.error}", file=sys.stderr)
+        print(f"stdin: {report.tested} well-formed inputs tested ({report.rejected} rejected: CPython raised or the input broke the format read by the program), "
+              f"seed {args.seed}")
+        for n in report.notes:
+            print(f"note: {n}")
+        if not report.findings and not report.error:
+            print("no difference between CPython, the runnable twin and the provable twin"
+                  + (" or the reference" if against else ""))
+        for f in report.findings:
+            print(f"\n{f.verdict}: {EXPLAIN.get(f.verdict, '')}" + (f" ({f.note})" if f.note else ""))
+            print("  input:")
+            for line in f.input.rstrip("\n").split("\n"):
+                print(f"    {line}")
+            for w, o in f.worlds.items():
+                print(f"  {w + ':':20} {o.show()}")
+    if report.error and not report.tested:
+        return 2
+    return 1 if report.findings else 0
+
+
+def _float_report(args) -> int:
+    import dataclasses
+
+    from .refute.floatreport import float_report
+
+    reports = float_report(Path(args.file).read_text(encoding="utf-8"), samples=args.samples, seed=args.seed)
+    if args.json:
+        print(json.dumps([dataclasses.asdict(r) for r in reports], indent=2))
+        return 0
+    if not reports:
+        print("no top-level `-> float` functions")
+        return 0
+    print(f"{'function':24} {'samples':>7} {'enclosed':>8} {'CPy in':>7} {'rn = CPy':>8} {'rn in':>7} "
+          f"{'ℚ in':>7} {'ℚ exact':>7} {'width':>6}")
+    for r in reports:
+        w = f"{r.median_width:.2f}" if r.median_width is not None else "–"
+        print(f"{r.name:24} {r.samples:7} {r.enclosed:8} {r.pct(r.py_in, r.enclosed):>7} "
+              f"{r.pct(r.run_same, r.run_compared):>8} {r.pct(r.run_in, r.run_enclosed):>7} "
+              f"{r.pct(r.prov_in, r.prov_compared):>7} {r.pct(r.prov_exact, r.run_compared):>7} {w:>6}")
+        if r.py_raised:
+            kinds = ", ".join(f"{k} ×{n}" for k, n in r.py_raised.items())
+            print(f"{'':24} CPython raised ({kinds}); the runnable twin returned a value on {r.run_silent}; "
+                  f"the provable twin's total model gave a default on {r.prov_silent}")
+        if r.rounding or r.unsupported:
+            print(f"{'':24} {r.rounding} rounding-sensitive branches, {r.unsupported} outside the modelled operations")
+        if r.error:
+            print(f"{'':24} error: {r.error[:200]}")
+        for o in r.outside:
+            print(f"{'':24} OUTSIDE {o}")
+    print("width = median enclosure width in ulps; enclosed = samples whose computation the enclosure models")
+    return 1 if any(r.outside or r.run_silent for r in reports) else 0
+
+
 def cmd_libraries(args) -> int:
     from .api import supported_libraries
 
@@ -383,6 +527,35 @@ def build_parser() -> argparse.ArgumentParser:
     from .typeinfer.cli import add_arguments as _typeinfer_args
     _typeinfer_args(p_typeinfer)
     p_typeinfer.set_defaults(func=cmd_typeinfer)
+
+    p_refute = sub.add_parser(
+        "refute", help="Find counterexamples to property functions and contracts (CPython, runnable and provable twins).")
+    p_refute.add_argument("file")
+    p_refute.add_argument("--only", help="Only this function / theorem.")
+    p_refute.add_argument("--seed", type=int, default=24301)
+    p_refute.add_argument("--time", type=int, default=None,
+                          help="Search budget per obligation, in ms (default: 4000 + tests/2).")
+    p_refute.add_argument("--equiv", action="append", metavar="F=G",
+                          help="Also check f(x) == g(x) on f's inputs (under f's Requires); repeatable.")
+    p_refute.add_argument("--json", action="store_true", help="Machine-readable report.")
+    p_refute.add_argument("--no-cpython-search", action="store_true", help="Skip the CPython-side engines.")
+    p_refute.add_argument("--no-lean-search", action="store_true", help="Skip the Lean-side searches.")
+    p_refute.add_argument("--float-report", action="store_true",
+                          help="Measure both twins' float functions against the IEEE enclosure instead.")
+    p_refute.add_argument("--samples", type=int, default=200, help="Inputs per function for --float-report.")
+    p_refute.add_argument("--stdin", action="store_true",
+                          help="Compare CPython and both twins of a stdin program on generated inputs "
+                               "(automatic when the file has no contracts or properties).")
+    p_refute.add_argument("--against", metavar="REF.py",
+                          help="A reference stdin program (e.g. brute force): find inputs where they differ.")
+    p_refute.add_argument("--stdin-examples", nargs="+", metavar="IN.txt",
+                          help="Example inputs to mutate instead of generating from the reading code.")
+    p_refute.add_argument("--tests", type=int, default=None,
+                          help="Valid inputs per search: precondition-satisfying draws (default 1000), "
+                               "or generated stdin inputs (default 150).")
+    p_refute.add_argument("--negative", action="store_true", help="Generated integers may be negative.")
+    p_refute.add_argument("--heap", action="store_true", help="Translate with reference semantics (stdin mode).")
+    p_refute.set_defaults(func=cmd_refute)
 
     p_libs = sub.add_parser("libraries", help="List Python libraries with a Lean shim.")
     p_libs.set_defaults(func=cmd_libraries)

@@ -47,6 +47,13 @@ Workflow for verifying a Python function:
 2. translate_python. It returns lean_path plus the open proof obligations (theorems ending in
    `taste?`). If `degraded` is true, the relevant logic was replaced by pyUnsupported and cannot be
    verified -- restructure the Python (get_guide("verifiable_design")) and translate again.
+   Then find_counterexample: it searches every property function and contract (CPython engines incl.
+   precondition-directed search, Hypothesis and CrossHair, plus both Lean twins). REFUTED means the
+   claim is FALSE -- report it with the witness and do not try to prove it; FLOAT_ONLY /
+   ROUNDING_SENSITIVE / TWIN_DIVERGENCE_* mean a proof over exact ℚ would not cover the float program
+   -- say so (ROUNDING_SENSITIVE: the proved IEEE error enclosure shows the flip is a rounding effect);
+   FIDELITY_BUG is a PastaLean translation bug -- report it; PARTIALITY_GAP means Python raises on the
+   witness while the exact model returns a default -- the proof would hold but the program crashes.
 3. Prove each obligation by editing ONLY the proof after `:= by` (helper lemmas may be added).
    Never change a `def` or a theorem statement. get_guide("proving"), list_proved_examples /
    get_example and search_lemmas show the patterns (mvcgen + loop invariants over cur.prefix.length).
@@ -324,11 +331,104 @@ def build_server():
                 verdicts[t] = {"status": "unproved", "reason": "file has errors", "axioms": axioms[t]}
             else:
                 verdicts[t] = {"status": "proved", "axioms": axioms[t]}
+        # `<t>_counterexample : ¬ type_of% @<t>` proved cleanly means `<t>` is false, not merely unproved.
+        for t in list(verdicts):
+            refuter = verdicts.get(f"{t}_counterexample")
+            if refuter and refuter["status"] == "proved":
+                verdicts[t] = {"status": "refuted", "by": f"{t}_counterexample"}
         faithful = fidelity.get("ok", True)
         all_proved = compiled and faithful and bool(verdicts) and \
             all(v["status"] == "proved" for v in verdicts.values())
         return {"verified": all_proved, "compiled": compiled, "fidelity": fidelity,
                 "theorems": verdicts, "diagnostics": _diagnostics(check)}
+
+    @server.tool()
+    def find_counterexample(source: str | None = None, path: str | None = None, name: str = "program",
+                            only: str | None = None, seed: int = 24301, time_ms: int = 4000,
+                            against_source: str | None = None, against_path: str | None = None,
+                            stdin_examples: list[str] | None = None, negative: bool = False,
+                            tests: int = 1000, equiv: list[str] | None = None) -> dict[str, Any]:
+        """Search for inputs breaking the program's property functions (`def p(x): assert …`, e.g.
+        `assert brute(xs) == fast(xs)`) and contracts (Requires/Ensures). Every witness is judged in the
+        provable twin (exact ℚ), the runnable twin (Float) and CPython, and classified: REFUTED (false
+        everywhere; comes with a kernel-checked `_counterexample` theorem), FLOAT_ONLY, ROUNDING_SENSITIVE,
+        TWIN_DIVERGENCE_*, FIDELITY_BUG, ENCLOSURE_VIOLATION, NONTERMINATION, or NO_COUNTEREXAMPLE. A float
+        witness also carries `ieee_enclosure`: the property re-run over sound IEEE error intervals
+        (`holds` / `violates` for every rounding, `rounding`, or `unsupported:<why>`).
+
+        A stdin program (a `main` reading `input()`) with no contracts is instead run on generated
+        well-formed inputs (or mutations of `stdin_examples`) in CPython and both twins; with
+        `against_source` / `against_path` (e.g. a brute-force reference) it looks for inputs on which
+        the two programs print differently (PROGRAM_DIFF, confirmed in both Lean worlds). `negative`
+        lets generated integers be negative.
+
+        `tests` is how many inputs satisfying the `Requires` each search runs (draws are generated from
+        the preconditions, and rejected ones do not count). `equiv` (e.g. ["brute=fast"]) also checks
+        `brute(x) == fast(x)` on brute's inputs, without writing a property function. A contract
+        witness reports what the function returned and which Ensures it broke: either the code or that
+        Ensures is wrong."""
+        from .refute import EXPLAIN, refute_source
+        from .refute.obligations import collect, reads_stdin
+
+        text, _ = _resolve_source(source, path, name)
+        against = against_source
+        if against is None and against_path:
+            against, _ = _resolve_source(None, against_path, "reference")
+        if against or stdin_examples or (not collect(text) and reads_stdin(text)):
+            from .refute.stdin import refute_stdin
+
+            rep = refute_stdin(text, session=_STATE.session(), against=against, examples=stdin_examples,
+                               seed=seed, negative=negative)
+            return {"ok": rep.error is None, "error": rep.error, "found": rep.found, "stdin": True,
+                    "tested": rep.tested, "rejected": rep.rejected, "notes": rep.notes, "seed": seed,
+                    "findings": [{"verdict": f.verdict, "explanation": EXPLAIN.get(f.verdict, ""),
+                                  "note": f.note, "input": f.input,
+                                  "worlds": {w: o.show() for w, o in f.worlds.items()}}
+                                 for f in rep.findings]}
+        pairs = [tuple(p.split("=", 1)) for p in (equiv or []) if "=" in p]
+        report = refute_source(text, session=_STATE.session(), seed=seed, only=only, tests=tests,
+                               equiv=pairs, time_ms=time_ms if time_ms != 4000 else None)
+        out = []
+        for o in report.obligations:
+            entry = {"function": o.name, "theorem": o.theorem, "kind": o.kind, "verdict": o.verdict}
+            if o.witness is not None:
+                w = o.witness
+                entry.update({
+                    "witness": dict(zip(o.params, w.python)), "witness_lits": w.lits,
+                    "explanation": EXPLAIN.get(o.verdict, ""),
+                    "worlds": {"provable": w.prov, "runnable": w.run, "cpython": w.py},
+                    "exception": w.exc, "found_by": w.origin, "ieee_enclosure": w.interval,
+                    "explain": w.explain})
+            py = o.searches.get("cpython") or {}
+            entry["searched"] = {"valid_inputs": py.get("valid"), "rejected_by_requires": py.get("rejected"),
+                                 "generated_from": py.get("plan")}
+            if o.kernel_proof:
+                thm = o.theorem or o.name
+                entry["refutation_theorem"] = (f"theorem {thm}_counterexample : ¬ type_of% @{thm} := by\n"
+                                               f"  {o.kernel_proof}")
+            if o.error:
+                entry["error"] = o.error
+            out.append(entry)
+        return {"ok": report.error is None, "error": report.error, "found": report.found,
+                "obligations": out, "seed": seed}
+
+    @server.tool()
+    def float_model_report(source: str | None = None, path: str | None = None, name: str = "program",
+                           samples: int = 200, seed: int = 24301) -> dict[str, Any]:
+        """How faithfully each `-> float` function is modelled: on sampled inputs, CPython's result, the
+        runnable twin's (Float) and the provable twin's (exact ℚ) against the proved IEEE error enclosure
+        of the exact result. CPython must always lie inside (else the enclosure is wrong); the runnable
+        twin should equal CPython bit for bit; `median_width` (ulps) is how far an exact-ℚ proof's value
+        can be from the float one. `run_silent` counts inputs where CPython raised but the runnable twin
+        returned a value (a fidelity gap); `prov_silent` those where the provable twin's total model gave
+        a default instead (a proof there says nothing about the crash)."""
+        import dataclasses
+
+        from .refute.floatreport import float_report
+
+        text, _ = _resolve_source(source, path, name)
+        reports = float_report(text, session=_STATE.session(), samples=samples, seed=seed)
+        return {"functions": [{**dataclasses.asdict(r), "median_width": r.median_width} for r in reports]}
 
     @server.tool()
     def run_differential(source: str | None = None, path: str | None = None, name: str = "program",

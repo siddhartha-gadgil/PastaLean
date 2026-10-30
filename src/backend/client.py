@@ -294,9 +294,22 @@ class LeanBackendClient:
         assert; return the parsed JSON carrying the ordered list of winning tactic strings
         (`winners`). Uses a long timeout because this elaborates the whole program — a
         `nlinarith`/`grind` search would blow past the ordinary per-request budget."""
+        return self._long_task({"task": "proveFile", "code": code}, timeout)
+
+    def refute(self, code, targets, witnesses=None, config=None, timeout=DEFAULT_PROVE_TIMEOUT, evals=None):
+        """Search for and cross-check counterexamples in both Lean worlds (the `refute` task): `targets`
+        name each obligation's theorem / checker constants, `witnesses` are inputs found elsewhere (e.g.
+        by a CPython search) to evaluate in both twins, `evals` functions to evaluate at given inputs.
+        See `PastaLean/PyVerify/Refute/Task.lean`."""
+        payload = {"task": "refute", "code": code, "targets": targets,
+                   "witnesses": witnesses or [], "config": config or {}, "evals": evals or []}
+        return self._long_task(payload, timeout)
+
+    def _long_task(self, payload, timeout):
+        """One whole-file request with a long budget; `None` (and a restarted backend) on no answer."""
         self.start()
         assert self.proc is not None and self.proc.stdin is not None
-        json_task = json.dumps({"task": "proveFile", "code": code}, separators=(",", ":"))
+        json_task = json.dumps(payload, separators=(",", ":"))
         try:
             self.proc.stdin.write(json_task + "\n")
             self.proc.stdin.flush()
@@ -307,14 +320,14 @@ class LeanBackendClient:
         budget = timeout if self._warm else timeout + self.startup_timeout
         line = self._read_response(budget)
         if line is None:
-            logger.debug("proveFile got no response in %ss; leaving taste? in place.", budget)
+            logger.debug("%s got no response in %ss.", payload.get("task"), budget)
             self.close()
             return None
         self._warm = True
         try:
             return json.loads(line)
         except json.JSONDecodeError as err:
-            logger.debug("proveFile returned invalid JSON: %s", err)
+            logger.debug("%s returned invalid JSON: %s", payload.get("task"), err)
             return None
 
     def infer_types(self, ast_json, timeout=None):

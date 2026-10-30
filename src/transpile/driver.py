@@ -1763,6 +1763,34 @@ def _splice_taste_winners(code, winners):
         i += 1
     return "".join(out)
 
+_USER_NAMESPACE = "PastaLean.User.Root"
+
+
+def _append_counterexample_theorems(code, counterexamples):
+    """For each goal `taste?` refuted with a kernel-checked counterexample, add
+    `theorem <t>_counterexample : ¬ type_of% @<t> := by refute_at …` before the namespace closes, and
+    drop `@[taste_ingr]` from `<t>`: a false, sorry'd statement must not join the simp set later proofs
+    draw on. `type_of%` reads only the statement, so the new theorem does not depend on `<t>`'s sorry."""
+    blocks = []
+    for cex in counterexamples:
+        decl = cex.get("decl") or ""
+        short = decl[len(_USER_NAMESPACE) + 1:] if decl.startswith(_USER_NAMESPACE + ".") else decl
+        proof = cex.get("proof") or ""
+        if not short or not proof:
+            continue
+        names = [b.get("name", "?") for b in cex.get("binders") or []]
+        witness = ", ".join(f"{n} = {v}" for n, v in zip(names, cex.get("python") or []))
+        code = re.sub(rf"@\[taste_ingr\]\s*\n(\s*theorem\s+{re.escape(short)}\b)", r"\1", code)
+        blocks.append(f"-- `{short}` is false: counterexample {witness} (Python values).\n"
+                      f"theorem {short}_counterexample : ¬ type_of% @{short} := by\n  {proof}")
+    if not blocks:
+        return code
+    end = f"end {_USER_NAMESPACE}"
+    idx = code.rfind(end)
+    insert = "\n\n".join(blocks) + "\n\n"
+    return code[:idx] + insert + code[idx:] if idx >= 0 else code + "\n\n" + insert
+
+
 def _newline_before_mvcgen_with(code):
     """Put a contract spec's `mvcgen … invariants` closer on its own line: the pretty-printer glues
     `with <closer>` straight onto the last `⌜…⌝` invariant bullet (rendering `…⌝with taste?`), which
@@ -2334,15 +2362,18 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
             # Prove-and-replace pass: elaborate the assembled file in the warm backend so `taste?`
             # searches each assert, then splice the concrete winning tactic (or `sorry`) over each
             # `taste?`. Non-destructive — on any failure we leave the `taste?` obligations in place.
+            counterexamples = []
             if prove_asserts and "taste?" in full_code:
                 resp = client.prove_file(full_code)
                 if resp and resp.get("result") and isinstance(resp.get("winners"), list):
                     full_code = _splice_taste_winners(full_code, resp["winners"])
+                    counterexamples = [c for c in resp.get("counterexamples") or [] if c.get("kernel")]
+                    full_code = _append_counterexample_theorems(full_code, counterexamples)
                     if resp.get("hasErrors"):
                         logger.warning("proveFile reported elaboration errors; some asserts may be left `sorry`.")
                 else:
                     logger.warning("proveFile pass unavailable/failed; leaving `taste?` obligations in place.")
-            return {"result": True, f"lean_{target}": full_code}
+            return {"result": True, f"lean_{target}": full_code, "counterexamples": counterexamples}
 
         if len(body) == 1:
             result = invoke_lean_backend(body[0], target, client=client)

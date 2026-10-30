@@ -3,6 +3,7 @@ import PastaLean.PyAPI.Operators
 import PastaLean.PyAPI.PyAnyProof
 import PastaLean.PyVerify.Pastafolio
 import PastaLean.PyVerify.HelperLemmas
+import PastaLean.PyVerify.Refute
 
 open Lean Elab Tactic Meta
 open PastaLean.Pastafolio
@@ -95,6 +96,11 @@ def tasteProfile : Profile where
 syntax (name := tasteStx) "taste?" : tactic
 
 @[tactic tasteStx]
-def evalTaste : Tactic := fun stx => runPastafolio tasteProfile stx
+def evalTaste : Tactic := fun stx => do
+  if Refute.pastalean.taste.skip.get (← getOptions) then
+    admitGoal (← getMainGoal); return
+  -- A counterexample first: a false goal is reported and admitted instead of searched.
+  if ← Refute.tastePrecheck stx then return
+  runPastafolio tasteProfile stx
 
 end PastaLean

@@ -93,6 +93,7 @@ def runProveFileTask (jsonTask : Json) (env : Environment) : IO Json := do
   let .ok code := jsonTask.getObjValAs? String "code"
     | return errorResponse "proveFile: missing 'code' field or it is not a string"
   PastaLean.tasteWinnersRef.set #[]
+  PastaLean.Refute.tasteCounterexamplesRef.set #[]
   let src := stripImports code
   -- `stripImports` drops the leading `import …` lines, so byte offsets recorded against `src` are
   -- shifted left by exactly those removed prefix bytes. Add them back so each winner's `pos` is an
@@ -102,13 +103,49 @@ def runProveFileTask (jsonTask : Json) (env : Environment) : IO Json := do
   let cmdState := Command.mkState env {} {}
   let frontendState ← Lean.Elab.IO.processCommands inputCtx {} cmdState
   let winners ← PastaLean.tasteWinnersRef.get
+  let counterexamples ← PastaLean.Refute.tasteCounterexamplesRef.get
   let hasErrors := frontendState.commandState.messages.hasErrors
   pure <| Json.mkObj [
     ("result", Json.bool true),
     ("winners", Json.arr (winners.map (fun (off, p) =>
       Json.mkObj [("pos", toJson (off + shift)), ("proof", Json.str p)]))),
+    -- Goals `taste?` refuted (kernel-checked) instead of proving; each carries its `refute_at` line.
+    ("counterexamples", Json.arr (counterexamples.map (fun (off, j) =>
+      j.mergeObj (Json.mkObj [("pos", toJson (off + shift))])))),
     ("hasErrors", Json.bool hasErrors)
   ]
+
+/-- Search for and cross-check counterexamples (see `PastaLean/PyVerify/Refute/Task.lean`). The program is
+elaborated with `taste?` switched off — it is being run, not proved — and every target is then judged in
+both worlds against the resulting environment. -/
+def runRefuteTask (jsonTask : Json) (env : Environment) : IO Json := do
+  let .ok code := jsonTask.getObjValAs? String "code"
+    | return errorResponse "refute: missing 'code' field or it is not a string"
+  let src := "set_option pastalean.taste.skip true\nset_option pastalean.taste.refute false\n" ++ stripImports code
+  let inputCtx := Parser.mkInputContext src "<refute>"
+  let cmdState := Command.mkState env {} {}
+  let frontendState ← Lean.Elab.IO.processCommands inputCtx {} cmdState
+  let env' := frontendState.commandState.env
+  let hasErrors := frontendState.commandState.messages.hasErrors
+  let coreCtx : Core.Context := { fileName := "<refute>", fileMap := default, maxHeartbeats := 0 }
+  -- Generators for user classes among the inputs, elaborated into the environment before searching.
+  let targets := ((jsonTask.getObjValAs? (Array Json) "targets").toOption.getD #[]).map PastaLean.Refute.Target.ofJson
+  let mut instanceErrors : Array String := #[]
+  let cmds ← try
+      let (cs, _) ← ((PastaLean.Refute.structInstanceCommands targets).run' {}).toIO coreCtx { env := env' }
+      pure cs
+    catch e => do instanceErrors := instanceErrors.push s!"generating instances: {e}"; pure #[]
+  let env' ← if cmds.isEmpty then pure env' else do
+    let inputCtx := Parser.mkInputContext ("namespace PastaLean.User.Root\n" ++ "\n\n".intercalate cmds.toList ++ "\nend PastaLean.User.Root\n") "<refute-instances>"
+    let st ← Lean.Elab.IO.processCommands inputCtx {} (Command.mkState env' {} {})
+    for m in st.commandState.messages.toList do
+      if m.severity == .error then instanceErrors := instanceErrors.push (← m.toString)
+    pure st.commandState.env
+  try
+    let (j, _) ← (((PastaLean.Refute.runRefuteTargets jsonTask).run' {} {}).run' {}).toIO coreCtx { env := env' }
+    pure (j.mergeObj (Json.mkObj [("hasErrors", Json.bool hasErrors),
+      ("generatedInstances", toJson cmds), ("instanceErrors", toJson instanceErrors)]))
+  catch e => pure (errorResponse s!"refute: {e}")
 
 /-- Whole-module type inference: stamp `_ty` on binders using interprocedural (return-type) flow,
 so a later per-statement `translate` sees types a single statement couldn't reveal. Returns the
@@ -134,6 +171,7 @@ def handleTaskJson (jsonTask : Json) (ctx : Core.Context) (env : Environment) : 
   | "translate" => runTranslateTask jsonTask ctx env
   | "inferTypes" => runInferTypesTask jsonTask
   | "proveFile" => runProveFileTask jsonTask env
+  | "refute" => runRefuteTask jsonTask env
   -- Library facts the Python driver needs but that must not be duplicated there.
   | "libraryInfo" =>
       pure <| Json.mkObj [
