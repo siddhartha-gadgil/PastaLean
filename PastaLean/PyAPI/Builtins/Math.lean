@@ -1,4 +1,5 @@
 import PastaLean.Imports
+import PastaLean.PyAPI.FloatOps
 
 namespace PastaLean
 
@@ -49,7 +50,7 @@ def pyAbs {α : Type} [PyAbs α] (x : α) : α := PyAbs.pyAbs x
 
 instance : PyAbs Int where pyAbs x := if x < 0 then -x else x
 instance : PyAbs Nat where pyAbs x := x
-instance : PyAbs Float where pyAbs x := if x < 0.0 then -x else x
+instance : PyAbs Float where pyAbs x := x.abs
 instance : PyAbs Rat where pyAbs x := if x < 0 then -x else x
 
 /-! ### `divmod` -/
@@ -62,20 +63,8 @@ def pyDivmod (a b : Int) : Int × Int :=
 
 /-! ### `round` -/
 
-/-- Convert an integral `Float` to an `Int` (truncating toward zero, faithful for both signs). -/
-private def floatIntegralToInt (f : Float) : Int :=
-  if f ≥ 0.0 then Int.ofNat f.toUInt64.toNat
-  else -(Int.ofNat (-f).toUInt64.toNat)
-
-/-- Round a `Float` to the nearest integer using round-half-to-even ("banker's rounding"),
-matching Python's `round(x)` (which returns an `int`). -/
-def pyRound (x : Float) : Int :=
-  let fl := x.floor
-  let flI := floatIntegralToInt fl
-  let diff := x - fl  -- in [0, 1)
-  if diff < 0.5 then flI
-  else if diff > 0.5 then flI + 1
-  else if flI % 2 == 0 then flI else flI + 1  -- exactly .5 → round to even
+/-- Python `round(x)` on a float: an int, ties to even, exact for any magnitude. -/
+def pyRound (x : Float) : Int := pyFloatRoundInt x
 
 /-- Python `round(x, ndigits)`: round to `ndigits` decimal places, staying in the same numeric type.
 Polymorphic so the exact/real twin (`x : ℝ`, e.g. `round(area ** 0.5, 2)` where a root is irrational)
@@ -83,11 +72,7 @@ rounds in `ℝ`, while the run twin rounds in `Float`. -/
 class PyRoundDigitsC (α : Type) where
   pyRoundDigits : α → Int → α
 
-def pyRoundDigitsFloat (x : Float) (ndigits : Int) : Float :=
-  let p : Float := (10.0 : Float) ^ (Float.ofInt ndigits)
-  let scaled := x * p
-  -- round-half-to-even on the scaled value, then unscale
-  (Float.ofInt (pyRound scaled)) / p
+def pyRoundDigitsFloat (x : Float) (ndigits : Int) : Float := pyFloatRoundDigits x ndigits
 
 /-- Round `x` to the nearest integer, ties to even (Python's `round`). Mathlib's `round` is
 half-*up*, so ties like `round(0.5)`/`round(2.5)` diverge from Python; this reproduces the

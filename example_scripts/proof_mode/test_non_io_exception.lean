@@ -31,7 +31,7 @@ attribute [simp] divide
 def divide'rn := fun a ↦ fun b ↦
   ((do
       try
-        let p'_ret_1 := PastaLean.pyFloat a /ₚ b
+        let p'_ret_1 := PastaLean.pyTrueDiv a b
         return p'_ret_1
       catch caught =>
         if Bool.true then 

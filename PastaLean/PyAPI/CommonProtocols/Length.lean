@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace PastaLean
@@ -35,6 +36,6 @@ instance [BEq α] [Hashable α] : PyLen (Std.HashMap α β) where
 instance {α : Type} [PyLen α] : PyLen (Option α) where
   pyLen
     | some x => pyLen x
-    | none   => panic! "TypeError: object of type 'NoneType' has no len()"
+    | none   => PastaLean.pyPanic "TypeError: object of type 'NoneType' has no len()"
 
 end PastaLean

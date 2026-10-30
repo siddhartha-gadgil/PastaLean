@@ -1,4 +1,6 @@
 import PastaLean.Imports
+import PastaLean.PyAPI.PyPanic
+import PastaLean.PyAPI.FloatOps
 import PastaLean.PyAPI.TasteIngr
 
 namespace PastaLean
@@ -53,8 +55,8 @@ instance (priority := high) {α : Type} : PyHAdd (List α) (List α) (List α) w
 Python makes one list of the widened element, so we coerce the `int` side and concatenate. -/
 instance (priority := high) : PyHAdd (List Int) (List Rat)   (List Rat)   where hAdd xs ys := xs.map (Int.cast) ++ ys
 instance (priority := high) : PyHAdd (List Rat) (List Int)   (List Rat)   where hAdd xs ys := xs ++ ys.map (Int.cast)
-instance (priority := high) : PyHAdd (List Int) (List Float) (List Float) where hAdd xs ys := xs.map Float.ofInt ++ ys
-instance (priority := high) : PyHAdd (List Float) (List Int) (List Float) where hAdd xs ys := xs ++ ys.map Float.ofInt
+instance (priority := high) : PyHAdd (List Int) (List Float) (List Float) where hAdd xs ys := xs.map pyIntToFloat ++ ys
+instance (priority := high) : PyHAdd (List Float) (List Int) (List Float) where hAdd xs ys := xs ++ ys.map pyIntToFloat
 
 /-- Array concatenation, so an array-backed `[base] + [x]*n` DP-init (`f = [1] + [0]*n`) stays an
 `Array` — keeping the loop's `f[i] = v` O(1) instead of the `List` O(n) that turns the DP O(n²). -/
@@ -187,7 +189,7 @@ infixl:70 " %ₚ " => PyModulo.hMod
 
 def pyMod (a b : Int) : Int :=
   if b == 0 then
-    a
+    pyRaiseOr "ZeroDivisionError: integer modulo by zero" a
   else
     let r := a % b
     if (r < 0 && b > 0) || (r > 0 && b < 0) then
@@ -211,16 +213,16 @@ truncating `%`. So `(-5.5 : ℚ) % 2 = 0.5`. -/
 def pyRatMod (a b : Rat) : Rat := if b == 0 then a else a - b * ((⌊a / b⌋ : Int) : Rat)
 
 /-- Python `%` on floats (floored, divisor-signed) — see `pyRatMod`. -/
-def pyFloatMod (a b : Float) : Float := if b == 0.0 then a else a - b * (a / b).floor
+def pyFloatMod (a b : Float) : Float := pyFloatModPy a b
 
 instance : PyModulo Rat Rat Rat where hMod := pyRatMod
 instance : PyModulo Float Float Float where hMod := pyFloatMod
 
 -- Mixed `%` promotes to the wider computable type (as `/ₚ` does), keeping Python's floor semantics.
-instance (priority := high) : PyModulo Float Int Float where hMod a b := pyFloatMod a (Float.ofInt b)
-instance (priority := high) : PyModulo Int Float Float where hMod a b := pyFloatMod (Float.ofInt a) b
-instance (priority := high) : PyModulo Float Nat Float where hMod a b := pyFloatMod a (Float.ofNat b)
-instance (priority := high) : PyModulo Nat Float Float where hMod a b := pyFloatMod (Float.ofNat a) b
+instance (priority := high) : PyModulo Float Int Float where hMod a b := pyFloatMod a (pyIntToFloat b)
+instance (priority := high) : PyModulo Int Float Float where hMod a b := pyFloatMod (pyIntToFloat a) b
+instance (priority := high) : PyModulo Float Nat Float where hMod a b := pyFloatMod a (pyIntToFloat (b : Int))
+instance (priority := high) : PyModulo Nat Float Float where hMod a b := pyFloatMod (pyIntToFloat (a : Int)) b
 instance (priority := high) : PyModulo Rat Int Rat where hMod a b := pyRatMod a (b : Rat)
 instance (priority := high) : PyModulo Int Rat Rat where hMod a b := pyRatMod (a : Rat) b
 instance (priority := high) : PyModulo Rat Nat Rat where hMod a b := pyRatMod a (b : Rat)
@@ -233,8 +235,8 @@ instance (priority := high) : PyModulo Int Bool Int where hMod a b := pyMod a (p
 instance : PyModulo Bool Bool Int where hMod a b := pyMod (pyBoolToInt a) (pyBoolToInt b)
 instance (priority := high) : PyModulo Nat Bool Int where hMod a b := pyMod (a : Int) (pyBoolToInt b)
 instance (priority := high) : PyModulo Bool Nat Int where hMod a b := pyMod (pyBoolToInt a) (b : Int)
-instance (priority := high) : PyModulo Rat Float Float where hMod a b := pyFloatMod (Rat.toFloat a) b
-instance (priority := high) : PyModulo Float Rat Float where hMod a b := pyFloatMod a (Rat.toFloat b)
+instance (priority := high) : PyModulo Rat Float Float where hMod a b := pyFloatMod (ratToFloatRound a) b
+instance (priority := high) : PyModulo Float Rat Float where hMod a b := pyFloatMod a (ratToFloatRound b)
 
 @[default_instance]
 instance {α β γ} [HPow α β γ] : PyHPow α β γ where
@@ -261,7 +263,7 @@ instance : PyHPow Nat Nat Nat where
 /-- Python `a ** b` with a float exponent (e.g. `n ** 0.5` for a square root) yields a float.
 The base is widened to `Float`; the common idiom is `int(n ** 0.5)`. -/
 instance (priority := high) : PyHPow Int Float Float where
-  hPow := fun a b => Float.pow (Float.ofInt a) b
+  hPow := fun a b => pyFloatPow (pyIntToFloat a) b
 
 -- In exact mode a literal like `0.5` is a `Rat`, so `n ** 0.5` is `Int ^ Rat` — a root, which is
 -- irrational, so the provable type is noncomputable `ℝ` (via `rpow`), NOT `Float`. The approx twin
@@ -270,11 +272,11 @@ noncomputable instance (priority := high) : PyHPow Int Rat Real where
   hPow := fun a b => Real.rpow (a : ℝ) (b : ℝ)
 
 instance (priority := high) : PyHPow Float Float Float where
-  hPow := fun a b => Float.pow a b
+  hPow := pyFloatPow
 
 -- Float base with an integer exponent (`x ** 2`); `Nat ** Int` takes the exponent non-negative.
-instance (priority := high) : PyHPow Float Int Float where hPow a b := Float.pow a (Float.ofInt b)
-instance (priority := high) : PyHPow Float Nat Float where hPow a b := Float.pow a (Float.ofNat b)
+instance (priority := high) : PyHPow Float Int Float where hPow a b := pyFloatPow a (pyIntToFloat b)
+instance (priority := high) : PyHPow Float Nat Float where hPow a b := pyFloatPow a (pyIntToFloat (b : Int))
 instance (priority := high) : PyHPow Nat Int Nat where hPow a b := a ^ b.toNat
 
 -- `**` mixes missing from the tower. A rational/`Nat` base with a rational exponent is generally
@@ -283,9 +285,9 @@ instance (priority := high) : PyHPow Nat Int Nat where hPow a b := a ^ b.toNat
 -- instances above.)
 noncomputable instance (priority := high) : PyHPow Rat Rat Real where hPow a b := Real.rpow (a : ℝ) (b : ℝ)
 noncomputable instance (priority := high) : PyHPow Nat Rat Real where hPow a b := Real.rpow (a : ℝ) (b : ℝ)
-instance (priority := high) : PyHPow Nat Float Float where hPow a b := Float.pow (Float.ofNat a) b
-instance (priority := high) : PyHPow Rat Float Float where hPow a b := Float.pow (Rat.toFloat a) b
-instance (priority := high) : PyHPow Float Rat Float where hPow a b := Float.pow a (Rat.toFloat b)
+instance (priority := high) : PyHPow Nat Float Float where hPow a b := pyFloatPow (pyIntToFloat (a : Int)) b
+instance (priority := high) : PyHPow Rat Float Float where hPow a b := pyFloatPow (ratToFloatRound a) b
+instance (priority := high) : PyHPow Float Rat Float where hPow a b := pyFloatPow a (ratToFloatRound b)
 
 @[default_instance]
 instance (priority := high) : Neg Rat where
@@ -320,37 +322,46 @@ instance (priority := high) : PyHDiv Nat Nat Rat where
 instance (priority := high) : PyHDiv Rat Rat Rat where
   hDiv := fun a b => (a : Rat) / (b : Rat)
 
+/-- Python float `/`: a zero divisor raises `ZeroDivisionError` (IEEE would give `±inf`/`nan`). -/
+def pyFloatDiv (a b : Float) : Float :=
+  if b == 0.0 then pyPanic "ZeroDivisionError: float division by zero" else a / b
+
+instance (priority := high) : PyHDiv Float Float Float where hDiv := pyFloatDiv
+
 -- Python true division `/` always yields a float when a float is involved. `pyLen`/`int` operands
 -- are `Int`, so e.g. `total / len(xs)` is `Float / Int`; these instances cover the mixed cases.
 instance (priority := high) : PyHDiv Float Int Float where
-  hDiv := fun a b => a / Rat.toFloat (b : Rat)
+  hDiv := fun a b => pyFloatDiv a (pyIntToFloat (b : Int))
 
 instance (priority := high) : PyHDiv Int Float Float where
-  hDiv := fun a b => Rat.toFloat (a : Rat) / b
+  hDiv := fun a b => pyFloatDiv (pyIntToFloat (a : Int)) b
 
 instance (priority := high) : PyHDiv Float Nat Float where
-  hDiv := fun a b => a / Rat.toFloat (b : Rat)
+  hDiv := fun a b => pyFloatDiv a (pyIntToFloat (b : Int))
 
 instance (priority := high) : PyHDiv Nat Float Float where
-  hDiv := fun a b => Rat.toFloat (a : Rat) / b
+  hDiv := fun a b => pyFloatDiv (pyIntToFloat (a : Int)) b
+
+instance (priority := high) : PyHDiv Rat Float Float where hDiv a b := pyFloatDiv (ratToFloatRound a) b
+instance (priority := high) : PyHDiv Float Rat Float where hDiv a b := pyFloatDiv a (ratToFloatRound b)
 
 /-! Mixed `Float`/`Int` and `Float`/`Nat` `+`/`-`/`*` (Python promotes the integer to float).
 Lean has no heterogeneous `HAdd Float Int` etc., so these are needed whenever an integer literal
 or a `len()`/`int()` result meets a float — e.g. `1 - g / k`, `grass[i] + 1`, `2 * x`. -/
-instance (priority := high) : PyHAdd Float Int Float where hAdd a b := a + Rat.toFloat (b : Rat)
-instance (priority := high) : PyHAdd Int Float Float where hAdd a b := Rat.toFloat (a : Rat) + b
-instance (priority := high) : PyHAdd Float Nat Float where hAdd a b := a + Rat.toFloat (b : Rat)
-instance (priority := high) : PyHAdd Nat Float Float where hAdd a b := Rat.toFloat (a : Rat) + b
+instance (priority := high) : PyHAdd Float Int Float where hAdd a b := a + pyIntToFloat (b : Int)
+instance (priority := high) : PyHAdd Int Float Float where hAdd a b := pyIntToFloat (a : Int) + b
+instance (priority := high) : PyHAdd Float Nat Float where hAdd a b := a + pyIntToFloat (b : Int)
+instance (priority := high) : PyHAdd Nat Float Float where hAdd a b := pyIntToFloat (a : Int) + b
 
-instance (priority := high) : PyHSub Float Int Float where hSub a b := a - Rat.toFloat (b : Rat)
-instance (priority := high) : PyHSub Int Float Float where hSub a b := Rat.toFloat (a : Rat) - b
-instance (priority := high) : PyHSub Float Nat Float where hSub a b := a - Rat.toFloat (b : Rat)
-instance (priority := high) : PyHSub Nat Float Float where hSub a b := Rat.toFloat (a : Rat) - b
+instance (priority := high) : PyHSub Float Int Float where hSub a b := a - pyIntToFloat (b : Int)
+instance (priority := high) : PyHSub Int Float Float where hSub a b := pyIntToFloat (a : Int) - b
+instance (priority := high) : PyHSub Float Nat Float where hSub a b := a - pyIntToFloat (b : Int)
+instance (priority := high) : PyHSub Nat Float Float where hSub a b := pyIntToFloat (a : Int) - b
 
-instance (priority := high) : PyHMul Float Int Float where hMul a b := a * Rat.toFloat (b : Rat)
-instance (priority := high) : PyHMul Int Float Float where hMul a b := Rat.toFloat (a : Rat) * b
-instance (priority := high) : PyHMul Float Nat Float where hMul a b := a * Rat.toFloat (b : Rat)
-instance (priority := high) : PyHMul Nat Float Float where hMul a b := Rat.toFloat (a : Rat) * b
+instance (priority := high) : PyHMul Float Int Float where hMul a b := a * pyIntToFloat (b : Int)
+instance (priority := high) : PyHMul Int Float Float where hMul a b := pyIntToFloat (a : Int) * b
+instance (priority := high) : PyHMul Float Nat Float where hMul a b := a * pyIntToFloat (b : Int)
+instance (priority := high) : PyHMul Nat Float Float where hMul a b := pyIntToFloat (a : Int) * b
 
 /-! ## Mixed `ℚ`/`ℝ` (and `ℤ`/`ℕ` with `ℝ`) arithmetic — exact mode
 
@@ -423,12 +434,12 @@ instance : PyNumJoin Rat Nat Rat := .mk2 id (fun n => (n : ℚ))
 instance : PyNumJoin Int Rat Rat := .mk2 (fun n => (n : ℚ)) id
 instance : PyNumJoin Rat Int Rat := .mk2 id (fun n => (n : ℚ))
 -- · ⊂ Float  (ℚ → Float is `Rat.toFloat`; this is the pair the prove/run twin split needs)
-instance : PyNumJoin Nat Float Float := .mk2 (fun n => Float.ofNat n) id
-instance : PyNumJoin Float Nat Float := .mk2 id (fun n => Float.ofNat n)
-instance : PyNumJoin Int Float Float := .mk2 (fun n => Float.ofInt n) id
-instance : PyNumJoin Float Int Float := .mk2 id (fun n => Float.ofInt n)
-instance : PyNumJoin Rat Float Float := .mk2 Rat.toFloat id
-instance : PyNumJoin Float Rat Float := .mk2 id Rat.toFloat
+instance : PyNumJoin Nat Float Float := .mk2 (fun n => pyIntToFloat (n : Int)) id
+instance : PyNumJoin Float Nat Float := .mk2 id (fun n => pyIntToFloat (n : Int))
+instance : PyNumJoin Int Float Float := .mk2 (fun n => pyIntToFloat n) id
+instance : PyNumJoin Float Int Float := .mk2 id (fun n => pyIntToFloat n)
+instance : PyNumJoin Rat Float Float := .mk2 ratToFloatRound id
+instance : PyNumJoin Float Rat Float := .mk2 id ratToFloatRound
 
 -- One generic instance per operator derives `+ - * /` for every `PyNumJoin` pair. Project through
 -- the named `j` (its `β` is fixed) — a bare `PyNumJoin.coeL a` would leave `β` a metavar.
@@ -448,20 +459,20 @@ class PyFloorDiv (α β : Type) (γ : outParam Type) where floorDiv : α → β 
 def pyFloorDiv {α β γ : Type} [PyFloorDiv α β γ] (a : α) (b : β) : γ := PyFloorDiv.floorDiv a b
 
 instance : PyFloorDiv Int Int Int where
-  floorDiv a b := if b == 0 then panic! "ZeroDivisionError: integer division or modulo by zero" else Int.fdiv a b
+  floorDiv a b := if b == 0 then PastaLean.pyPanic "ZeroDivisionError: integer division or modulo by zero" else Int.fdiv a b
 
 /-! Python `//` is floor division for EVERY numeric type, not just `int`: `7.0 // 2 = 3.0` (float),
 `len(a) // len(b)` (the operands are `Nat`), and the exact-mode rational/mixed cases. `PyNumJoin`
 only auto-derives `+ - * /`, so each `//` pair is spelled out. Result type follows Python: a float
 operand keeps the result float, otherwise it stays in the integer/rational domain. -/
-instance : PyFloorDiv Float Float Float where floorDiv a b := (a / b).floor
+instance : PyFloorDiv Float Float Float where floorDiv := pyFloatFloorDivPy
 instance : PyFloorDiv Rat Rat Rat where floorDiv a b := if b == 0 then a else ((⌊a / b⌋ : Int) : Rat)
 instance : PyFloorDiv Nat Nat Nat where floorDiv a b := a / b
 -- Float with an integer operand → Float (Python promotes).
-instance : PyFloorDiv Float Int Float where floorDiv a b := (a / Float.ofInt b).floor
-instance : PyFloorDiv Int Float Float where floorDiv a b := (Float.ofInt a / b).floor
-instance : PyFloorDiv Float Nat Float where floorDiv a b := (a / Float.ofNat b).floor
-instance : PyFloorDiv Nat Float Float where floorDiv a b := (Float.ofNat a / b).floor
+instance : PyFloorDiv Float Int Float where floorDiv a b := pyFloatFloorDivPy a (pyIntToFloat b)
+instance : PyFloorDiv Int Float Float where floorDiv a b := pyFloatFloorDivPy (pyIntToFloat a) b
+instance : PyFloorDiv Float Nat Float where floorDiv a b := pyFloatFloorDivPy a (pyIntToFloat (b : Int))
+instance : PyFloorDiv Nat Float Float where floorDiv a b := pyFloatFloorDivPy (pyIntToFloat (a : Int)) b
 -- Rat with an integer operand → Rat (exact mode).
 instance : PyFloorDiv Rat Int Rat where floorDiv a b := if b == 0 then a else ((⌊a / (b : Rat)⌋ : Int) : Rat)
 instance : PyFloorDiv Int Rat Rat where floorDiv a b := if b == 0 then (a : Rat) else ((⌊(a : Rat) / b⌋ : Int) : Rat)

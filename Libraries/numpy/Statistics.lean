@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import Libraries.math.MathDef
 import Libraries.numpy.NumpyDef
 
@@ -34,12 +35,12 @@ def pyNumpyArgsortFloats : List Float -> List Nat :=
 
 /-- Helper for reductions on nonempty float lists. -/
 def pyNumpyReduceFloats (f : Float -> Float -> Float) : List Float -> Float
-  | [] => panic! "ValueError: reduction on an empty list"
+  | [] => PastaLean.pyPanic "ValueError: reduction on an empty list"
   | x :: xs => xs.foldl f x
 
 /-- Helper for indexed argmin/argmax. -/
 def pyNumpyArgReduceFloats (better : Float -> Float -> Bool) : List Float -> Nat
-  | [] => panic! "ValueError: reduction on an empty list"
+  | [] => PastaLean.pyPanic "ValueError: reduction on an empty list"
   | x :: xs =>
       let rec go (best : Float) (bestIdx curIdx : Nat) : List Float -> Nat
         | [] => bestIdx
@@ -62,7 +63,7 @@ def pyNumpySumVec {α} [PyNumpyScalar α] (xs : List α) : Float :=
 def pyNumpyMeanVec {α} [PyNumpyScalar α] (xs : List α) : Float :=
   let ys := pyNumpyToFloats xs
   if ys.isEmpty then
-    panic! "ValueError: mean() of an empty list is undefined"
+    PastaLean.pyPanic "ValueError: mean() of an empty list is undefined"
   else
     ys.foldl (· + ·) 0.0 / Rat.toFloat (ys.length : Rat)
 
@@ -86,7 +87,7 @@ def pyNumpyArgmax {α} [PyNumpyScalar α] (xs : List α) : Nat :=
 def pyNumpyMedian {α} [PyNumpyScalar α] (xs : List α) : Float :=
   let ys := pyNumpySortFloats (pyNumpyToFloats xs)
   match ys.length with
-  | 0 => panic! "ValueError: median() of an empty list is undefined"
+  | 0 => PastaLean.pyPanic "ValueError: median() of an empty list is undefined"
   | n + 1 =>
       if (n + 1) % 2 = 1 then
         ys.getD ((n + 1) / 2) 0.0
@@ -99,7 +100,7 @@ def pyNumpyMedian {α} [PyNumpyScalar α] (xs : List α) : Float :=
 def pyNumpyVar {α} [PyNumpyScalar α] (xs : List α) : Float :=
   let ys := pyNumpyToFloats xs
   if ys.isEmpty then
-    panic! "ValueError: var() of an empty list is undefined"
+    PastaLean.pyPanic "ValueError: var() of an empty list is undefined"
   else
     let μ := ys.foldl (· + ·) 0.0 / Rat.toFloat (ys.length : Rat)
     ys.foldl (fun acc x => acc + (x - μ) * (x - μ)) 0.0 / Rat.toFloat (ys.length : Rat)
@@ -120,7 +121,7 @@ between the two surrounding samples. (`np.percentile([1,2,3,4], 50) = 2.5`.) -/
 def pyNumpyPercentile {α} [PyNumpyScalar α] (xs : List α) (p : Float) : Float :=
   let ys := pyNumpySortFloats (pyNumpyToFloats xs)
   match ys.length with
-  | 0 => panic! "ValueError: percentile() of an empty list is undefined"
+  | 0 => PastaLean.pyPanic "ValueError: percentile() of an empty list is undefined"
   | n + 1 =>
       let p' := if p < 0.0 then 0.0 else if p > 100.0 then 100.0 else p
       let rank := (p' / 100.0) * Rat.toFloat (n : Rat)
@@ -230,7 +231,7 @@ def pyNumpyIsclose {α β} [PyNumpyScalar α] [PyNumpyScalar β]
   if lhs.length = rhs.length then
     List.zipWith (fun x y => Float.abs (x - y) ≤ tol) lhs rhs
   else
-    panic! "ValueError: isclose() expects equal-length lists"
+    PastaLean.pyPanic "ValueError: isclose() expects equal-length lists"
 
 /-- Sort a list of scalars. -/
 def pyNumpySort {α} [PyNumpyScalar α] (xs : List α) : List Float :=
@@ -271,10 +272,10 @@ def pyNumpyWhere {α} [PyNumpyScalar α] (cond : List Bool) (x y : List α) : Li
     let rec go : List Bool -> List Float -> List Float -> List Float
       | [], [], [] => []
       | c :: cs, tx :: xs, fx :: ys => (if c then tx else fx) :: go cs xs ys
-      | _, _, _ => panic! "ValueError: where() expects equal-length lists"
+      | _, _, _ => PastaLean.pyPanic "ValueError: where() expects equal-length lists"
     go cond lhs rhs
   else
-    panic! "ValueError: where() expects equal-length lists"
+    PastaLean.pyPanic "ValueError: where() expects equal-length lists"
 
 /-- Indices of nonzero values. -/
 def pyNumpyNonzero {α} [PyNumpyScalar α] (xs : List α) : List Nat :=
@@ -301,7 +302,7 @@ def pyNumpyExtract {α} [PyNumpyScalar α] (cond : List Bool) (xs : List α) : L
   if cond.length = vals.length then
     (List.zipWith (fun c x => if c then some x else none) cond vals).filterMap id
   else
-    panic! "ValueError: extract() expects equal-length lists"
+    PastaLean.pyPanic "ValueError: extract() expects equal-length lists"
 
 /-- Take elements at a list of indices. -/
 def pyNumpyTake {α} [PyNumpyScalar α] (xs : List α) (indices : List Nat) : List Float :=
@@ -327,7 +328,7 @@ def pyNumpyPut {α} [PyNumpyScalar α] (xs : List α) (indices : List Nat) (valu
           | _, _ => x :: go rest idxs repls
       go vals indices reps
   else
-    panic! "ValueError: put() expects equal numbers of indices and values"
+    PastaLean.pyPanic "ValueError: put() expects equal numbers of indices and values"
 
 /-- Product of all elements in a vector (`np.prod`). -/
 def pyNumpyProd {α} [PyNumpyScalar α] (xs : List α) : Float :=
@@ -385,7 +386,7 @@ def pyNumpyAverage {α β} [PyNumpyScalar α] [PyNumpyScalar β]
     (xs : List α) (weights : List β := []) : Float :=
   let vals := pyNumpyToFloats xs
   if vals.isEmpty then
-    panic! "ValueError: average() of an empty list is undefined"
+    PastaLean.pyPanic "ValueError: average() of an empty list is undefined"
   else
     let ws := pyNumpyToFloats weights
     if ws.isEmpty then
@@ -393,18 +394,18 @@ def pyNumpyAverage {α β} [PyNumpyScalar α] [PyNumpyScalar β]
     else if ws.length = vals.length then
       let wsum := ws.foldl (· + ·) 0.0
       if wsum == 0.0 then
-        panic! "ZeroDivisionError: weights sum to zero"
+        PastaLean.pyPanic "ZeroDivisionError: weights sum to zero"
       else
         (List.zipWith (· * ·) vals ws).foldl (· + ·) 0.0 / wsum
     else
-      panic! "ValueError: average() weights must match the data length"
+      PastaLean.pyPanic "ValueError: average() weights must match the data length"
 
 /-- Population covariance of two equal-length vectors (`np.cov(x, y, bias=True)[0,1]`). -/
 def pyNumpyCov {α β} [PyNumpyScalar α] [PyNumpyScalar β] (xs : List α) (ys : List β) : Float :=
   let a := pyNumpyToFloats xs
   let b := pyNumpyToFloats ys
   if a.isEmpty || a.length ≠ b.length then
-    panic! "ValueError: cov() expects two nonempty equal-length lists"
+    PastaLean.pyPanic "ValueError: cov() expects two nonempty equal-length lists"
   else
     let n := Rat.toFloat (a.length : Rat)
     let μa := a.foldl (· + ·) 0.0 / n
@@ -418,7 +419,7 @@ def pyNumpyCorrcoef {α β} [PyNumpyScalar α] [PyNumpyScalar β] (xs : List α)
   let vary := pyNumpyVar ys
   let denom := Float.sqrt (varx * vary)
   if denom == 0.0 then
-    panic! "ValueError: corrcoef() is undefined for a constant input"
+    PastaLean.pyPanic "ValueError: corrcoef() is undefined for a constant input"
   else
     cov / denom
 
@@ -431,7 +432,7 @@ def pyNumpyMean {α γ} [PyNumpyCompute α γ] [PyOdeScalar γ] [Add γ] [Zero �
     (matrix : List (List α)) : γ :=
   let entries := (pyNumpyArrayOver (γ := γ) matrix).flatten
   if entries.isEmpty then
-    panic! "ValueError: mean() of an empty matrix is undefined"
+    PastaLean.pyPanic "ValueError: mean() of an empty matrix is undefined"
   else
     -- `PyOdeScalar` (not `NatCast`/`Div`) because `Float` has neither in Mathlib.
     PyOdeScalar.div (entries.foldl (· + ·) 0) (PyOdeScalar.ofNat entries.length)

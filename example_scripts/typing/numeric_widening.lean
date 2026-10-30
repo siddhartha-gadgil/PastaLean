@@ -47,7 +47,7 @@ def car_fleet'rn := fun (target : Int) ↦ fun (position : List Int) ↦ fun (sp
       let mut ans : Int := (0 : Int)
       let mut pre := (0 : Float)
       for i in (PastaLean.pyIter (PastaLean.pySlice idx none none (some (-(1 : Int)))))do
-        let mut t := PastaLean.pyFloat (target -ₚ position⦋i⦌) /ₚ speed⦋i⦌
+        let mut t := PastaLean.pyTrueDiv (target -ₚ position⦋i⦌) speed⦋i⦌
         if h_1 : t > pre then 
           ans := ans +ₚ (1 : Int)
           pre := t
@@ -77,7 +77,7 @@ def heap_float_sum'rn := fun (vals : List Int) ↦
       (do
         let mut h := ([] : List Float)
         for v in (PastaLean.pyIter vals)do
-          h := Libraries.heapq.pyHeappush h (PastaLean.pyFloat v /ₚ (2 : Int))
+          h := Libraries.heapq.pyHeappush h (PastaLean.pyTrueDiv v (2 : Int))
         let mut acc := (0 : Float)
         while (PastaLean.pyTruthy h) do
           let mut p'_popv_1 := Libraries.heapq.pyHeappopVal h
@@ -107,7 +107,7 @@ def widen_container'rn := fun (n : Int) ↦ fun (s : Int) ↦ fun (t : Int) ↦
         let mut dist := (PastaLean.pyArrayRepeat #[(0 : Float)] n : Array Float)
         dist := PastaLean.pySetItem dist (0 : Int) (1 : Float)
         for i in (PastaLean.pyRange n (1 : Int))do
-          dist := PastaLean.pySetItem dist i (PastaLean.pyFloat (dist⦋i -ₚ (1 : Int)⦌ *ₚ s) /ₚ t : Float)
+          dist := PastaLean.pySetItem dist i (PastaLean.pyTrueDiv (dist⦋i -ₚ (1 : Int)⦌ *ₚ s) t : Float)
         let p'_ret_1 := dist⦋n -ₚ (1 : Int)⦌
         return p'_ret_1))
 

@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.PyAPI.Core
 import PastaLean.PyAPI.Lists
 import PastaLean.PyAPI.CommonProtocols.GetItem
@@ -31,11 +32,11 @@ namespace PastaLean
 /-- O(1) indexed read with Python negative-index semantics (mirrors `pyListGetItem`). -/
 def pyArrayGetItem {α : Type} [Inhabited α] (xs : Array α) (idx : Int) : α :=
   let len := xs.size
-  if len == 0 then panic! "IndexError: list index out of range"
+  if len == 0 then PastaLean.pyPanic "IndexError: list index out of range"
   else
     let lenInt : Int := len
     let trueIdx := if idx < 0 then lenInt + idx else idx
-    if trueIdx < 0 || trueIdx >= lenInt then panic! "IndexError: list index out of range"
+    if trueIdx < 0 || trueIdx >= lenInt then PastaLean.pyPanic "IndexError: list index out of range"
     else xs[trueIdx.toNat]!
 
 /-- O(1) indexed write with Python negative-index semantics (mirrors the `PySetItem (List β)` body).
@@ -45,7 +46,7 @@ def pyArraySetItem {α : Type} (xs : Array α) (idx : Int) (v : α) : Array α :
   let lenInt : Int := len
   let trueIdx := if idx < 0 then lenInt + idx else idx
   if trueIdx < 0 || trueIdx >= lenInt then
-    panic! "IndexError: list assignment index out of range"
+    PastaLean.pyPanic "IndexError: list assignment index out of range"
   else xs.set! trueIdx.toNat v
 
 /-- O(1) amortized append — in place when uniquely owned (`list.append`). -/
@@ -98,7 +99,7 @@ instance {β : Type} [Inhabited β] : PyModifyItem (Array β) Int β where
   modifyItem xs idx g :=
     let sz : Int := xs.size
     let t := if idx < 0 then sz + idx else idx
-    if t < 0 || t >= sz then panic! "IndexError: list assignment index out of range"
+    if t < 0 || t >= sz then PastaLean.pyPanic "IndexError: list assignment index out of range"
     else xs.modify t.toNat g
 
 instance {α : Type} : PyLen (Array α) where

@@ -107,9 +107,7 @@ def TreeNode'rn.new (val : Int := (0 : Int)) (left : Option TreeNode'rn := Optio
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

@@ -38,7 +38,7 @@ def variance'rn := fun (xs : List Float) ↦
         let mut total := (0.0 : Float)
         for x in (PastaLean.pyIter xs)do
           total := total +ₚ (x -ₚ m) *ₚ (x -ₚ m)
-        let p'_ret_1 := PastaLean.pyFloat total /ₚ PastaLean.pyLen xs
+        let p'_ret_1 := PastaLean.pyTrueDiv total (PastaLean.pyLen xs)
         return p'_ret_1))
 
 noncomputable def main' :=

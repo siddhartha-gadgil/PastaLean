@@ -126,7 +126,7 @@ attribute [simp] fixed_catch
 
 def fixed_catch'rn : PastaLean.PyExcept String := do
   try
-    let mut _ := PastaLean.pyFloat (1 : Int) /ₚ (0 : Int)
+    let mut _ := PastaLean.pyTrueDiv (1 : Int) (0 : Int)
     return "1 just got divided by 0"
   catch caught =>
     if (caught).OfKind == "ZeroDivisionError" then 
@@ -169,7 +169,7 @@ def nested_try'rn : PastaLean.PyExcept String := do
   try
     ((do
           try
-            let mut _ := PastaLean.pyFloat (1 : Int) /ₚ (0 : Int)
+            let mut _ := PastaLean.pyTrueDiv (1 : Int) (0 : Int)
             return "1 just got divided by 0"
           catch caught =>
             if (caught).OfKind == "ZeroDivisionError" then 

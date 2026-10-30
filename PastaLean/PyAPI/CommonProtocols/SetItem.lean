@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace PastaLean
@@ -27,7 +28,7 @@ instance {β : Type} : PySetItem (List β) Int β where
     let lenInt : Int := len
     let trueIdx := if idx < 0 then lenInt + idx else idx
     if trueIdx < 0 || trueIdx >= lenInt then
-      panic! "IndexError: list assignment index out of range"
+      PastaLean.pyPanic "IndexError: list assignment index out of range"
     else
       xs.set trueIdx.toNat v
 
@@ -42,7 +43,7 @@ instance (priority := high) {α : Type} : PySetItem (List (Option α)) Int α wh
     let lenInt : Int := len
     let trueIdx := if idx < 0 then lenInt + idx else idx
     if trueIdx < 0 || trueIdx >= lenInt then
-      panic! "IndexError: list assignment index out of range"
+      PastaLean.pyPanic "IndexError: list assignment index out of range"
     else
       xs.set trueIdx.toNat (some v)
 
@@ -65,14 +66,14 @@ instance {β : Type} [Inhabited β] : PyModifyItem (List β) Int β where
   modifyItem xs idx g :=
     let len : Int := xs.length
     let t := if idx < 0 then len + idx else idx
-    if t < 0 || t >= len then panic! "IndexError: list assignment index out of range"
+    if t < 0 || t >= len then PastaLean.pyPanic "IndexError: list assignment index out of range"
     else xs.set t.toNat (g (xs.getD t.toNat default))
 
 instance {α : Type} : PyModifyItem (List (Option α)) Int (Option α) where
   modifyItem xs idx g :=
     let len : Int := xs.length
     let t := if idx < 0 then len + idx else idx
-    if t < 0 || t >= len then panic! "IndexError: list assignment index out of range"
+    if t < 0 || t >= len then PastaLean.pyPanic "IndexError: list assignment index out of range"
     else xs.set t.toNat (g (xs.getD t.toNat default))
 
 instance {κ ν : Type} [BEq κ] [Hashable κ] [Inhabited ν] : PyModifyItem (Std.HashMap κ ν) κ ν where

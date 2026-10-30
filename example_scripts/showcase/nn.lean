@@ -18,7 +18,7 @@ noncomputable def sigmoid := fun (x : Real) ↦ (1.0 : Rat) /ₚ ((1.0 : Rat) +�
 attribute [simp] sigmoid
 
 def sigmoid'rn := fun (x : Float) ↦
-  (show Float from PastaLean.pyFloat (1.0 : Float) /ₚ ((1.0 : Float) +ₚ Libraries.math.pyMathExp (-x)))
+  (show Float from PastaLean.pyTrueDiv (1.0 : Float) ((1.0 : Float) +ₚ Libraries.math.pyMathExp (-x)))
 
 noncomputable def predict := fun (x : List Rat) ↦ fun (w1 : List (List Real)) ↦ fun (b1 : List Real) ↦
   fun (w2 : List (List Real)) ↦ fun (b2 : List Real) ↦
@@ -64,7 +64,7 @@ def mean_squared_error'rn := fun (xs : List (List Float)) ↦ fun (ys : List Flo
             predict'rn (PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)) w1 b1 w2 b2 -ₚ
               ys⦋i⦌
           total := total +ₚ diff *ₚ diff
-        let p'_ret_1 := PastaLean.pyFloat total /ₚ PastaLean.pyLen xs
+        let p'_ret_1 := PastaLean.pyTrueDiv total (PastaLean.pyLen xs)
         return p'_ret_1))
 
 noncomputable def main' :=

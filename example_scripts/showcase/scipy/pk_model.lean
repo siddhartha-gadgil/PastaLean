@@ -94,7 +94,7 @@ def concentration'rn := fun (amount : Float) ↦ fun (vol : Float) ↦
     /-
     Convert a compartment amount (mg) to a concentration (mg/L).
     -/
-    PastaLean.pyFloat amount /ₚ vol)
+    PastaLean.pyTrueDiv amount vol)
 
 noncomputable def body_load := fun (depot : Rat) ↦ fun (central : Rat) ↦ fun (periph : Rat) ↦
   /-
@@ -270,9 +270,7 @@ def main''rn :=
 
 noncomputable def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

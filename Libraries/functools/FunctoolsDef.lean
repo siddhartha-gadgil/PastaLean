@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 import PastaLean.PyAPI.CommonProtocols.Iterable
 
@@ -14,7 +15,7 @@ def pyReduce {α β : Type} [inst : PastaLean.PyIterable α β] [Inhabited β] (
     (f : β → β → β) (init : Option β := none) : β :=
   match init, PastaLean.pyIter xs with
   | some start, items => items.foldl f start
-  | none, [] => panic! "TypeError: reduce() of empty iterable with no initial value"
+  | none, [] => PastaLean.pyPanic "TypeError: reduce() of empty iterable with no initial value"
   | none, x :: rest => rest.foldl f x
 
 /-- `@cache`/`@lru_cache` is dropped — memoization is semantically transparent, we recompute — so the

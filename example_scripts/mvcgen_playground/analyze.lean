@@ -76,7 +76,7 @@ def analyze'rn : List Int → Int → PastaLean.PyExcept Float := fun (xs : List
   let mut spread := default
   if h_1 : count > (0 : Int) then 
     try
-      avg := PastaLean.pyFloat total /ₚ count
+      avg := PastaLean.pyTrueDiv total count
       spread := Libraries.math.pyMathSqrt (PastaLean.pyFloat ss)
     catch caught =>
       if (caught).OfKind == "ZeroDivisionError" then 

@@ -1,4 +1,5 @@
 import PastaLean.Imports
+import PastaLean.PyAPI.PyPanic
 
 namespace PastaLean
 
@@ -123,16 +124,16 @@ def pyFmtApply (spec : String) (arg : String) : String :=
 def pyListGetItem {α : Type} [Inhabited α] (xs : List α) (idx : Int) : α :=
   let len := xs.length
   if len == 0 then
-    panic! "IndexError: list index out of range"
+    PastaLean.pyPanic "IndexError: list index out of range"
   else
     let lenInt : Int := len
     let trueIdx := if idx < 0 then lenInt + idx else idx
     if trueIdx < 0 || trueIdx >= lenInt then
-      panic! "IndexError: list index out of range"
+      PastaLean.pyPanic "IndexError: list index out of range"
     else
       match xs[trueIdx.toNat]? with
       | some value => value
-      | none => panic! "IndexError: list index out of range"
+      | none => PastaLean.pyPanic "IndexError: list index out of range"
 
 /-- Python-style slicing for lists. -/
 def pyListSlice {α : Type} (xs : List α) (start : Option Int) (stop : Option Int) : List α :=

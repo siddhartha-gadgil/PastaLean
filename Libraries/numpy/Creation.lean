@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import Libraries.numpy.NumpyDef
 
 namespace Libraries.numpy
@@ -45,7 +46,7 @@ def pyNumpyArange (a : Float) (b : Float := pyNumpyNaN) (c : Float := pyNumpyNaN
   let stop := if oneArg then a else b
   let step := if c == c then c else 1.0
   if step == 0.0 then
-    panic! "ValueError: arange() step must be nonzero"
+    PastaLean.pyPanic "ValueError: arange() step must be nonzero"
   else
     if oneArg || twoArgs || c == c then
       let maxIter : Nat := 100000
@@ -55,7 +56,7 @@ def pyNumpyArange (a : Float) (b : Float := pyNumpyNaN) (c : Float := pyNumpyNaN
       else
         vals.takeWhile (fun x => x > stop)
     else
-      panic! "ValueError: arange() received invalid defaults"
+      PastaLean.pyPanic "ValueError: arange() received invalid defaults"
 
 /-- Conversion of a `linspace`/`logspace` bound (`Int`/`Float`/`ℚ`/`ℝ`) into the chosen output
 scalar `γ`. `γ` is determined by the call context (e.g. the `odeint` that consumes the grid, or a
@@ -115,7 +116,7 @@ def pyNumpyReshape {α} [PyNumpyScalar α] (matrix : List (List α)) (shape : In
         | r + 1 => xs.take cols :: go (xs.drop cols) r
       go entries rows
   else
-    panic! "ValueError: reshape() cannot change the number of elements"
+    PastaLean.pyPanic "ValueError: reshape() cannot change the number of elements"
 
 /-- Insert a size-1 axis into a vector. -/
 def pyNumpyExpandDims (axis : Int) (xs : List Float) : List (List Float) :=
@@ -142,9 +143,9 @@ def pyNumpyConcatenate (axis : Int := 0) (lhs rhs : List (List Float)) : List (L
     if lhs.length = rhs.length then
       List.zipWith (· ++ ·) lhs rhs
     else
-      panic! "ValueError: concatenate() along axis 1 requires equal row counts"
+      PastaLean.pyPanic "ValueError: concatenate() along axis 1 requires equal row counts"
   else
-    panic! "ValueError: concatenate() only supports axes 0 and 1"
+    PastaLean.pyPanic "ValueError: concatenate() only supports axes 0 and 1"
 
 /-- Vertical stack. -/
 def pyNumpyVstack (lhs rhs : List (List Float)) : List (List Float) :=
@@ -158,11 +159,11 @@ def pyNumpyHstack (lhs rhs : List (List Float)) : List (List Float) :=
 def pyNumpySplit (xs : List Float) (parts : Int) : List (List Float) :=
   let parts' := pyNumpyNatFromInt parts
   if parts' = 0 then
-    panic! "ValueError: split() requires at least one part"
+    PastaLean.pyPanic "ValueError: split() requires at least one part"
   else
     let chunk := xs.length / parts'
     if chunk * parts' ≠ xs.length then
-      panic! "ValueError: split() requires equal-sized chunks"
+      PastaLean.pyPanic "ValueError: split() requires equal-sized chunks"
     else
       let rec go (rest : List Float) (remaining : Nat) : List (List Float) :=
         match remaining with

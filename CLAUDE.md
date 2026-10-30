@@ -73,6 +73,10 @@ case-insensitive filesystems.) Install it with `uv pip install -e '.[server]'`.
 - `transpile/` — everything that manipulates Python AST/IR (the three stages above, plus
   `normalize_loops.py`, `contract_passta.py`, `llm.py`).
 - `prepasses.py` — the optional LLM source rewrites (`--contracts`, `--redesign`).
+- `refute/` — `pastalean refute`: counterexample search (CPython engines + the backend `refute` task,
+  `PastaLean/PyVerify/Refute/`), three-world verdicts, IEEE enclosures (`fi.py`, `lift.py`, spec proved
+  in `PastaLean/PyAPI/FloatInterval.lean`), `--float-report` (`floatreport.py`) and stdin programs
+  (`stdin.py` + `stdin_harness.py`: on-demand input generation, `--against` a reference).
 - `paths.py` — every filesystem location, resolved from `__file__`. Never derive paths from the cwd.
 
 ```bash
@@ -207,6 +211,8 @@ lake exe palc <dir|file>    # run PALC directly on a dir/file
   about *which syntax a node emits* → `PyGens/`. Method-name→function mapping → `Attributes.lean`
   (glue) + the implementation in `PyAPI/`.
 - **Extensible protocols use `outParam`, not associated types** (see `CommonProtocols/`).
+- **A Python runtime error in pure runtime code is `PastaLean.pyPanic "IndexError: …"`**, not `panic!`:
+  logically the same `default`, but it records the error kind (`pyErrorLog`) so `pastalean refute` sees it.
 - **`def main` appears only when the source has a `main`/`__main__`.** The general transpiler
   never auto-wraps bare code; only `cp_harness/cpasta_eval.py` adds a `__main__` guard for the
   harness.

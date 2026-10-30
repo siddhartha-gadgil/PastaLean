@@ -482,7 +482,7 @@ def binOpApplyTerm (op : String) (leftCode rightCode : TSyntax `term) :
   | "mul" => `($leftCode *ₚ $rightCode)
   | "div" =>
       match ← getNumericMode with
-      | .approx => `(PastaLean.pyFloat $leftCode /ₚ $rightCode)
+      | .approx => `(PastaLean.pyTrueDiv $leftCode $rightCode)
       | .exact => `($leftCode /ₚ $rightCode)
   | "floordiv" =>
       let floorDivIdent := mkIdent ``PastaLean.pyFloorDiv

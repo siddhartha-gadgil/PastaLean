@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace PastaLean
@@ -8,7 +9,7 @@ This is for python's `chr()` builtin, which returns a string representing a char
 
 def pyChr (n : Int) : String :=
   if n < 0 || n > 0x10FFFF then
-    panic! "ValueError: chr() arg not in range(0x110000)"
+    PastaLean.pyPanic "ValueError: chr() arg not in range(0x110000)"
   else
     String.singleton (Char.ofNat n.toNat)
 
@@ -21,7 +22,7 @@ This is for python's `ord()` builtin, which returns an integer representing the 
 -- subtracts code points (`ord(c) - ord('a')`, which can be negative) — both ill-typed on `Nat`.
 def pyOrd (s : String) : Int :=
   if s.length != 1 then
-    panic! "TypeError: ord() expected a character, but string of length " ++ toString s.length ++ " found"
+    PastaLean.pyPanic s!"TypeError: ord() expected a character, but string of length {s.length} found"
   else
     (Char.toNat (String.Pos.Raw.get! s 0) : Int)
 

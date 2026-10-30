@@ -925,9 +925,7 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
           let mainBody ← if useProofMonad then
             `(do
               let inputText ← IO.getStdin >>= fun h => h.readToEnd
-              let inputLines := String.splitOn inputText "\n"
-              let inputStream : PastaLean.ProofMode.IOStream :=
-                ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+              let inputStream := PastaLean.ProofMode.IOStream.ofText inputText
               let initState : PastaLean.HeapIOState $valId :=
                 ⟨PastaLean.emptyHeap, { input := inputStream, output := [] }⟩
               let (result, finalState) := PastaLean.PyHeapProofM.runProgram (V := $valId) (do
@@ -959,21 +957,15 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
           let proofMonadIdent := mkIdent ``PastaLean.ProofMode.PyProofM
           let ioStreamIdent := mkIdent ``PastaLean.ProofMode.IOStream
           let ioStateIdent := mkIdent ``PastaLean.ProofMode.IOState
-          let ioResultSuccessIdent := mkIdent ``PastaLean.ProofMode.IOResult.success
+          let ofTextIdent := mkIdent ``PastaLean.ProofMode.IOStream.ofText
           let ioUserErrorIdent := mkIdent ``IO.userError
           let outputLinesName := mkIdent `outputLines
           let lineName := mkIdent `line
           let mainBody ← `(do
             -- Read all input from stdin and convert to stream
             -- Note: The stream produces IOResult values (success/error), not plain strings.
-            -- This infinite-success pattern is suitable for competitive programming where
-            -- input() should never fail. For finite input with EOF:
-            --   let inputStream := ⟨0, fun i => if i < inputLines.length
-            --                                    then IOResult.success (inputLines.get! i)
-            --                                    else IOResult.error IOError.EndOfFile⟩
             let inputText ← IO.getStdin >>= fun h => h.readToEnd
-            let inputLines := String.splitOn inputText "\n"
-            let inputStream : $ioStreamIdent := ⟨0, fun i => $ioResultSuccessIdent (List.getD inputLines i "")⟩
+            let inputStream : $ioStreamIdent := $ofTextIdent inputText
             -- Structure syntax (not `⟨…⟩`) so defaulted fields (e.g. the PRNG seed) fill in and a
             -- later field addition never breaks this emitted initializer.
             let initState : $ioStateIdent := { input := inputStream, output := [] }

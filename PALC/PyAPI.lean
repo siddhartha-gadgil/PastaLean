@@ -12,3 +12,4 @@ import PALC.PyAPI.TestPyConvert
 import PALC.PyAPI.TestInput
 import PALC.PyAPI.TestHeap
 import PALC.PyAPI.TestRefinement
+import PALC.PyAPI.TestFloatOps

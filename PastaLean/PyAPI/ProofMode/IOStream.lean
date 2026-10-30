@@ -33,6 +33,13 @@ def head (s : IOStream) : IOResult :=
 def tail (s : IOStream) : IOStream :=
   ⟨s.pos + 1, s.str⟩
 
+/-- The lines of a program's stdin as a stream: `EndOfFile` past the last line, as Python's `input()`
+raises `EOFError` there (a final "\n" ends the last line rather than starting an empty one). -/
+def ofText (text : String) : IOStream :=
+  let lines := text.splitOn "\n"
+  let lines := if lines.getLast? == some "" then lines.dropLast else lines
+  ⟨0, fun i => if h : i < lines.length then .success lines[i] else .error .EndOfFile⟩
+
 /-- Create a stream from a constant IOResult (repeats forever). -/
 def const (r : IOResult) : IOStream :=
   ⟨0, fun _ => r⟩

@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace PastaLean
@@ -25,9 +26,9 @@ error when the iterable length is not exactly two.
 def pyUnpack2 {α β : Type} [inst : PyIterable α β] [Inhabited β] (value : α) : β × β :=
   match pyIter value with
   | [first, second] => (first, second)
-  | [] => panic! "ValueError: not enough values to unpack (expected 2, got 0)"
-  | [_] => panic! "ValueError: not enough values to unpack (expected 2, got 1)"
-  | _ => panic! "ValueError: too many values to unpack (expected 2)"
+  | [] => PastaLean.pyPanic "ValueError: not enough values to unpack (expected 2, got 0)"
+  | [_] => PastaLean.pyPanic "ValueError: not enough values to unpack (expected 2, got 1)"
+  | _ => PastaLean.pyPanic "ValueError: too many values to unpack (expected 2)"
 
 
 /-- Lists are already Python-style iterables. -/

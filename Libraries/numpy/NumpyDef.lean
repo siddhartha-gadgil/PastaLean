@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace Libraries.numpy
@@ -89,7 +90,7 @@ noncomputable instance : PyNumpyRealScalar Bool := ⟨fun b => if b then 1 else 
 /-- Convert a nonnegative `Int` dimension to `Nat`. -/
 def pyNumpyNatFromInt (n : Int) : Nat :=
   if n < 0 then
-    panic! "ValueError: numpy dimensions must be nonnegative"
+    PastaLean.pyPanic "ValueError: numpy dimensions must be nonnegative"
   else
     n.toNat
 
@@ -143,7 +144,7 @@ def pyNumpyShape {α} (matrix : List (List α)) : List Int :=
   if pyNumpyIsRectangular matrix then
     [Int.ofNat matrix.length, Int.ofNat (pyNumpyCols matrix)]
   else
-    panic! "ValueError: shape() expects a rectangular matrix"
+    PastaLean.pyPanic "ValueError: shape() expects a rectangular matrix"
 
 /-- Flatten a matrix into a vector. -/
 def pyNumpyFlatten {α} [PyNumpyScalar α] (matrix : List (List α)) : List Float :=

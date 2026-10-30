@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import Libraries.pandas.Cell
 
 /-!
@@ -46,14 +47,14 @@ def size (s : Series) : Nat := s.values.length
 def iloc (s : Series) (i : Int) : Cell :=
   let n := s.values.length
   let j := if i < 0 then i + Int.ofNat n else i
-  if j < 0 || j ≥ Int.ofNat n then panic! "IndexError: single positional indexer is out-of-bounds"
+  if j < 0 || j ≥ Int.ofNat n then PastaLean.pyPanic "IndexError: single positional indexer is out-of-bounds"
   else s.values[j.toNat]!
 
 /-- Label access. `loc`. -/
 def loc (s : Series) (label : String) : Cell :=
   match s.index.idxOf? label with
   | some i => s.values[i]!
-  | none   => panic! "KeyError: label not found in Series index"
+  | none   => PastaLean.pyPanic "KeyError: label not found in Series index"
 
 /-- First `n` entries (default 5). -/
 def head (s : Series) (n : Nat := 5) : Series :=

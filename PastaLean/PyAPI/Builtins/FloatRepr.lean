@@ -90,7 +90,7 @@ def pyFloatRepr (x : Float) : String :=
   if x.isNaN then "nan"
   else if x == (1.0 / 0.0) then "inf"
   else if x == -(1.0 / 0.0) then "-inf"
-  else if x == 0.0 then "0.0"
+  else if x == 0.0 then (if x.toBits >>> 63 == 1 then "-0.0" else "0.0")
   else if x < 0.0 then "-" ++ shortestPos (-x)
   else shortestPos x
 
