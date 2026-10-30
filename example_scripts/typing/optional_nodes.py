@@ -30,6 +30,8 @@ def depth(root: Optional[TreeNode]) -> int:
 
 # Chained read: `root.left` is itself `Option TreeNode`, so `.val` needs a SECOND unwrap.
 def left_val(root: Optional[TreeNode]) -> int:
+    if root is None or root.left is None:
+        return 0
     return root.left.val
 
 
@@ -50,13 +52,3 @@ def total(head: Optional[ListNode]) -> int:
         acc += head.val
         head = head.next
     return acc
-
-
-# Param annotated as a bare `ListNode` (NOT `Optional`), but `head = head.next` makes it nullable —
-# inference must widen the cursor to `Option ListNode` and the run twin must suffix the param class.
-def get_decimal(head: ListNode) -> int:
-    ans = 0
-    while head:
-        ans = ans << 1 | head.val
-        head = head.next
-    return ans

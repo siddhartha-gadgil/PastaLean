@@ -46,6 +46,8 @@ inductive Origin where
   | valueFlow
   /-- The type of a literal argument at a call site. -/
   | callLiteral
+  /-- The exact type of a non-literal argument at a call site (`Exact.exactType?`). -/
+  | callArgument
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Origin.toString : Origin → String
@@ -53,6 +55,7 @@ def Origin.toString : Origin → String
   | .returnBody => "return-body"
   | .valueFlow => "value-flow"
   | .callLiteral => "call-literal"
+  | .callArgument => "call-argument"
 
 instance : ToString Origin := ⟨Origin.toString⟩
 
@@ -61,6 +64,7 @@ def Origin.ofString? : String → Option Origin
   | "return-body" => some .returnBody
   | "value-flow" => some .valueFlow
   | "call-literal" => some .callLiteral
+  | "call-argument" => some .callArgument
   | _ => none
 
 /-- One type the checker weighed, and where it came from. -/

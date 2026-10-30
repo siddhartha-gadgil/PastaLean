@@ -6,8 +6,13 @@ mutation corpus does not: every annotated parameter/return in the corpus is a ca
 mechanical (`int` -> `str`, and back), and the same mutants are handed to every tool.
 
 Each mutant is written next to a copy of its unmutated ORIGINAL under the same name, so a scoring
-harness can require `flagged(mutant) and not flagged(original)` — a tool gets credit only for an
-error the seeding introduced, never for pre-existing noise it would have reported anyway.
+harness can credit only diagnostics the seeding introduced, never pre-existing noise.
+
+Files are copied out of their directories, so only sources whose imports all resolve in isolation are
+used: the standard library, plus PastaLean's `contracts` DSL, for which a typed stub is written beside
+the copies. A sibling or third-party import would otherwise surface as an error in every other tool.
+Files that opt out of type checking with a leading `# type: ignore` (PEP 484) are skipped too: they are
+deliberately ill-typed, so they are not a known-good corpus.
 
     uv run PastaBench/typecheck_bench/mutate.py example_scripts -o /tmp/tcbench --per-file 3
 """
@@ -16,7 +21,12 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import re
+import shutil
+import sys
 from pathlib import Path
+
+CONTRACTS_STUB = Path(__file__).resolve().parent / "contracts.pyi"
 
 # The flip for each annotation we mutate. Chosen so the mutant is genuinely ill-typed wherever the
 # slot is used at all: no Python type is both a `str` and an `int`, and neither supports the other's
@@ -58,6 +68,33 @@ def candidates(tree: ast.AST) -> list[tuple[ast.expr, str, str]]:
     return out
 
 
+def self_contained(tree: ast.AST) -> bool:
+    """Every import is stdlib or the stubbed `contracts` module (no relative imports)."""
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            roots = [a.name.split(".")[0] for a in n.names]
+        elif isinstance(n, ast.ImportFrom):
+            if n.level:
+                return False
+            roots = [(n.module or "").split(".")[0]]
+        else:
+            continue
+        if any(r != "contracts" and r not in sys.stdlib_module_names for r in roots):
+            return False
+    return True
+
+
+def unchecked(source: str) -> bool:
+    """A PEP 484 file-level `# type: ignore` in the comment block before the first statement."""
+    for line in source.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            return False
+        if re.fullmatch(r"#\s*type:\s*ignore\s*", line):
+            return True
+    return False
+
+
 def _replace(source: str, node: ast.expr, new: str) -> str:
     lines = source.splitlines(keepends=True)
     starts = [0]
@@ -78,8 +115,9 @@ def main() -> int:
     orig_dir, mut_dir = args.out / "orig", args.out / "mut"
     for d in (orig_dir, mut_dir):
         d.mkdir(parents=True, exist_ok=True)
-        for old in d.glob("*.py"):
+        for old in d.glob("*.py*"):
             old.unlink()
+        shutil.copy(CONTRACTS_STUB, d / "contracts.pyi")
 
     manifest = []
     files = sorted(args.corpus.rglob("*.py")) if args.corpus.is_dir() else [args.corpus]
@@ -88,6 +126,8 @@ def main() -> int:
         try:
             tree = ast.parse(source)
         except SyntaxError:
+            continue
+        if unchecked(source) or not self_contained(tree):
             continue
         for i, (node, old, new) in enumerate(candidates(tree)[: args.per_file]):
             ident = f"{py.stem}__{i}"

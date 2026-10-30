@@ -86,16 +86,20 @@ def fetch(out: Path, limit: int | None, jobs: int) -> int:
 
 
 #: One unit of work: at most this many files, and at most this many source bytes. The corpus is
-#: wildly uneven — a 4 MB generated test module sits beside thousands of 2 KB ones — so a file count
-#: alone makes some chunks a thousand times the work of others. Nothing is skipped for being large:
-#: a file over the budget simply gets a chunk to itself.
-CHUNK = 50
+#: wildly uneven — a 4 MB generated test module sits beside thousands of 2 KB ones — so the byte
+#: budget is what bounds a chunk, and the file cap only keeps a chunk of tiny files from growing
+#: without limit. Nothing is skipped for being large: a file over the budget gets a chunk to itself.
+CHUNK = 200
 CHUNK_BYTES = 600_000
+#: A chunk of several large files checks them in parallel inside the chunk (they are scheduled first,
+#: while the small chunks keep the other cores busy).
+BIG_CHUNK_BYTES = CHUNK_BYTES // 2
+BIG_CHUNK_JOBS = 4
 #: Wall-clock ceiling for one chunk. Generous next to the ~0.1 s a 50-file chunk normally takes.
 CHUNK_TIMEOUT = 90
 
 
-def _run_chunk() -> int:
+def _run_chunk(jobs: int = 1) -> int:
     """The `chunk` subcommand: check the newline-separated paths on stdin, print the diagnostics as
     JSON. Its own process so the parent can impose a hard deadline (see `_chunk_diags`)."""
     from pastalean.typeinfer.check import check_paths_report  # noqa: PLC0415
@@ -103,9 +107,9 @@ def _run_chunk() -> int:
     paths = [ln for ln in sys.stdin.read().splitlines() if ln]
     sink = io.StringIO()
     with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
-        rep = check_paths_report(paths, jobs=1)
+        rep = check_paths_report(paths, jobs=jobs)
     # `checked`/`ir_failed` ride along so the parent's denominator is the files actually read.
-    print(json.dumps({"diags": [[f, d["message"]] for f, d in rep["diagnostics"]],
+    print(json.dumps({"diags": [[f, d.get("line", 0), d["message"]] for f, d in rep["diagnostics"]],
                       "checked": rep["checked"], "ir_failed": rep["ir_failed"]}))
     return 0
 
@@ -117,8 +121,10 @@ def _run_paths(paths: list[str], timeout: float) -> tuple[str, dict]:
     request/response over a pipe with no deadline of its own, and an in-process `SIGALRM` does not
     reliably unblock that read — a module whose fixpoint is superlinear in one giant scope would
     strand a worker for the rest of the run. Killing a child does."""
+    big = len(paths) > 1 and sum(os.path.getsize(f) for f in paths) >= BIG_CHUNK_BYTES
+    jobs = min(len(paths), BIG_CHUNK_JOBS) if big else 1
     try:
-        p = subprocess.run([sys.executable, __file__, "chunk"], input="\n".join(paths),
+        p = subprocess.run([sys.executable, __file__, "chunk", str(jobs)], input="\n".join(paths),
                            capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         return "timeout", {}
@@ -129,7 +135,8 @@ def _run_paths(paths: list[str], timeout: float) -> tuple[str, dict]:
 
 
 def _chunk_diags(job: tuple[str, list[str]]) -> tuple[str, int, int, list[str], list[str], int]:
-    """One chunk: `(project, files checked, diagnostics, samples, timed-out files, failed files)`.
+    """One chunk: `(project, files checked, diagnostic count, the diagnostics as `file:line: message`,
+    timed-out files, failed files)`.
 
     A chunk that blows the deadline is bisected rather than written off, so only the pathological
     module is lost and the other 49 files in its chunk are still measured.
@@ -143,16 +150,17 @@ def _chunk_diags(job: tuple[str, list[str]]) -> tuple[str, int, int, list[str], 
     if status == "timeout" and len(paths) > 1:
         mid = len(paths) // 2
         out = [0, 0, [], [], 0]
-        for half in (paths[:mid], paths[mid:]):
-            _, n, d, s, t, f = _chunk_diags((project, half))
-            out[0] += n; out[1] += d; out[2] += s; out[3] += t; out[4] += f
+        # The halves are independent child processes, so they are bisected concurrently.
+        with ThreadPoolExecutor(2) as ex:
+            for _, n, d, s, t, f in ex.map(_chunk_diags, [(project, paths[:mid]), (project, paths[mid:])]):
+                out[0] += n; out[1] += d; out[2] += s; out[3] += t; out[4] += f
         return project, out[0], out[1], out[2], out[3], out[4]
     if status == "timeout":
         return project, len(paths), 0, [], list(paths), 0
     if status == "error":
         return project, 0, 0, [], [], len(paths)
     diags = rep["diags"]
-    return (project, rep["checked"], len(diags), [f"{f}: {m}" for f, m in diags[:3]], [],
+    return (project, rep["checked"], len(diags), [f"{f}:{ln}: {m}" for f, ln, m in diags], [],
             rep["ir_failed"])
 
 
@@ -179,6 +187,8 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
         if cur:
             work.append((proj.name, cur))
 
+    # Largest first, so the slow chunks start while the small ones keep every other core busy.
+    work.sort(key=lambda w: -sum(os.path.getsize(f) for f in w[1]))
     per_project: dict[str, dict] = {}
     samples: list[str] = []
     timeouts: list[str] = []
@@ -212,7 +222,7 @@ def precision(corpus: Path, jobs: int | None, out_json: Path | None) -> int:
         out_json.write_text(json.dumps(
             {"projects": sorted(per_project.values(), key=lambda r: -r["diags"]),
              "files": total_files, "diags": total_diags,
-             "wall": wall, "samples": samples, "timeouts": timeouts}, indent=2))
+             "wall": wall, "diagnostics": sorted(samples), "timeouts": timeouts}, indent=2))
     return 0
 
 
@@ -227,12 +237,13 @@ def main() -> int:
     p.add_argument("corpus", type=Path)
     p.add_argument("-j", "--jobs", type=int)
     p.add_argument("--json", type=Path, help="also write the per-project numbers here")
-    sub.add_parser("chunk", help="internal: check the paths on stdin (one worker of a sweep)")
+    c = sub.add_parser("chunk", help="internal: check the paths on stdin (one worker of a sweep)")
+    c.add_argument("jobs", type=int, nargs="?", default=1)
     args = ap.parse_args()
     if args.cmd == "fetch":
         return fetch(args.out, args.limit, args.jobs)
     if args.cmd == "chunk":
-        return _run_chunk()
+        return _run_chunk(args.jobs)
     return precision(args.corpus, args.jobs, args.json)
 
 

@@ -67,7 +67,7 @@ PastaLean transpiles Python code into Lean 4 and verifies it there. As the name 
 <p align="center">
   <img src="./docs/images/typeevalpy.svg" alt="TypeEvalPy autogen: TypeInfer 72.7% exact match vs HeaderGen 65.7%, Jedi 37.0%, Scalpel 20.2%, Type4Py 7.0%" width="32%"/>
   <img src="./docs/images/typybench.svg" alt="TypyBench: TypeInfer TypeSim 0.284 vs pyrefly 0.243, pyre 0.239, pytype 0.158, hityper 0.105" width="32%"/>
-  <img src="./docs/images/typecheck.svg" alt="Type checking: pastalean catches 82.8% of seeded errors and flags 0% of clean files; ty 73.0/23.0, pyright 70.1/26.5, pyrefly 68.6/27.5, zuban 64.7/20.6, mypy 58.3/39.2" width="32%"/>
+  <img src="./docs/images/typecheck.svg" alt="Type checking: TypeInfer catches 82.8% of seeded errors with 0% false alarms on clean files; ty 73.0/23.0, pyright 70.1/26.5, pyrefly 68.6/27.5, zuban 64.7/20.6, mypy 58.3/39.2" width="32%"/>
 </p>
 
 *Elaborated* means the generated Lean type-checks. *Tests passed* means the runnable twin gives
@@ -571,9 +571,9 @@ annotation flips over 77 known-good programs, scored differentially (credit only
 flagged and its untouched original is not) — it catches the most of any checker while being the only
 one that never flags a known-good file:
 
-| Tool | Caught | Flagged clean | Time |
+| Tool | Caught | False alarms | Time |
 |---|---|---|---|
-| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.8 s |
+| **TypeInfer** | **169 (82.8%)** | **0 (0.0%)** | 0.8 s |
 | ty | 149 (73.0%) | 47 (23.0%) | 0.1 s |
 | pyright | 143 (70.1%) | 54 (26.5%) | 5.5 s |
 | pyrefly | 140 (68.6%) | 56 (27.5%) | 0.5 s |
@@ -581,11 +581,11 @@ one that never flags a known-good file:
 | mypy | 119 (58.3%) | 80 (39.2%) | 1.5 s |
 
 Reproduce with `PastaBench/typecheck_bench/mutate.py` and `bench_checkers.py`. The corpus is
-`example_scripts/`, Python that PastaLean fully supports; the "flagged clean" column is mostly extra
+`example_scripts/`, Python that PastaLean fully supports; the "false alarms" column is mostly extra
 strictness for the other tools rather than a bug, which is exactly why recall is scored
 differentially. One caveat: those originals are the corpus PastaLean's own filters were written
 against, so the zero has home advantage — the differential rule protects the *caught* column, not the
-*flagged clean* one.
+*false alarms* one.
 
 #### False positives on the mypy_primer corpus
 

@@ -1553,48 +1553,48 @@ Locals are checked, not just a function's signature — nothing declares `buf`, 
 
 # Type checking against the production checkers
 
-One annotation is flipped per mutant. A tool scores only if it flags the mutant _and_ leaves the untouched original alone — so nothing is credited for pre-existing noise.
+One annotation is flipped per mutant. A tool scores when the mutant gets a diagnostic (same line and rule) that its untouched original does not — so nothing is credited for pre-existing noise.
 
 :::table +colHeaders +rowSeps +border
 *
   * Tool
-  * Caught (of 204)
-  * Flagged clean
+  * Caught (of 195)
+  * Errors on originals (of 73)
   * Time
 *
   * *PastaLean*
-  * *169 · 82.8%*
+  * *187 · 95.9%*
   * *0 · 0.0%*
-  * 0.8 s
-*
-  * ty
-  * 149 · 73.0%
-  * 47 · 23.0%
-  * 0.1 s
+  * 0.56 s
 *
   * pyright
-  * 143 · 70.1%
-  * 54 · 26.5%
-  * 5.5 s
-*
-  * pyrefly
-  * 140 · 68.6%
-  * 56 · 27.5%
-  * 0.5 s
+  * 186 · 95.4%
+  * 4 · 5.5%
+  * 2.23 s
 *
   * zuban
-  * 132 · 64.7%
-  * 42 · 20.6%
-  * 1.6 s
+  * 186 · 95.4%
+  * 8 · 11.0%
+  * 0.13 s
+*
+  * pyrefly
+  * 185 · 94.9%
+  * 5 · 6.8%
+  * 0.28 s
+*
+  * ty
+  * 185 · 94.9%
+  * 3 · 4.1%
+  * 0.07 s
 *
   * mypy
-  * 119 · 58.3%
-  * 80 · 39.2%
-  * 1.5 s
+  * 181 · 92.8%
+  * 14 · 19.2%
+  * 0.96 s
 :::
 
 :::class "punch" "fragment"
-Read the second column with the first — the originals are known-good. On 158 `mypy_primer` projects, all of which type-check in their own CI, we report *294* diagnostics over *68,542* files.
+Most seeded errors caught, and no error on a single original. On 160 `mypy_primer` projects, all of which type-check in their own CI, we report *245* diagnostics over *69,857* files.
 :::
 # {name}`PyAny` — opening the door to dynamic typing
 

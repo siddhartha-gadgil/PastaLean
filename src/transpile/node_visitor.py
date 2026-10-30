@@ -948,8 +948,12 @@ class ASTToJsonLeanVisitorBase:
             node = node.value
         return self._self_attr_name(node) is not None
 
-    def _add_class_field(self, fields, seen, name, annotation, default, init=None):
+    def _add_class_field(self, fields, seen, name, annotation, default, init=None, declared=False):
         """Record a class field, merging type/default info if the name is already known.
+
+        `declared` marks an annotation the source writes ON the field (`x: T` in the class body,
+        `self.x: T = …`); it is kept under `decl` too, since `annotation` may instead be copied from a
+        parameter (`self.x = x`) — a codegen hint, not a declaration a checker may hold the field to.
 
         First occurrence fixes order; a later annotated/defaulted occurrence upgrades a
         previously-unknown annotation or default. `annotation`/`default`/`init` are raw AST nodes
@@ -963,6 +967,8 @@ class ASTToJsonLeanVisitorBase:
             idx = seen[name]
             if ann_json is not None and fields[idx]["annotation"] is None:
                 fields[idx]["annotation"] = ann_json
+            if declared and ann_json is not None and "decl" not in fields[idx]:
+                fields[idx]["decl"] = ann_json
             if def_json is not None and fields[idx]["default"] is None:
                 fields[idx]["default"] = def_json
             if init_json is not None and fields[idx]["init"] is None:
@@ -971,6 +977,8 @@ class ASTToJsonLeanVisitorBase:
             seen[name] = len(fields)
             fields.append({"name": name, "annotation": ann_json, "default": def_json,
                            "init": init_json})
+            if declared and ann_json is not None:
+                fields[-1]["decl"] = ann_json
 
     def _collect_self_fields(self, body, fields, seen, param_types=None):
         """Harvest `self.X` assignment targets from a method body into the field list.
@@ -987,7 +995,7 @@ class ASTToJsonLeanVisitorBase:
             if isinstance(stmt, ast.AnnAssign):
                 name = self._self_attr_name(stmt.target)
                 if name is not None:
-                    self._add_class_field(fields, seen, name, stmt.annotation, None)
+                    self._add_class_field(fields, seen, name, stmt.annotation, None, declared=True)
             elif isinstance(stmt, ast.Assign):
                 for tgt in stmt.targets:
                     name = self._self_attr_name(tgt)
@@ -1119,7 +1127,8 @@ class ASTToJsonLeanVisitorBase:
             if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
                 if stmt.target.id in CLASS_META_DUNDERS:
                     continue
-                self._add_class_field(fields, seen, stmt.target.id, stmt.annotation, stmt.value)
+                self._add_class_field(fields, seen, stmt.target.id, stmt.annotation, stmt.value,
+                                      declared=True)
             elif (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
                   and isinstance(stmt.targets[0], ast.Name)):
                 if stmt.targets[0].id in CLASS_META_DUNDERS:

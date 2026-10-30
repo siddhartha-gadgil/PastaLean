@@ -94,11 +94,15 @@ partial def depth'rn : Option TreeNode'rn → Int := fun (root : Option TreeNode
   else (1 : Int) +ₚ PastaLean.pyMax [depth'rn ((root).getD default).left, depth'rn ((root).getD default).right]
 
 -- Chained read: `root.left` is itself `Option TreeNode`, so `.val` needs a SECOND unwrap.
-def left_val := fun (root : Option TreeNode) ↦ ((((root).getD default).left).getD default).val
+def left_val := fun (root : Option TreeNode) ↦
+  if PastaLean.pyIsNone root ∨ PastaLean.pyIsNone ((root).getD default).left then (0 : Int)
+  else ((((root).getD default).left).getD default).val
 
 attribute [simp, taste_ingr] left_val
 
-def left_val'rn := fun (root : Option TreeNode'rn) ↦ ((((root).getD default).left).getD default).val
+def left_val'rn := fun (root : Option TreeNode'rn) ↦
+  if PastaLean.pyIsNone root || PastaLean.pyIsNone ((root).getD default).left then (0 : Int)
+  else ((((root).getD default).left).getD default).val
 
 -- Field WRITE through an `Option`: needs unwrap + re-wrap, not a bare record update.
 def bump := fun (head : Option ListNode) ↦
@@ -147,29 +151,5 @@ def total'rn := fun (head : Option ListNode'rn) ↦
         acc := acc +ₚ ((head).getD default).val
         head := ((head).getD default).next
       return acc)
-
--- Param annotated as a bare `ListNode` (NOT `Optional`), but `head = head.next` makes it nullable —
--- inference must widen the cursor to `Option ListNode` and the run twin must suffix the param class.
-def get_decimal := fun (head : Option ListNode) ↦
-  Id.run
-    (do
-      let mut head := head
-      let mut ans : Int := (0 : Int)
-      while (PastaLean.pyTruthy head) do
-        ans := PastaLean.pyBitOr (PastaLean.pyShiftLeft ans (1 : Int)) ((head).getD default).val
-        head := ((head).getD default).next
-      return ans)
-
-attribute [simp, taste_ingr] get_decimal
-
-def get_decimal'rn := fun (head : Option ListNode'rn) ↦
-  Id.run
-    (do
-      let mut head := head
-      let mut ans : Int := (0 : Int)
-      while (PastaLean.pyTruthy head) do
-        ans := PastaLean.pyBitOr (PastaLean.pyShiftLeft ans (1 : Int)) ((head).getD default).val
-        head := ((head).getD default).next
-      return ans)
 
 end PastaLean.User.Root

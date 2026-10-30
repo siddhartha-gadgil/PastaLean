@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""`float('inf')` used as a DP sentinel in an INTEGER context.
+# type: ignore
+"""`float('inf')` used as a DP sentinel in an INTEGER context (deliberately ill-typed, hence unchecked).
 
 Python compares `-inf` against ints freely, but Lean needs one type per slot. A monomorphic `ℚ`
 sentinel made `-inf` unusable inside an `-> int` function, so the sentinel is polymorphic in its

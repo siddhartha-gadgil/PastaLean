@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import get_context
 from pathlib import Path
@@ -34,14 +35,34 @@ TOOL_NAME = "typeinfer"
 SHARD = 32
 
 
+_TYPE_IGNORE = re.compile(r"#\s*type:\s*ignore\b")
+
+
+def _unsuppressed(source: str, diags: list[dict]) -> list[dict]:
+    """Drop what PEP 484 tells a checker to ignore: every diagnostic in a file whose leading comment
+    block holds a `# type: ignore` line, and any diagnostic on a line carrying a `# type: ignore`
+    comment. Applied when reporting; the certificate still records every slot judged."""
+    lines = source.splitlines()
+    for ln in lines:
+        stripped = ln.strip()
+        if stripped and not stripped.startswith("#"):
+            break
+        if _TYPE_IGNORE.fullmatch(stripped.split("[")[0].strip()) or stripped == "# type: ignore":
+            return []
+    def ignored(d: dict) -> bool:
+        line = d.get("line", 0)
+        return 0 < line <= len(lines) and bool(_TYPE_IGNORE.search(lines[line - 1]))
+    return [d for d in diags if not ignored(d)]
+
+
 def check_source(source: str, path: str | None = None, *,
                  server: TypeInferServer | None = None) -> list[dict]:
     """Every type error in one module, as the Lean checker reports it."""
     ir = json.loads(driver.translate_to_json(source, path, best_effort=True, infer_only=True))
     if server is not None:
-        return server.check_ast(ir)["diagnostics"]
+        return _unsuppressed(source, server.check_ast(ir)["diagnostics"])
     with TypeInferServer() as srv:
-        return srv.check_ast(ir)["diagnostics"]
+        return _unsuppressed(source, srv.check_ast(ir)["diagnostics"])
 
 
 def _ir_for_file(path: str) -> tuple[str, str] | None:
@@ -85,7 +106,9 @@ def _check_shards(live: list[tuple[str, dict]], jobs: int) -> list[tuple[str, di
     """Every `(file, diagnostic)` pair over the given IRs."""
     def batch(srv: TypeInferServer, group: list[tuple[str, dict]]) -> list[tuple[str, dict]]:
         results = srv.check_batch([ir for _p, ir in group])
-        return [(p, d) for (p, _ir), r in zip(group, results) for d in r["diagnostics"]]
+        return [(p, d) for (p, _ir), r in zip(group, results)
+                for d in _unsuppressed(Path(p).read_text(encoding="utf-8", errors="replace"),
+                                       r["diagnostics"])]
     return _fan(live, jobs, batch)
 
 

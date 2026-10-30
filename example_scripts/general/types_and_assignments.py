@@ -1,7 +1,5 @@
 from typing import List
 
-inf = float("inf")
-
 
 def basic_types():
     a = 1
@@ -64,43 +62,6 @@ def int_init_float_container(nums: List[int]) -> List[float]:
     for i in range(1, n):
         dp[i] = dp[i - 1] / 2 + nums[i]
     return dp
-
-
-def inf_dp(cost: List[int]) -> int:
-    # Canonical `[inf]*n` DP: `inf` adapts to the container's float type across both twins.
-    n = len(cost)
-    dp = [inf] * (n + 1)
-    dp[0] = 0
-    for i in range(1, n + 1):
-        dp[i] = min(dp[i - 1] + cost[i - 1], dp[i])
-    return dp[n]
-
-
-def grid_inf_dp(houses: List[int]) -> int:
-    # A 2-D `[[inf]*k for _ in …]` DP: the comprehension is a nested list-container seeded by the
-    # polymorphic `inf`, so it must be ascribed the twin's float type (`List (List ℚ)` / `Float`) —
-    # otherwise `inf` defaults to ℚ while the run twin's values are `Float` (a `PySetItem (List ℚ) ℤ
-    # Float` clash). Mirrors the allocate-mailboxes shape.
-    n = len(houses)
-    f = [[inf] * (n + 1) for _ in range(n)]
-    for i in range(n):
-        f[i][1] = houses[i]
-        for j in range(2, i + 2):
-            for p in range(i):
-                f[i][j] = min(f[i][j], f[p][j - 1] + houses[i])
-    return f[n - 1][n]
-
-
-def dp_sentinel_return(cost: List[int]) -> int:
-    # The canonical inf-DP ending: `return -1 if unreachable else value`. The single ternary return
-    # mixes `int` (`-1`) with the `float` DP value, so both branches are elaborated at the mode float
-    # (`ℚ`/`Float`) — the `-1` coerces up (int→ℚ / int→Float) instead of pinning the result to `ℤ`.
-    n = len(cost)
-    dp = [inf] * (n + 1)
-    dp[0] = 0
-    for i in range(1, n + 1):
-        dp[i] = min(dp[i - 1] + cost[i - 1], dp[i])
-    return -1 if dp[n] >= inf else dp[n]
 
 
 def heterogeneous_pyany():

@@ -27,7 +27,8 @@ _SCALARS = {"?": ".unknown", "any": ".any", "int": ".int", "bool": ".bool",
 _KINDS = {"param": ".param", "return": ".returnType", "local": ".annotatedLocal",
           "call-arg": ".callArgument", "local-var": ".localVariable"}
 _ORIGINS = {"body-use": ".bodyUse", "return-body": ".returnBody",
-            "value-flow": ".valueFlow", "call-literal": ".callLiteral"}
+            "value-flow": ".valueFlow", "call-literal": ".callLiteral",
+            "call-argument": ".callArgument"}
 _DIAGKINDS = {"use-conflict": ".useConflict", "annotation-mismatch": ".annotationMismatch",
               "value-rejected": ".valueRejected"}
 

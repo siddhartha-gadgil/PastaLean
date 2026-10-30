@@ -238,14 +238,15 @@ generated file states that boundary in its own header rather than letting a read
   **1,910 slots** (683 params, 884 locals, 186 returns, 154 call args, 3 annotated locals).
 * `typecheck_bench/negative` (16 files): **0 missed seeded errors**, 16/16 certificates verified.
 * `mutate.py` over `example_scripts`: **169/204 mutants caught, 0 clean flagged** — the documented
-  baseline, unchanged by the refactor, and the per-mutant catch set is now written to disk.
+  baseline, unchanged by the refactor, and the per-mutant catch set is now written to disk. (Scored by
+  the original harness, since corrected; see [Benchmarks](#benchmarks).)
 * **Every** emitted `.lean` across both corpora (181 files, up to 181 slots each) compiles, each
   depending only on `propext`, `Classical.choice`, `Quot.sound`. Two emitter bugs surfaced that way
   and are fixed: a file named `01_counter.py` produced `def 01_counterCert`, which is not a Lean
   identifier, and the largest certificate exhausted the default `maxRecDepth`.
 * The readable on-disk JSON round-trips: 165/165 and 16/16 re-verified by reading the written files
   rather than the in-memory certificates.
-* Mutation recall unchanged at 169/204 with 0 clean flagged — as expected, since `mutate.py` flips
+* Mutation recall unchanged at 169/204 with 0 clean flagged (original harness) — as expected, since `mutate.py` flips
   *annotations* on parameters and returns, which local coverage does not touch.
 * `PALC/TypeInfer/TestCertificate.lean`: eight tamper cases, each required to be refused.
 * Tamper tests, each of which must be refused — all refused, with a reason naming the failure:
@@ -264,25 +265,58 @@ that actually tests the validator.
 
 ### Differential recall against the production checkers
 
-`mutate.py` flips an annotation in known-good code, one mutant per seeded error, and a tool is
-credited only when it flags the mutant *and* not its untouched original — so nothing is scored for
-pre-existing noise. 204 mutants of 77 files, all six tools on the same machine (16 cores):
+`mutate.py` flips an annotation in annotated code, one mutant per seeded error, and a tool is credited
+when the mutant gets a `(line, rule)` diagnostic its untouched original does not. 195 mutants of the 73
+`example_scripts` programs whose imports resolve in isolation (stdlib, plus a typed `contracts.pyi`
+stub for the contract DSL); files marked with a PEP 484 file-level `# type: ignore` (deliberately
+ill-typed) are excluded. All six tools on the same machine (24 cores):
 
-| Tool | Caught | Flagged clean | Time |
+| Tool | Caught | Errors on originals | Time |
 |---|---|---|---|
-| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.8 s |
-| ty | 149 (73.0%) | 47 (23.0%) | 0.1 s |
-| pyright | 143 (70.1%) | 54 (26.5%) | 5.5 s |
-| pyrefly | 140 (68.6%) | 56 (27.5%) | 0.5 s |
-| zuban | 132 (64.7%) | 42 (20.6%) | 1.6 s |
-| mypy | 119 (58.3%) | 80 (39.2%) | 1.5 s |
+| **pastalean** | **187 (95.9%)** | **0/73 (0.0%)** | 0.56 s |
+| pyright 1.1.414 | 186 (95.4%) | 4/73 (5.5%) | 2.23 s |
+| zuban 0.10.1 | 186 (95.4%) | 8/73 (11.0%) | 0.13 s |
+| pyrefly 0.64.1 | 185 (94.9%) | 5/73 (6.8%) | 0.28 s |
+| ty 0.0.90 | 185 (94.9%) | 3/73 (4.1%) | 0.07 s |
+| mypy 2.4.0 | 181 (92.8%) | 14/73 (19.2%) | 0.96 s |
 
-Read the second column with the first: the others flag a fifth to two fifths of the *unmutated*
-files, which here are known-good. One honest caveat — those originals are `example_scripts`, the
-corpus PastaLean's own filters were written against, so the zero has home advantage. The differential
-rule protects the *caught* column from that; it does not protect the *flagged clean* one.
+Under the corrected harness the checker first scored 160 (82.1%), the lowest of the six. The exact
+layer (`TypeInfer/Diagnostics/Exact.lean`) closed the gap: operator, attribute, subscript and builtin
+facts on trusted parameters; call arguments to methods and constructors as well as functions; declared
+class fields; once-bound globals; loop and comprehension variables (`zip`/`enumerate`); locals whose
+every binding has one exact type; and `accumulate`/`reduce` over `operator` functions. Its evidence
+goes into the existing judgments, so the replay in `Certificate/Check.lean` is unchanged apart from
+one new origin (`call-argument`) and the grounding of declared fields (`decl` in the IR, keyed
+`(Class, "self.f")`). Of the 8 remaining misses, 7 are not run-time type errors and no tool flags
+them; the eighth needs typeshed's convention that `Counter` values are `int`. Two catches are this
+checker's alone, both confirmed under CPython.
+
+**This replaces an earlier table (169/204 caught, ahead of every tool, 20–40% "flagged clean" for the
+others) that was an artifact of the harness, in three ways.** (1) Mutants were copied flat out of their
+directories, so `from contracts import *` (24 files) and scipy imports failed to resolve in every
+other tool, and those errors were scored as flags on the originals. (2) A tool was credited only when
+the original had *no* error at all, so one pre-existing error made every mutant of that file
+uncatchable — which penalised exactly the tools with the most strictness. (3) Several "known-good"
+originals were genuinely ill-typed (a `List` used without import, `-> (int, int)`, `-> int`
+functions returning `-inf`, a generator passed as `List[int]`, an unguarded `root.left.val`); those
+are now fixed or moved into the `# type: ignore` file `typing/annotation_lies.py`. With the setup
+artifacts filtered but the old file-level rule kept, ty already tied TypeInfer at 169/204.
+
+"Errors on originals" is not a false-positive rate. What remains is strictness (`Optional` narrowing
+through a subscript, mypy's empty-container and rebinding rules, possibly-unbound loop variables) and a
+few checker bugs (pyrefly on `lambda n=n: …`, mypy on a forward `nonlocal`). Those originals are also
+the corpus PastaLean's own filters were written against, so its zero has home advantage.
 
 ### Precision at scale: mypy_primer
+
+**Current:** 245 diagnostics over 69,857 checked files (3.51 per 1000), 8 timeouts, against 297 for the
+checker before the exact layer on the same fetch. The 17 new diagnostics were each read and are real;
+the 69 dropped are 49 old call-site false positives (protocol annotations read as `list`, a bare
+`tuple` read as the empty tuple), 13 calls into decorated functions, 3 `None` arguments and 4
+`@no_type_check` fixtures. The sweep also found that inference can stamp a 296 KB module into a 537 MB
+tree (`_ty` type terms on `stone`'s parser), which every structural walk paid for; the checking walks
+now skip `_`-prefixed stamps, which took that file's check from 20 s to 9 s. The run below is the
+earlier one, kept for the record.
 
 158 projects, every file attempted, nothing skipped for size. Every diagnostic here is a candidate
 false positive, because a project is on mypy_primer's list only if it already type-checks in its own

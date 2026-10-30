@@ -142,6 +142,14 @@ partial def declaredSlots (scope : String) (json : Json) :
         match (ctField json "target").bind ctName, ctField json "_decl_ty" with
         | some n, some ann => [((scope, n), some (ofAnnotation ann))]
         | _, _ => []
+    -- A class's declared fields (`x: T` in its body, `self.x: T = …` in a method), which the front
+    -- end keeps under `decl`; `annotation` may be a parameter's type copied over by `self.x = x`.
+    | some "ClassDef" =>
+        let fq := inScope ((json.getObjValAs? String "name").toOption.getD "")
+        ((json.getObjValAs? (Array Json) "fields").toOption.getD #[]).toList.filterMap fun f =>
+          match (f.getObjValAs? String "name").toOption, ctField f "decl" with
+          | some n, some ann => some ((fq, "self." ++ n), some (ofAnnotation ann))
+          | _, _ => none
     | _ => []
   let scope' := match ctNodeType json with
     | some "FunctionDef" | some "AsyncFunctionDef" | some "ClassDef" =>

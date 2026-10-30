@@ -1,6 +1,7 @@
 # A `@cache` DP whose recursion sits inside a list comprehension: the runnable twin memoizes it
 # via a monadic `mapM` over the shared `StateM` cache (turning exponential into polynomial).
 from functools import cache
+from typing import List
 
 
 def max_score(nums: List[int]) -> int:

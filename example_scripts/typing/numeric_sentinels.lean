@@ -14,8 +14,9 @@ set_option maxHeartbeats 200000
 namespace PastaLean.User.Root
 
 -- !/usr/bin/env python3
+-- type: ignore
 /-
-`float('inf')` used as a DP sentinel in an INTEGER context.
+`float('inf')` used as a DP sentinel in an INTEGER context (deliberately ill-typed, hence unchecked).
 
 Python compares `-inf` against ints freely, but Lean needs one type per slot. A monomorphic `ℚ`
 sentinel made `-inf` unusable inside an `-> int` function, so the sentinel is polymorphic in its
