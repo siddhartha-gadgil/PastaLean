@@ -17,11 +17,11 @@ namespace PastaLean.User.Root
 -- so the program stays total. In prove mode each PyAny binder is flagged as unprovable.
 -- `data` has no annotation and its element type is never pinned (indexing is ambiguous), so it boxes
 -- to PyAny and `data[0]` still elaborates via the delegating PyGetItem instance.
-def first_item := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋(0 : Int)⦌)
+def first_item := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋((0 : Int) : PastaLean.PyAny)⦌)
 
 attribute [simp] first_item
 
-def first_item'rn := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋(0 : Int)⦌)
+def first_item'rn := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋((0 : Int) : PastaLean.PyAny)⦌)
 
 -- `xs` used by len() and a for-loop; still un-inferrable, boxed to PyAny.
 def count_items := fun (xs : List Int) ↦

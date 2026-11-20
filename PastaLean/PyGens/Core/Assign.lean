@@ -333,7 +333,12 @@ partial def nestedSubscriptSetDoElem? (target : Json) (value : TSyntax `term) :
             return some (← `(doElem| PastaLean.modifyRefM $refCode (fun $lVar => $newVal)))
   let some (root, slices) := subscriptChain? target | return none
   -- `d[i, j] = v` on a dict is a single tuple-KEY write; otherwise each level is a plain index.
-  let idxTerms ← slices.mapM fun s => do return (← dictTupleKeyTerm? s).getD (← getCode s `term)
+  -- A level into a boxed `PyAny` container (`_box_index`) boxes its index, and the last one the value.
+  let boxed := fun (s : Json) => s.getObjValAs? Bool "_box_index" == .ok true
+  let idxTerms ← slices.mapM fun s => do
+    let t := (← dictTupleKeyTerm? s).getD (← getCode s `term)
+    if boxed s then `(($t : PastaLean.PyAny)) else pure t
+  let value ← if slices.back?.any boxed then `(($value : PastaLean.PyAny)) else pure value
   match jsonNodeType? root with
   | some "Name" =>
       let rootIdent ← getCode root `ident
@@ -491,6 +496,57 @@ def jsonLibObjectModule? (value : Json) : PygenM (Option String) := do
       libObjVarModule? id.toName
   | _ => return none
 
+/-- `match v with | (x₀, …, xₙ) => (box x₀, …)`, boxing the components typed `Any`. -/
+partial def boxTupleParts (v : TSyntax `term) (ts : List TypeInfer.PyType) : PygenM (TSyntax `term) := do
+  if ts.length < 2 then return v
+  let xs ← ts.mapM fun _ => do return mkIdent (← freshName `p'_part)
+  let parts ← (xs.zip ts).mapM fun (x, t) => match t with
+    | .any => `(($x : PastaLean.PyAny))
+    | .tuple us => boxTupleParts x us
+    | _ => pure x
+  let pat ← xs.dropLast.foldrM (fun x acc => `(($x, $acc))) (xs.getLast! : TSyntax `term)
+  let body ← parts.dropLast.foldrM (fun p acc => `(($p, $acc))) parts.getLast!
+  `(match $v:term with | $pat => $body)
+
+/-- Lower `value` against its declared type `ty`, boxing the parts typed `Any` (a tuple literal is
+matched componentwise), so `return None, i` in a `-> tuple[Any, int]` function yields `(PyAny.none, i)`. -/
+partial def lowerAgainstType (lower : Json → PygenM (TSyntax `term)) (value : Json) :
+    TypeInfer.PyType → PygenM (TSyntax `term)
+  | .any => do
+      match jsonNodeType? value with
+      -- A literal in an `Any` slot is a boxed, insertion-ordered container, not a `Std.HashMap`/`List`.
+      | some "Dict" =>
+          let ks := (value.getObjValAs? (Array Json) "keys").toOption.getD #[]
+          let vs := (value.getObjValAs? (Array Json) "values").toOption.getD #[]
+          if ks.any (·.isNull) then return ← lower value
+          let kvs ← (ks.zip vs).mapM fun (k, v) => do
+            `(($(← lowerAgainstType lower k .any), $(← lowerAgainstType lower v .any)))
+          `(PastaLean.PyAny.dict [$kvs,*])
+      | some "List" =>
+          let es := (value.getObjValAs? (Array Json) "elts").toOption.getD #[]
+          let xs ← es.mapM fun e => lowerAgainstType lower e .any
+          `(PastaLean.PyAny.list [$xs,*])
+      | _ =>
+          let v ← withBoxReturnContext true (lower value)
+          `(($v : PastaLean.PyAny))
+  | .tuple ts => do
+      let elts := (value.getObjValAs? (Array Json) "elts").toOption.getD #[]
+      if jsonNodeType? value != some "Tuple" || elts.size != ts.length || elts.size < 2
+          || !ts.any TypeInfer.PyType.boxesAny then
+        if ts.any TypeInfer.PyType.boxesAny then
+          -- A non-literal tuple (`return scanstring(s, i)`) is destructured and its `Any` parts boxed.
+          return ← boxTupleParts (← lower value) ts
+        return ← lower value
+      let parts ← (elts.toList.zip ts).mapM fun (e, t) => lowerAgainstType lower e t
+      let init := parts.getLast!
+      parts.dropLast.foldrM (fun p acc => `(($p, $acc))) init
+  | .list .any => do
+      if jsonNodeType? value != some "List" then return ← lower value
+      let es := (value.getObjValAs? (Array Json) "elts").toOption.getD #[]
+      let xs ← es.mapM fun e => lowerAgainstType lower e .any
+      `(([$xs,*] : List PastaLean.PyAny))
+  | _ => lower value
+
 @[pygen "Assign"]
 def assignSyntax : (kind : SyntaxNodeKind) → Json →
     PygenM (TSyntax kind)
@@ -647,10 +703,10 @@ def assignSyntax : (kind : SyntaxNodeKind) → Json →
                 let bindTmp ← `(doElem| let $tmpIdent:ident := $valueTerm)
                 if let some setStx ← nestedSubscriptSetDoElem? target tmpIdent then
                   return ⟨mkNullNode #[bindTmp.raw, update.raw, setStx.raw]⟩
-            let rhs ←
+            let lowerRhs (value : Json) : PygenM (TSyntax `term) := do
               -- `x = a or b` binds the deciding *value*, not a `Bool` (`x = s or '0'` → the string).
               if jsonNodeType? value == some "BoolOp" then boolOpValueTerm value
-              else if jsonUsesIOEffect value then
+              else if jsonUsesIOEffect value || jsonNestedMonadicEffect value then
                 inlineEffectfulTerm value
               else
                 let valueStx ← getCode value `term
@@ -658,6 +714,9 @@ def assignSyntax : (kind : SyntaxNodeKind) → Json →
                   `((← $valueStx))
                 else
                   pure valueStx
+            let annTy := (((jsonFieldOption json "annotation").orElse fun _ => jsonFieldOption json "_decl_ty").map
+              (TypeInfer.ofAnnotation · (anyDynamic := true))).getD .unknown
+            let rhs ← if TypeInfer.PyType.boxesAny annTy then lowerAgainstType lowerRhs value annTy else lowerRhs value
             -- `node = node.children[idx]`: TypeInfer marked the `Option[Node]` value `_narrow` (the
             -- cursor var is a bare node, and the value is guarded non-`None`). Unwrap it (`.get!`).
             let rhs ← if value.getObjValAs? Bool "_narrow" == .ok true then `(($rhs).get!) else pure rhs
@@ -848,18 +907,20 @@ def returnSyntax : (kind : SyntaxNodeKind) → Json →
             if (← getValueMutatorContext) then `(doElem| return (default, $(mkIdent `self)))
             else `(doElem| return default)
         | _ =>
-            let valueStx ←
+            let lowerValue (value : Json) : PygenM (TSyntax `term) := do
               -- `return a or b` returns the deciding *value* (`x or '0'` → the string), not a `Bool`.
               if jsonNodeType? value == some "BoolOp" then boolOpValueTerm value
               -- A call that both yields a value and mutates its receiver (`return heappop(h)`):
               -- the mutation is unobservable after a `return`, so return the value component.
               else if let some (valueTerm, _) ← mutatingCallRhsLowering? value then
                 pure valueTerm
-              else if jsonUsesIOEffect value then
+              else if jsonUsesIOEffect value || jsonNestedMonadicEffect value then
                 inlineEffectfulTerm value
               else
                 let s ← getCode value `term
                 if jsonUsesMonadicEffect value then `((← $s:term)) else pure s
+            let retTy := ((← getReturnAnnotation).map (TypeInfer.ofAnnotation · (anyDynamic := true))).getD .unknown
+            let valueStx ← lowerAgainstType lowerValue value retTy
             -- In a boxed-return function, ascribe each value to `PyAny` so `try/catch` branches
             -- coerce individually (Lean would otherwise unify the branch types from the first return).
             let valueStx ← if (← getBoxReturnContext)

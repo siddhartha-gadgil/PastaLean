@@ -33,7 +33,7 @@ def main : IO Unit := do
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do
-          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (main')]
+          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg main']
           pure ()) :
         PastaLean.ProofMode.PyProofM Unit))
       initState
@@ -47,7 +47,7 @@ def main : IO Unit := do
     throw (IO.userError (toString err))
 
 def main'rn : IO Unit := do
-  let _ ← pyPrintIO [pyPrintArg (main''rn)]
+  let _ ← pyPrintIO [pyPrintArg main''rn]
   pure ()
 
 end PastaLean.User.Root

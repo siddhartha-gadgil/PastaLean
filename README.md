@@ -469,17 +469,14 @@ agree                        REFUTED                  xs = [-1]
                              kernel-checked: theorem agree_counterexample : ¬ type_of% @agree := by refute_at ([-1] : List ℤ)
 ```
 
-Inputs are generated from the `Requires` themselves: bounds (`0 <= i < len(xs)`), lengths, congruences
-(`x % 97 == 3`), element bounds (`all(0 <= v <= 9 for v in xs)`), sorted and distinct lists become
-generators that only produce valid inputs, so `--tests 10000` means 10000 inputs that satisfy the
-precondition (rejected draws do not count). A contract witness also says what the function returned
-and which `Ensures` it broke — either the code is wrong there or that `Ensures` is too strong.
-Equivalences need no property function: `--equiv brute=fast` checks `brute(x) == fast(x)` under
-`brute`'s `Requires`. Other engines: small-scope exhaustive enumeration and random draws in both Lean
-twins, and on the CPython side a precondition-directed hill climb (the precondition becomes a distance
-to satisfy), Hypothesis and CrossHair (symbolic execution over Z3, which finds bugs behind a narrow `Requires` that
-sampling never reaches; install with `uv pip install -e '.[refute]'`). Every witness, whoever found it,
-is then judged in **all three worlds** — the provable twin (exact ℚ), the runnable twin (IEEE floats)
+All searching happens in Lean, over the translated program (the `refute?` machinery): small-scope
+exhaustive enumeration and random draws in both twins, with generators that aim at the literals in the
+program's own definitions (a `"sx250ab" in s` precondition needs that substring). Python only supplies
+the program and its contracts; a program PastaLean cannot translate is reported as such. A contract
+witness also says what the function returned and which `Ensures` it broke — either the code is wrong
+there or that `Ensures` is too strong. Equivalences need no property function: `--equiv brute=fast`
+checks `brute(x) == fast(x)` under `brute`'s `Requires`. Every witness Lean finds is executed once under
+CPython and is then judged in **all three worlds** — the provable twin (exact ℚ), the runnable twin (IEEE floats)
 and CPython — so a counterexample is classified, not just reported:
 
 | Verdict | Meaning |

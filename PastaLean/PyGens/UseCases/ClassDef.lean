@@ -141,7 +141,8 @@ declare a mutable `self` (the parameter for a mutator, or `default` for a constr
 body (where `self.x = …` becomes `self := { self with x := … }` — see `Core/Assign.lean`), then
 `return self`. Wrapped in a lambda over `argInfos`. -/
 def classSelfThreadingValue (argInfos : Array (TSyntax `ident × Option (TSyntax `term)))
-    (classTyTerm : TSyntax `term) (bodyElems : Array Json) (selfIsParam : Bool) :
+    (classTyTerm : TSyntax `term) (bodyElems : Array Json) (selfIsParam : Bool)
+    (monad? : Option (TSyntax `term) := none) (lambdas : Bool := true) :
     PygenM (TSyntax `term) := withFreshVariables do
   let selfId := mkIdent `self
   addVar `self
@@ -157,11 +158,19 @@ def classSelfThreadingValue (argInfos : Array (TSyntax `ident × Option (TSyntax
       paramPrelude := paramPrelude.push (← `(doElem| let mut $argIdent:ident := $argIdent))
   let bodyStxArray ← monadicFunctionBodySyntax bodyElems
   let idRun := mkIdent ``Id.run
-  let core ← `($idRun do
-      $selfDecl:doElem
-      $[$paramPrelude:doElem]*
-      $[$bodyStxArray:doElem]*
-      return $selfId:term)
+  -- A routine that raises (a validating `__init__`) runs in its effect monad instead of `Id`.
+  let core ← match monad? with
+    | some m => `(((do
+          $selfDecl:doElem
+          $[$paramPrelude:doElem]*
+          $[$bodyStxArray:doElem]*
+          return $selfId:term) : $m $classTyTerm))
+    | none => `($idRun do
+          $selfDecl:doElem
+          $[$paramPrelude:doElem]*
+          $[$bodyStxArray:doElem]*
+          return $selfId:term)
+  if !lambdas then return core
   let mut result := core
   for (argIdent, ty?) in argInfos.toList.reverse do
     result ← match ty? with
@@ -280,13 +289,22 @@ def classInitConstructor (className : String) (initJson : Json) (hasRealField : 
           if hasRealField then `(command| noncomputable def $mkIdentC $binders* : $classTy := $recordBody)
           else `(command| def $mkIdentC $binders* : $classTy := $recordBody)
   | none =>
+      let monad? ← effectMonad? bodyElems
+      let codomain ← match monad? with | some m => `($m $classTy) | none => pure classTy
+      -- `__init__` defaults become `optParam` binders, so `C(x)` / `C(x, y=1)` fill the rest.
+      if let some binders ← functionParamBinders? initJson argInfos then
+        let valueStx ← withFreshVariables do
+          withCurrentClass className [] do
+            classSelfThreadingValue argInfos classTy bodyElems (selfIsParam := false) monad? (lambdas := false)
+        return ← if hasRealField then `(command| noncomputable def $mkIdentC $binders* : $codomain := $valueStx)
+          else `(command| def $mkIdentC $binders* : $codomain := $valueStx)
       let valueStx ← withFreshVariables do
         withCurrentClass className [] do
-          classSelfThreadingValue argInfos classTy bodyElems (selfIsParam := false)
+          classSelfThreadingValue argInfos classTy bodyElems (selfIsParam := false) monad?
       let mkDef : TSyntax `term → PygenM (TSyntax `command) := fun ty =>
         if hasRealField then `(command| noncomputable def $mkIdentC : $ty := $valueStx)
         else `(command| def $mkIdentC : $ty := $valueStx)
-      match ← functionArrowTypeSyntax? argInfos classTy with
+      match ← functionArrowTypeSyntax? argInfos codomain with
       | some fullTy => mkDef fullTy
       | none => if hasRealField then `(command| noncomputable def $mkIdentC := $valueStx)
                 else `(command| def $mkIdentC := $valueStx)
@@ -333,7 +351,12 @@ def classMethodDef (className : String) (info : ClassInfo) (m : Json) : PygenM (
     else if isValueMutator then
       classValueMutatorValue bodyArgInfos bodyElems
     else
+      -- An `Optional[T]` method (`utcoffset`) pins its codomain so `return None` and `return t` unify.
+      let optRet := match (jsonFieldOption m "returns").orElse (fun _ => jsonFieldOption m "_ret_ty") with
+        | some r => match TypeInfer.ofAnnotation r with | .opt _ => true | _ => false
+        | none => false
       functionValueSyntax bodyArgInfos bodyElems
+        (retAscription := ← if optRet then optionalReturnAscription? m else pure none)
   -- A method the per-variable pass stamped `_real_fn` (produces/handles an `ℝ` transcendental)
   -- must be `noncomputable` in exact mode, exactly like a free function.
   let nc := (← getNumericMode) == .exact && m.getObjValAs? Bool "_real_fn" == .ok true
@@ -352,7 +375,9 @@ def classMethodDef (className : String) (info : ClassInfo) (m : Json) : PygenM (
   -- `assert` value method), so `taste?` can unfold them — mirroring free functions in `FuncDef`.
   -- Never the `'rn` twin (approx mode is skipped). Methods are emitted as plain `def`s, not
   -- `partial`, so there's no recursive-`@[simp]` hazard.
-  if (← getNumericMode) == .exact && !isRecursive then
+  -- An `IO` method (the clock) is not unfolded: its `if let` over the state monad makes the equation
+  -- lemma blow `maxRecDepth`, and its result is unspecified anyway.
+  if (← getNumericMode) == .exact && !isRecursive && !bodyNeedsIOMonad bodyElems then
     let isEffectful := bodyNeedsExceptionMonad bodyElems || bodyNeedsIOMonad bodyElems
     let hasAssert := bodyElems.any (jsonNodeType? · == some "Assert")
     let attrCmd ← if !isEffectful && !hasAssert && !nc
@@ -364,29 +389,94 @@ def classMethodDef (className : String) (info : ClassInfo) (m : Json) : PygenM (
 
 /-- A `__repr__`/`__str__` method becomes a `PyPrintable` instance, so `print(obj)` / `str(obj)`
 use it (overriding the `deriving Repr` fallback). -/
-def classPrintableInstance (className : String) (m : Json) : PygenM (TSyntax `command) := do
+def classPrintableInstance (className : String) (m : Json) (repr? : Option Json := none) :
+    PygenM (TSyntax `command) := do
   let classTy : TSyntax `term := mkIdent className.toName
-  let bodyElems ← functionBodyElems m
-  let lam ← withCurrentClass className [] do
-    functionValueSyntax #[(mkIdent `self, some classTy)] bodyElems
+  let lamOf (m : Json) : PygenM (TSyntax `term) := do
+    let bodyElems ← functionBodyElems m
+    withCurrentClass className [] do functionValueSyntax #[(mkIdent `self, some classTy)] bodyElems
+  let lam ← lamOf m
   let printableC ← `($(mkIdent ``PastaLean.PyPrintable) $classTy)
-  `(command| instance : $printableC where pyStringify := $lam)
+  -- With both, `str()`/`print` use `__str__` and a container's rendering uses `__repr__`.
+  match repr? with
+  | some r => `(command| instance : $printableC where
+      pyStringify := $lam
+      pyReprify := $(← lamOf r))
+  | none => `(command| instance : $printableC where pyStringify := $lam)
 
-/-- Operator dunders become the runtime operator typeclass instances the generated code dispatches
-through: `__add__`→`PyHAdd` (used by `+ₚ`), `__sub__`→`PyHSub`, `__mul__`→`PyHMul`, `__eq__`→`BEq`
-(used by `==`). Returns `none` for a non-operator method name. -/
-def classDunderInstance? (className : String) (m : Json) : PygenM (Option (TSyntax `command)) := do
-  let .ok mName := m.getObjValAs? String "name" | return none
+/-- The operator typeclass and method a binary dunder implements (`a + b` → `PyHAdd.hAdd`). -/
+def binaryDunderClass? : String → Option (Name × Name)
+  | "__add__" => some (``PastaLean.PyHAdd, `hAdd)
+  | "__sub__" => some (``PastaLean.PyHSub, `hSub)
+  | "__mul__" => some (``PastaLean.PyHMul, `hMul)
+  | "__truediv__" => some (``PastaLean.PyHDiv, `hDiv)
+  | "__floordiv__" => some (``PastaLean.PyFloorDiv, `floorDiv)
+  | "__mod__" => some (``PastaLean.PyModulo, `hMod)
+  | _ => none
+
+/-- The Python dunder a method implements: its name, or for one `@overload` of it (`__sub__'date`)
+the name it specialises (`_dunder`). -/
+def methodDunder (m : Json) : String :=
+  (m.getObjValAs? String "_dunder").toOption.getD ((m.getObjValAs? String "name").toOption.getD "")
+
+/-- Is this method a dunder that becomes a typeclass instance (beyond `__init__`/`__str__`/`__repr__`)? -/
+def isInstanceDunder (m : Json) : Bool :=
+  let d := methodDunder m
+  (binaryDunderClass? d).isSome
+    || ["__eq__", "__lt__", "__le__", "__neg__", "__abs__", "__hash__", "__bool__"].contains d
+
+/-- Typeclass instances for a dunder method, which is also emitted as the plain method `C.<name>` they
+call. A binary operator's operand and result types come from its annotations (default: the class), so
+`date.__add__(self, other: timedelta) -> date` is `PyHAdd date timedelta date`; a dunder that raises
+returns its effect monad (`PyHAdd date timedelta (PyExcept date)`), and the expression is awaited (its
+`BinOp` is stamped by TypeInfer). `__lt__` also gives `Ord` (sorting, `min`), deciding ties by `__lt__`
+both ways, as Python's sort does. -/
+def classDunderInstances (className : String) (m : Json) : PygenM (Array (TSyntax `command)) := do
+  let .ok mName := m.getObjValAs? String "name" | return #[]
+  let dunder := methodDunder m
   let classTy : TSyntax `term := mkIdent className.toName
+  let fn : TSyntax `term := mkIdent (Name.mkStr className.toName mName)
+  let argInfos ← functionArgInfos m
   let bodyElems ← functionBodyElems m
-  let argInfos := #[(mkIdent `self, some classTy)] ++ (← functionArgInfos m).drop 1
-  let lam ← withCurrentClass className [] do functionValueSyntax argInfos bodyElems
-  match mName with
-  | "__add__" => some <$> `(command| instance : $(mkIdent ``PastaLean.PyHAdd) $classTy $classTy $classTy where hAdd := $lam)
-  | "__sub__" => some <$> `(command| instance : $(mkIdent ``PastaLean.PyHSub) $classTy $classTy $classTy where hSub := $lam)
-  | "__mul__" => some <$> `(command| instance : $(mkIdent ``PastaLean.PyHMul) $classTy $classTy $classTy where hMul := $lam)
-  | "__eq__"  => some <$> `(command| instance : BEq $classTy where beq := $lam)
-  | _ => return none
+  let monad? ← effectMonad? (stripResultMarkers bodyElems)
+  let ret ← match ← functionReturnTypeSyntax? m with | some t => pure t | none => pure classTy
+  let resTy ← match monad? with | some mo => `($mo $ret) | none => pure ret
+  let otherTy := ((argInfos[1]?).bind (·.2)).getD classTy
+  let a := mkIdent `a
+  let b := mkIdent `b
+  if let some (cls, field) := binaryDunderClass? dunder then
+    return #[← `(command| instance : $(mkIdent cls) $classTy $otherTy $resTy where
+        $(mkIdent field):ident := $fn)]
+  match dunder with
+  | "__eq__" => return #[← `(command| instance : BEq $classTy where beq := $fn)]
+  -- A comparison that can raise (TypeInfer stamps its uses to call the method) still orders values
+  -- for `sorted`/`min`: run purely, an exception surfacing as a recorded runtime error.
+  | "__lt__" => do
+      let lt ← if monad?.isSome then `(fun $a $b => PastaLean.runPure ($fn $a $b)) else pure fn
+      return #[
+      ← `(command| instance : LT $classTy := ⟨fun $a $b => $lt $a $b = true⟩),
+      ← `(command| instance : DecidableRel (α := $classTy) (· < ·) := fun $a $b =>
+            inferInstanceAs (Decidable ($lt $a $b = true))),
+      ← `(command| instance : Ord $classTy :=
+            ⟨fun $a $b => if $lt $a $b then .lt else if $lt $b $a then .gt else .eq⟩)]
+  | "__le__" => do
+      let le ← if monad?.isSome then `(fun $a $b => PastaLean.runPure ($fn $a $b)) else pure fn
+      return #[
+      ← `(command| instance : LE $classTy := ⟨fun $a $b => $le $a $b = true⟩),
+      ← `(command| instance : DecidableRel (α := $classTy) (· ≤ ·) := fun $a $b =>
+            inferInstanceAs (Decidable ($le $a $b = true)))]
+  -- A raising `__neg__`/`__abs__` gets no instance: TypeInfer stamps the expression and codegen calls
+  -- the method, awaited (`(← C.__neg__ x)`).
+  | "__neg__" => do
+      if monad?.isSome then return #[]
+      return #[← `(command| instance : Neg $classTy := ⟨$fn⟩)]
+  | "__abs__" => do
+      if monad?.isSome then return #[]
+      return #[← `(command| instance : $(mkIdent ``PastaLean.PyAbs) $classTy := ⟨$fn⟩)]
+  | "__hash__" => return #[← `(command| instance : Hashable $classTy := ⟨fun $a => hash ($fn $a)⟩)]
+  | "__bool__" => return #[← `(command| instance : $(mkIdent ``PastaLean.PyTruthy) $classTy := ⟨$fn⟩),
+      ← `(command| instance : $(mkIdent ``PastaLean.PyBool) $classTy := ⟨$fn⟩)]
+  | _ => return #[]
 
 /-- Heap-typed parameter infos: each param's type is its HEAP type (objects/containers → `Ref`), so
 constructor/method binders line up with the ref-typed fields. -/
@@ -416,7 +506,7 @@ def heapArgInfos (json : Json) : PygenM (Array (TSyntax `ident × Option (TSynta
 /-- Heap-typed return type (objects/containers → `Ref`); `none` when unknown. -/
 def heapReturnTypeSyntax? (json : Json) : PygenM (Option (TSyntax `term)) := do
   if json.getObjValAs? Bool "_box_return" == .ok true then return some (mkIdent ``PastaLean.PyAny)
-  match (jsonFieldOption json "returns").orElse (fun _ => jsonFieldOption json "_ret_ty") with
+  match returnAnnotation? json with
   | some ann => some <$> heapTypeSyntax (TypeInfer.ofAnnotation ann)
   | none => pure none
 
@@ -681,6 +771,8 @@ def classDefSyntax : (kind : SyntaxNodeKind) → Json → PygenM (TSyntax kind)
         -- the `none` case. Without this, `if node:` on a bare-typed `ListNode`/`TreeNode` has no instance.
         members := members.push
           (← `(command| instance : PastaLean.PyTruthy $nameId where truthy _ := true))
+        members := members.push
+          (← `(command| instance : PastaLean.PyBool $nameId where pyBool _ := true))
         -- `type(instance)` / `isinstance(instance, C)` report the class: `PyType.cls "C"`.
         members := members.push
           (← `(command| instance : PastaLean.PyTyped $nameId where
@@ -689,6 +781,15 @@ def classDefSyntax : (kind : SyntaxNodeKind) → Json → PygenM (TSyntax kind)
         -- ascribed `Option C` takes its bare initial value, and `curr = ListNode(...)` reassignments fit.
         members := members.push
           (← `(command| instance : Coe $nameId (Option $nameId) := ⟨some⟩))
+        -- An instance of a subclass is an instance of each base (`f(xs)` with `xs : list[Sub]` where
+        -- `f` takes `Iterable[Base]`): coerce through the `extends` parent projection.
+        if let .ok bases := json.getObjValAs? (Array Json) "bases" then
+          for b in bases do
+            if let .ok bid := b.getObjValAs? String "id" then
+              let bname ← withRunSuffix bid
+              if (← isRegisteredClass bid) then
+                members := members.push (← `(command| instance : Coe $nameId $(mkIdent bname.toName) :=
+                  ⟨fun x => x.$(mkIdent ("to" ++ bname).toName)⟩))
 
       -- Constructor (from `__init__`), operator/printable dunders, and the remaining methods.
       let heap ← getHeapMode
@@ -706,12 +807,13 @@ def classDefSyntax : (kind : SyntaxNodeKind) → Json → PygenM (TSyntax kind)
           members := members ++ (← classMethodDefHeap name info m)
         else if mName == "__str__" || (mName == "__repr__" && !methodNames.contains "__str__") then
           -- Prefer `__str__` for `pyStringify` when both are defined (Python `str()`/`print`).
-          members := members.push (← classPrintableInstance name m)
+          let repr? := if mName == "__str__" then
+            methods.find? (·.getObjValAs? String "name" == .ok "__repr__") else none
+          members := members.push (← classPrintableInstance name m repr?)
         else if mName == "__repr__" then
-          pure ()  -- shadowed by `__str__`
-
-        else if let some inst ← classDunderInstance? name m then
-          members := members.push inst
+          pure ()  -- folded into the `__str__` instance
+        else if isInstanceDunder m then
+          members := members ++ (← classMethodDef name info m) ++ (← classDunderInstances name m)
         else
           members := members ++ (← classMethodDef name info m)
       -- No `__init__`: `C()` builds an all-defaults instance (fields use their declared defaults).

@@ -179,6 +179,47 @@ decreasing_by
         have := List.sizeOf_lt_of_mem h
         omega
 
+/-- No `unknown` part: an annotation that fixes the whole value type (`any` parts included). -/
+def isDeclared : PyType → Bool
+  | .unknown => false
+  | .list e | .set e | .opt e => isDeclared e
+  | .dict k v => isDeclared k && isDeclared v
+  | .tuple es => es.attach.all fun ⟨e, _⟩ => isDeclared e
+  | .fn as r => (as.attach.all fun ⟨e, _⟩ => isDeclared e) && isDeclared r
+  | _ => true
+termination_by t => sizeOf t
+decreasing_by
+  all_goals simp_wf
+  all_goals
+    first
+    | omega
+    | · rename_i h
+        have := List.sizeOf_lt_of_mem h
+        omega
+
+/-- Does a tuple or list type have a dynamic (`any`) part, which values flowing into it must box? -/
+def boxesAny : PyType → Bool
+  | .any => true
+  | .list e => boxesAny e
+  | .tuple es => es.attach.any fun ⟨e, _⟩ => boxesAny e
+  | _ => false
+termination_by t => sizeOf t
+decreasing_by
+  all_goals simp_wf
+  all_goals
+    first
+    | omega
+    | · rename_i h
+        have := List.sizeOf_lt_of_mem h
+        omega
+
+/-- How an operand type names an `@overload` (`C.__sub__'int`); an `Optional` operand (narrowed by its
+guard) names its payload. -/
+def operandName : PyType → String
+  | .cls c => c | .int => "int" | .float => "float" | .str => "str" | .bool => "bool"
+  | .opt (.cls c) => c | .opt .int => "int" | .opt .float => "float" | .opt .str => "str"
+  | _ => ""
+
 /-- Least upper bound.
 
 `unknown` carries no information, so it yields to anything. Genuinely incompatible types (`int` and

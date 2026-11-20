@@ -308,20 +308,22 @@ def counter_closure'rn :=
   count
 
 def closure_theorems :=
-  -- Properties of the closures above, PROVED automatically on conversion (`--prove-asserts`): each
-  -- `assert` becomes a Lean theorem `:= by taste?` and the proof search splices the winning tactic.
-  have ht_1 : (make_adder (5 : Int)) (3 : Int) = (8 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
-  have ht_2 : ((curry_add (1 : Int)) (2 : Int)) (3 : Int) = (6 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
-  have ht_3 : (make_adder (2 : Int)) ((make_adder (3 : Int)) (10 : Int)) = (15 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
-  have ht_4 : (multi_capture (1 : Int) (2 : Int) (3 : Int)) (4 : Int) = (27 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
-  have ht_5 : (sibling_closures (2 : Int) (1 : Int)) () = (7 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
-  ()
+  (show Unit from
+    -- Properties of the closures above, PROVED automatically on conversion (`--prove-asserts`): each
+    -- `assert` becomes a Lean theorem `:= by taste?` and the proof search splices the winning tactic.
+    have ht_1 : (make_adder (5 : Int)) (3 : Int) = (8 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
+    have ht_2 : ((curry_add (1 : Int)) (2 : Int)) (3 : Int) = (6 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
+    have ht_3 : (make_adder (2 : Int)) ((make_adder (3 : Int)) (10 : Int)) = (15 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
+    have ht_4 : (multi_capture (1 : Int) (2 : Int) (3 : Int)) (4 : Int) = (27 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
+    have ht_5 : (sibling_closures (2 : Int) (1 : Int)) () = (7 : Int) := by simp_all (config := { zetaDelta := true }) [taste_ingr]
+    ())
 
 attribute [simp] closure_theorems
 
 def closure_theorems'rn :=
-  -- Properties of the closures above, PROVED automatically on conversion (`--prove-asserts`): each
-  -- `assert` becomes a Lean theorem `:= by taste?` and the proof search splices the winning tactic.
-  ()
+  (show Unit from
+    -- Properties of the closures above, PROVED automatically on conversion (`--prove-asserts`): each
+    -- `assert` becomes a Lean theorem `:= by taste?` and the proof search splices the winning tactic.
+    ())
 
 end PastaLean.User.Root

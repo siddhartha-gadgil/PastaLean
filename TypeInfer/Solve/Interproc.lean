@@ -550,7 +550,7 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
       -- A class keeps its methods under "methods"; older nodes use "body". Each method's params are
       -- keyed `"Class.method"` in `params` (from call-site inference), and `self : .cls Class` seeds
       -- the outer env so `self.field`/`self.method(...)` resolve.
-      #["methods", "body"].foldl (fun s key =>
+      let s := #["methods", "body"].foldl (fun s key =>
         match s.getObjValAs? (Array Json) key with
         | .ok ms => s.setObjVal! key (Json.arr (ms.map fun m =>
             if nodeTypeOf m == some "FunctionDef" then
@@ -566,6 +566,18 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
               else stamped
             else m))
         | _ => s) s
+      -- The constructor's field initialisers (`fields[].init`, copied from `__init__` before inference)
+      -- get the expression stamps under `__init__`'s env (`self.items = items or []`).
+      let init? := ((s.getObjValAs? (Array Json) "methods").toOption.getD #[]).find? fun m =>
+        (m.getObjValAs? String "name").toOption == some "__init__"
+      match init?, s.getObjValAs? (Array Json) "fields" with
+      | some m, .ok fs =>
+          let env := inferFunction sigs ((outerFor m).insert "self" (.cls cls)) (hintsForKey params m s!"{cls}.__init__") m
+          s.setObjVal! "fields" (Json.arr (fs.map fun f =>
+            match getField f "init" with
+            | some e => f.setObjVal! "init" (markBoxIndices sigs env e)
+            | none => f))
+      | _, _ => s
   | some "Module" =>
       match s.getObjValAs? (Array Json) "body" with
       | .ok body => s.setObjVal! "body" (Json.arr (body.map (stampNodeWith sigs params globals)))
@@ -580,7 +592,7 @@ partial def stampNodeWith (sigs : Sigs) (params : ParamSigs) (globals : Env) (s 
         let genv := inferFunction sigs globals {} s
         let stampBlock (key : String) (s : Json) : Json :=
           match s.getObjValAs? (Array Json) key with
-          | .ok body => s.setObjVal! key (Json.arr (body.map (stampUnpackShapes sigs genv)))
+          | .ok body => s.setObjVal! key (Json.arr (body.map (markBoxIndices sigs genv ∘ stampUnpackShapes sigs genv)))
           | _ => s
         stampBlock "orelse" (stampBlock "body" s)
       -- A non-guard module-level `if`: stamp body/orelse targets so a branch-local var (`if c: z=1
@@ -661,6 +673,27 @@ def stampModuleWith (module : Json) (sigs : Sigs) (params : ParamSigs) : Json :=
         e.insert nm sig
     | _ => e) {}
   let globals : Env := (topLevelStmts module).foldl (applyStmt sigs) fnSeed
+  -- Operator dunders that raise (the driver marked them `effect_mode: except`), keyed for
+  -- `markEffectfulOperator`: `!raises:C.__add__'` (any operand) or `!raises:C.__sub__'T` (one overload).
+  let sigs := (classDefsOf module).foldl (fun sg cd =>
+    match (cd.getObjValAs? String "name").toOption with
+    | some cls => (methodsOf cd).foldl (fun sg m =>
+        match (m.getObjValAs? String "name").toOption, (m.getObjValAs? String "effect_mode").toOption with
+        | some nm, some "except" =>
+            let dunder := (m.getObjValAs? String "_dunder").toOption.getD nm
+            let operand := if dunder == nm then "" else (nm.drop (dunder.length + 1)).toString
+            sg.insert s!"!raises:{cls}.{dunder}'{operand}" .none
+        | _, _ => sg) sg
+    | none => sg) sigs
+  -- Methods that rebuild `self` (value-semantics mutators) keep the driver's dispatch; only a getter's
+  -- receiver class is filled in from inference (`markReceiverClass`).
+  let sigs := (classDefsOf module).foldl (fun sg cd =>
+    match (cd.getObjValAs? String "name").toOption with
+    | some cls =>
+        let muts := ((cd.getObjValAs? (Array String) "mutators").toOption.getD #[])
+          ++ ((cd.getObjValAs? (Array String) "value_mutators").toOption.getD #[])
+        muts.foldl (fun sg m => sg.insert s!"!mutator:{cls}.{m}" .none) sg
+    | none => sg) sigs
   let decoNames := collectDecoratorNames module
   let mark (s : Json) : Json :=
     stampDecoratorParams decoNames ((stampNodeWith sigs params globals s).setObjVal! "_inferred" (Json.bool true))

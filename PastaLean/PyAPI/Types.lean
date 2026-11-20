@@ -34,6 +34,7 @@ instance : PyTyped PyAny where
     | .str _ => .str
     | .float _ => .float
     | .list _ => .list .unknown
+    | .dict _ => .dict .unknown .unknown
     | .none => .none
 
 instance : PyTyped Int    where pyTypeOf _ := .int
@@ -59,3 +60,10 @@ def pyIsInstanceAny {α : Type} [PyTyped α] (x : α) (ts : List PyType) : Bool 
   ts.any (pyIsInstance x)
 
 end PastaLean
+
+/-- `type(x).__name__`: the Python name of a runtime type. -/
+def TypeInfer.PyType.__name__ : TypeInfer.PyType → String
+  | .int => "int" | .bool => "bool" | .str => "str" | .float => "float" | .none => "NoneType"
+  | .list _ => "list" | .set _ => "set" | .tuple _ => "tuple" | .dict _ _ => "dict"
+  | .opt t => TypeInfer.PyType.__name__ t | .cls c => c | .fn _ _ => "function"
+  | .any | .unknown => "object"

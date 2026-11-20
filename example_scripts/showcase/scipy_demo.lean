@@ -49,7 +49,7 @@ noncomputable def main' :=
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg "=== scipy.special ==="]
       let _ ←
         PastaLean.ProofMode.pyPrintProof
-            [pyPrintArg "5!        =", pyPrintArg (Libraries.scipy.pyScipyFactorial (5 : Int))]
+            [pyPrintArg "5!        =", pyPrintArg (PastaLean.runPure (Libraries.scipy.pyScipyFactorial (5 : Int)))]
       let _ ←
         PastaLean.ProofMode.pyPrintProof
             [pyPrintArg "C(8,3)    =", pyPrintArg (Libraries.scipy.pyScipyComb (8 : Int) (3 : Int))]

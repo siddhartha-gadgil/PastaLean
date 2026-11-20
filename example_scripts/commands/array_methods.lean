@@ -72,7 +72,7 @@ def list_ops'rn :=
 def main' :=
   ((do
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (stack_sum (5 : Int))]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (list_ops)]) :
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg list_ops]) :
     PastaLean.ProofMode.PyProofM _)
 
 attribute [simp] main'
@@ -80,7 +80,7 @@ attribute [simp] main'
 def main''rn :=
   ((do
       let _ ← pyPrintIO [pyPrintArg (stack_sum'rn (5 : Int))]
-      let _ ← pyPrintIO [pyPrintArg (list_ops'rn)]) :
+      let _ ← pyPrintIO [pyPrintArg list_ops'rn]) :
     IO _)
 
 def main : IO Unit := do

@@ -26,7 +26,8 @@ def exceptionNameFromTermJson (json : Json) : PygenM String := do
   | "Attribute" =>
       let .ok attr := json.getObjValAs? String "attr" | throwError
         s!"Exception attribute node is missing an 'attr': {json}"
-      return attr
+      -- `re.error` is `re.PatternError`.
+      return if attr == "error" then "PatternError" else attr
   | _ =>
       throwError s!"Unsupported exception type node: {nodeType}"
 
@@ -108,7 +109,6 @@ def handlerConditionTerm (caughtIdent : TSyntax `ident) (handlerType? : Option J
   match handlerType? with
   | none => pure trueTerm
   | some handlerTypeJson =>
-      let caughtKind ← exceptionKindTerm caughtIdent
       let .ok nodeType := handlerTypeJson.getObjValAs? String "node_type" | throwError
         s!"ExceptHandler type is missing a 'node_type' field: {handlerTypeJson}"
       match nodeType with
@@ -122,7 +122,7 @@ def handlerConditionTerm (caughtIdent : TSyntax `ident) (handlerType? : Option J
               if excName == "Exception" then
                 pure trueTerm
               else
-                `($caughtKind == $(Syntax.mkStrLit excName))
+                `($(mkIdent ``PastaLean.pyExcIsA) $(mkIdent caughtIdent.getId) $(Syntax.mkStrLit excName))
             cond? ← match cond? with
               | none => pure (some altCond)
               | some prev => pure (some (← orTerm prev altCond))
@@ -132,7 +132,7 @@ def handlerConditionTerm (caughtIdent : TSyntax `ident) (handlerType? : Option J
           if excName == "Exception" then
             pure trueTerm
           else
-            `($caughtKind == $(Syntax.mkStrLit excName))
+            `($(mkIdent ``PastaLean.pyExcIsA) $(mkIdent caughtIdent.getId) $(Syntax.mkStrLit excName))
 
 /-- Wrap every `(← e)` await in a run-mode try body with `PyExcept.captureIOErrors`, turning an IO
 error (e.g. `EOFError` from `input()`) into a catchable `PyException`. Unlike wrapping the whole body

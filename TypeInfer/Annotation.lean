@@ -57,19 +57,22 @@ private def containerOf (name : String) (args : List PyType) : Option PyType :=
   | "Union", es => some (PyType.joinAll es)
   | _, _ => none
 
-/-- Read a Python type annotation. Unrecognised shapes are `unknown`, never an error. -/
-partial def ofAnnotation (json : Json) : PyType :=
+/-- Read a Python type annotation. Unrecognised shapes are `unknown`, never an error. `anyDynamic`
+reads an explicit `Any`/`object` as the dynamic `.any` (a declared return or variable whose values
+really are heterogeneous) instead of the gradual "no info" `.unknown`. -/
+partial def ofAnnotation (json : Json) (anyDynamic : Bool := false) : PyType :=
   match nodeType? json with
   | some "Name" =>
       match (json.getObjValAs? String "id").toOption with
       | some id => match baseTypes.lookup (canonical id) with
+          | some .unknown => if anyDynamic then .any else .unknown
           | some t => t
           | none => .cls id
       | none => .unknown
   -- A string forward reference: `def f(root: "TreeNode")`.
   | some "Constant" =>
       match json.getObjVal? "value" with
-      | .ok (.str s) => ofAnnotation (Json.mkObj [("node_type", .str "Name"), ("id", .str s)])
+      | .ok (.str s) => ofAnnotation (Json.mkObj [("node_type", .str "Name"), ("id", .str s)]) anyDynamic
       -- `...` is a null with its kind named; it claims no type, unlike a literal `None`.
       | .ok .null =>
           if (json.getObjValAs? String "python_literal_kind").toOption == some "ellipsis" then
@@ -79,13 +82,13 @@ partial def ofAnnotation (json : Json) : PyType :=
   -- `typing.List[int]` if the pre-pass left it alone.
   | some "Attribute" =>
       match (json.getObjValAs? String "attr").toOption with
-      | some attr => ofAnnotation (Json.mkObj [("node_type", .str "Name"), ("id", .str attr)])
+      | some attr => ofAnnotation (Json.mkObj [("node_type", .str "Name"), ("id", .str attr)]) anyDynamic
       | none => .unknown
   -- `X | None`, which is how `Optional[X]` reaches us.
   | some "BinOp" =>
       if (json.getObjValAs? String "op").toOption == some "bitor" then
         match json.getObjVal? "left", json.getObjVal? "right" with
-        | .ok l, .ok r => PyType.join (ofAnnotation l) (ofAnnotation r)
+        | .ok l, .ok r => PyType.join (ofAnnotation l anyDynamic) (ofAnnotation r anyDynamic)
         | _, _ => .unknown
       else .unknown
   | some "Subscript" =>
@@ -105,7 +108,7 @@ partial def ofAnnotation (json : Json) : PyType :=
               match elts[0]?, elts[1]? with
               | some argsJson, some retJson =>
                   let argAnns := (argsJson.getObjValAs? (Array Json) "elts").toOption.getD #[]
-                  .fn (argAnns.toList.map ofAnnotation) (ofAnnotation retJson)
+                  .fn (argAnns.toList.map (ofAnnotation · anyDynamic)) (ofAnnotation retJson anyDynamic)
               | _, _ => .unknown
             else .unknown
         | _ => .unknown
@@ -113,8 +116,8 @@ partial def ofAnnotation (json : Json) : PyType :=
         let args := match json.getObjVal? "slice" with
           | .ok slice =>
               if nodeType? slice == some "Tuple" then
-                ((slice.getObjValAs? (Array Json) "elts").toOption.getD #[]).toList.map ofAnnotation
-              else [ofAnnotation slice]
+                ((slice.getObjValAs? (Array Json) "elts").toOption.getD #[]).toList.map (ofAnnotation · anyDynamic)
+              else [ofAnnotation slice anyDynamic]
           | _ => []
         match name with
         | some n => (containerOf (canonical n) args).getD .unknown

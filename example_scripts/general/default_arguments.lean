@@ -40,6 +40,8 @@ structure Counter where
 
 instance : PastaLean.PyTruthy Counter where truthy _ := true
 
+instance : PastaLean.PyBool Counter where pyBool _ := true
+
 instance : PastaLean.PyTyped Counter where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 
 instance : Coe Counter (Option Counter) :=
@@ -60,6 +62,8 @@ structure Counter'rn where
 
 instance : PastaLean.PyTruthy Counter'rn where truthy _ := true
 
+instance : PastaLean.PyBool Counter'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped Counter'rn where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 
 instance : Coe Counter'rn (Option Counter'rn) :=
@@ -79,6 +83,8 @@ structure TreeNode where
 
 instance : PastaLean.PyTruthy TreeNode where truthy _ := true
 
+instance : PastaLean.PyBool TreeNode where pyBool _ := true
+
 instance : PastaLean.PyTyped TreeNode where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
 instance : Coe TreeNode (Option TreeNode) :=
@@ -95,6 +101,8 @@ structure TreeNode'rn where
   deriving Inhabited, Repr, BEq
 
 instance : PastaLean.PyTruthy TreeNode'rn where truthy _ := true
+
+instance : PastaLean.PyBool TreeNode'rn where pyBool _ := true
 
 instance : PastaLean.PyTyped TreeNode'rn where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
@@ -116,7 +124,7 @@ def main : IO Unit := do
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (greet "x")]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (greet "x" "yo" (1 : Int))]
           let mut c := Counter.new
-          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c.bumped)]
+          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg c.bumped]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c.bumped (5 : Int))]
           let mut c2 := Counter.new (10 : Int) (2 : Int)
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c2.bumped (3 : Int))]
@@ -142,7 +150,7 @@ def main'rn : IO Unit := do
   let _ ← pyPrintIO [pyPrintArg (greet'rn "x")]
   let _ ← pyPrintIO [pyPrintArg (greet'rn "x" "yo" (1 : Int))]
   let mut c := Counter'rn.new
-  let _ ← pyPrintIO [pyPrintArg (c.bumped)]
+  let _ ← pyPrintIO [pyPrintArg c.bumped]
   let _ ← pyPrintIO [pyPrintArg (c.bumped (5 : Int))]
   let mut c2 := Counter'rn.new (10 : Int) (2 : Int)
   let _ ← pyPrintIO [pyPrintArg (c2.bumped (3 : Int))]

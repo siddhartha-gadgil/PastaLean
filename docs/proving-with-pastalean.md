@@ -105,7 +105,7 @@ theorem strlen_correct : ∀ (string : String), strlen string ≥ (0 : Int) ∧ 
 
 1. **Check the property is true.** The most common failure is a *false postcondition*, not a weak
    proof. `pastalean refute f.py` (MCP: `find_counterexample`) searches for a counterexample with
-   CPython engines and in both Lean twins; inside a proof, `refute?` does the same for the current goal
+   in both Lean twins (CPython only confirms what it finds); inside a proof, `refute?` does the same for the current goal
    and `#refute thm` for a declaration. `taste?` itself refutes first. A refutation comes with a
    kernel-checked `refute_at` proof of the negation. If it is false, fix the Python or its contract
    (that is a finding worth reporting), then re-translate. For float code, a proof over exact ℚ only

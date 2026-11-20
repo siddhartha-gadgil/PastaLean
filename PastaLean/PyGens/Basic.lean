@@ -169,7 +169,11 @@ def jsonLibraryMappedName? (json : Json) : PygenM (Option Lean.Name) := do
                     <|> Libraries.pythonLibraryMapExact? moduleName memberName)
         else pure none
       match realName? <|> Libraries.pythonLibraryMap? moduleName memberName with
-      | some leanName => pure (some leanName)
+      | some leanName =>
+          -- A library translated by PastaLean has twins: the run twin calls the `'rn` definition.
+          let rn := leanName.appendAfter "'rn"
+          if (← getNumericMode) == .approx && (← getEnv).contains rn then pure (some rn)
+          else pure (some leanName)
       | none => throwError s!"Unsupported imported library member '{moduleName}.{memberName}'."
   | _, _ => pure none
 
@@ -307,6 +311,20 @@ private def optionWrapped (elts : Array Json) : Bool :=
         | k :: rest => rest.all (· == k))
     && elts.all (fun j => isNoneConst j || isPlainConst j)
 
+/-- A literal list whose literal elements disagree in type (`[1, "a", None]`), so it is a
+`List PyAny`: Python lists are heterogeneous. `int`/`float` mix within the numeric tower. -/
+private def heterogeneousLiteral (elts : Array Json) : Bool :=
+  let kind? : Json → Option String := fun j =>
+    if isNoneConst j then some "none"
+    else match constKind j with
+      | some "float" => some "int"
+      | some k => some k
+      | none => match j.getObjValAs? String "node_type" with
+        | .ok "List" => some "list" | .ok "Dict" => some "dict" | _ => none
+  let kinds := elts.filterMap kind?
+  kinds.size == elts.size && !optionWrapped elts
+    && (match kinds.toList with | [] => false | k :: rest => rest.any (· != k))
+
 @[pygen "List"]
 def listSyntax : (kind : SyntaxNodeKind) → Json →
     PygenM (TSyntax kind)
@@ -317,7 +335,11 @@ def listSyntax : (kind : SyntaxNodeKind) → Json →
       | .arr arr => pure arr
       | _ => throwError s!"List node 'elts' field is not an array: {eltsJson}"
     let wrap := optionWrapped elts
+    let boxed := heterogeneousLiteral elts
     let eltCodes ← elts.mapM fun eltJson => do
+      if boxed then
+        let code ← withBoxReturnContext true (getCode eltJson `term)
+        return ← `(($code : PastaLean.PyAny))
       let code ← getCode eltJson `term
       if wrap && isPlainConst eltJson then
         `($(mkIdent ``Option.some) $code)
@@ -623,6 +645,17 @@ def compareApplyTerm (op : String) (leftJson : Json) (leftCode rightCode : TSynt
     let operand := if leftIsNone then rightCode else leftCode
     let test ← `($(mkIdent ``PastaLean.pyIsNone) $operand)
     return ← if equalsNone then pure test else `(! $test)
+  -- `x is True` / `x is False` is identity with the bool singleton, not truthiness or `1 == True`.
+  let boolConst? : Json → Option Bool := fun j =>
+    if j.getObjValAs? String "node_type" == .ok "Constant" then (j.getObjValAs? Bool "value").toOption else none
+  if op == "is" || op == "isnot" then
+    let side? := match boolConst? leftJson, rightJson.bind boolConst? with
+      | some b, _ => some (rightCode, b)
+      | _, some b => some (leftCode, b)
+      | _, _ => none
+    if let some (operand, b) := side? then
+      let t ← `($(mkIdent ``PastaLean.pyIsBool) $operand $(mkIdent (if b then ``true else ``false)))
+      return ← if op == "is" then pure t else `(! $t)
   -- *Condition position* (`prop`): comparison yields `Prop` (e.g., `a < b`, `a = b` in exact mode).
   -- *Value position* (`!prop`): comparison yields `Bool` (e.g., `decide (a < b)`, `a == b`).
   let prop ← getPropCondition
@@ -706,6 +739,9 @@ def unaryOpSyntax : (kind : SyntaxNodeKind) → Json →
               else if propNot then `($(mkIdent ``PastaLean.pyTruthy) $operandCode = true)
                    else `($(mkIdent ``PastaLean.pyTruthy) $operandCode)
       if propNot then `(¬ $b) else `(! $b)
+    else if let some cls := (json.getObjValAs? String "_dunder_class").toOption then
+      -- A class `__neg__` that raises has no `Neg` instance: call it (awaited by the consumer).
+      `($(mkIdent (Name.mkStr (← suffixIfUserName cls).toName "__neg__")) $operandCode)
     else unaryOpApplyTerm op operandCode
   | _, _ => throwError s!"Unsupported syntax category for UnaryOp node"
 
@@ -742,7 +778,9 @@ def boolOpValueTerm (json : Json) : PygenM (TSyntax `term) := do
         `((← do let bopGuard := $c; if $t bopGuard then pure $acc else pure bopGuard))
       else
         `((← do let bopGuard := $c; if $t bopGuard then pure bopGuard else pure $acc))
-    else if op == "and" then `(if $t $c then $acc else $c) else `(if $t $c then $c else $acc)
+    else if op == "and" then `(if $t $c then $acc else $c)
+    else if json.getObjValAs? Bool "_or_else" == .ok true then `($(mkIdent ``PastaLean.pyOrElse) $c $acc)
+    else `(if $t $c then $c else $acc)
 
 @[pygen "BoolOp"]
 def boolOpSyntax : (kind : SyntaxNodeKind) → Json →
@@ -840,6 +878,20 @@ def isTypeCall (json : Json) : Bool :=
   json.getObjValAs? String "node_type" == .ok "Call" &&
     ((json.getObjVal? "func").toOption.bind (·.getObjValAs? String "id" |>.toOption)) == some "type"
 
+/-- `a < b` on a class whose `__lt__`/`__le__` can raise (TypeInfer's `_dunder_class`): the method call,
+awaited by the consumer; `>`/`>=` reflect to the operands' `__lt__`/`__le__`, as Python does. -/
+def raisingCompareTerm? (json : Json) (l r : TSyntax `term) : PygenM (Option (TSyntax `term)) := do
+  let .ok cls := json.getObjValAs? String "_dunder_class" | return none
+  let .ok op := json.getObjValAs? String "op" | return none
+  let m (d : String) : PygenM (TSyntax `term) := do
+    return mkIdent (Name.mkStr (← suffixIfUserName cls).toName d)
+  match op with
+  | "lt" => return some (← `($(← m "__lt__") $l $r))
+  | "gt" => return some (← `($(← m "__lt__") $r $l))
+  | "le" => return some (← `($(← m "__le__") $l $r))
+  | "ge" => return some (← `($(← m "__le__") $r $l))
+  | _ => return none
+
 @[pygen "Compare"]
 def compareSyntax : (kind : SyntaxNodeKind) → Json →
     PygenM (TSyntax kind)
@@ -865,6 +917,7 @@ def compareSyntax : (kind : SyntaxNodeKind) → Json →
       return ← withPropCondition false (compareApplyTerm op leftJson leftCode rightCode
         (rightJson := some rightJson))
     let classCmp := json.getObjValAs? Bool "_class_cmp" == .ok true
+    if let some t ← raisingCompareTerm? json leftCode rightCode then return t
     compareApplyTerm op leftJson leftCode rightCode (rightJson := some rightJson) (classCmp := classCmp)
   | _, _ => throwError s!"Unsupported syntax category for Compare node"
 

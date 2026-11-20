@@ -115,9 +115,10 @@ instance : PyPrintable Rat where
   pyStringify q := pyFloatRepr (Rat.toFloat q)
 
 
-/-- Python exceptions print with their existing `ToString` rendering. -/
+/-- `str(e)` / `print(e)` is the message alone, as in Python; `repr(e)` is `ValueError('msg')`. -/
 instance : PyPrintable PyException where
-  pyStringify exc := toString exc
+  pyStringify exc := exc.msg
+  pyReprify exc := s!"{exc.kind}({pyReprString exc.msg})"
 
 /-- `None` stays visible; present values print as the value itself. -/
 instance [PyPrintable α] : PyPrintable (Option α) where

@@ -8,6 +8,9 @@ import Libraries.bisect.Mapping
 import Libraries.collections.Mapping
 import Libraries.functools.Mapping
 import Libraries.hashlib.Mapping
+import Libraries.json.Mapping
+import Libraries.re.Mapping
+import Libraries.datetime.Mapping
 import Libraries.heapq.Mapping
 import Libraries.itertools.Mapping
 import Libraries.math.Mapping
@@ -35,6 +38,8 @@ def pythonLibraryMap? (moduleName member : String) : Option Lean.Name :=
   | "collections" => collections.pythonCollectionsMemberMap? member
   | "functools" => functools.pythonFunctoolsMemberMap? member
   | "hashlib" => hashlib.pythonHashlibMemberMap? member
+  | "json" => json.pythonJsonMemberMap? member
+  | "re" => re.pythonReMemberMap? member
   | "heapq" => heapq.pythonHeapqMemberMap? member
   | "itertools" => itertools.pythonItertoolsMemberMap? member
   | "math" => math.pythonMathMemberMap? member
@@ -91,6 +96,7 @@ def memberBehaviour? (moduleName member : String) : Option Behaviour :=
   | "bisect"      => bisect.bisectBehaviour? member
   | "functools"   => functools.functoolsBehaviour? member
   | "hashlib"     => hashlib.hashlibBehaviour? member
+  | "json"        => json.jsonBehaviour? member
   | "math"        => math.mathBehaviour? member
   | "scipy"       => scipy.scipyBehaviour? member
   | "numpy"       => numpy.numpyBehaviour? member
@@ -126,6 +132,22 @@ def libraryInfiniteIter? (moduleName member : String) : Option InfiniteIter :=
 `input()` does. Declared here rather than in the Python driver so a library's facts stay in one
 place; the driver reads it over the `libraryInfo` backend task. -/
 def ioEffectfulLibraries : List String := ["random"]
+
+/-- A library implemented as classes (`datetime`): its class declarations, as JSON-IR text, for the
+driver to inject into an importing program (see `Libraries/datetime/Mapping.lean`). -/
+def classLibraryDecls? (moduleName : String) : Option String :=
+  match moduleName with
+  | "datetime" => some datetime.datetimeClassDecls
+  | _ => none
+
+/-- The libraries `classLibraryDecls?` covers, for the driver's `libraryInfo` query. -/
+def classLibraries : List String := ["datetime"]
+
+/-- Library members (`module.member`) that can raise a Python exception, so a call to one makes its
+enclosing function exception-effectful exactly as a `raise` does. Read by the driver like
+`ioEffectfulLibraries`. -/
+def raisingLibraryMembers : List String :=
+  json.jsonRaisingMembers.map ("json." ++ ·)
 
 /-- Does this member construct a library-owned object (`hashlib.md5()`)? Codegen tags the assigned
 variable with the owning module so its methods route through `libraryMethod?`. -/

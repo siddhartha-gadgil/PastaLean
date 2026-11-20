@@ -136,8 +136,8 @@ def main' :=
       let _ ←
         PastaLean.ProofMode.pyPrintProof
             [pyPrintArg (stats ((3 : Int), ((1 : Int), ((4 : Int), ((1 : Int), ((5 : Int), ((9 : Int), (2 : Int))))))))]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (homog_index)]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (heterog_index)]) :
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg homog_index]
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg heterog_index]) :
     PastaLean.ProofMode.PyProofM _)
 
 attribute [simp] main'
@@ -150,8 +150,8 @@ def main''rn :=
         pyPrintIO
             [pyPrintArg
                 (stats'rn ((3 : Int), ((1 : Int), ((4 : Int), ((1 : Int), ((5 : Int), ((9 : Int), (2 : Int))))))))]
-      let _ ← pyPrintIO [pyPrintArg (homog_index'rn)]
-      let _ ← pyPrintIO [pyPrintArg (heterog_index'rn)]) :
+      let _ ← pyPrintIO [pyPrintArg homog_index'rn]
+      let _ ← pyPrintIO [pyPrintArg heterog_index'rn]) :
     IO _)
 
 def main : IO Unit := do

@@ -35,7 +35,7 @@ noncomputable def analyze := fun (xs : List Int) ↦ fun (threshold : Int) ↦
         avg := total /ₚ count
         spread := Libraries.math.pyMathSqrtR (PastaLean.pyRat ss)
       catch caught =>
-        if (caught).OfKind == "ZeroDivisionError" then 
+        if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
           avg := (0.0 : Rat)
           spread := (0.0 : Real)
         else
@@ -79,7 +79,7 @@ def analyze'rn : List Int → Int → PastaLean.PyExcept Float := fun (xs : List
       avg := PastaLean.pyTrueDiv total count
       spread := Libraries.math.pyMathSqrt (PastaLean.pyFloat ss)
     catch caught =>
-      if (caught).OfKind == "ZeroDivisionError" then 
+      if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
         avg := (0.0 : Float)
         spread := (0.0 : Float)
       else

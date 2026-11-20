@@ -297,36 +297,38 @@ theorem spring_energy_nonneg :
 
 def cauchy_schwarz := fun (ax : Rat) ↦ fun (ay : Rat) ↦ fun (az : Rat) ↦ fun (bx : Rat) ↦ fun («by» : Rat) ↦
   fun (bz : Rat) ↦
-  /-
-  Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
-      local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
-        1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
-        2. the cross norm is non-negative   |a x b|^2 >= 0,
-      whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
-  -/
-  have ht_1 :
-    norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) +ₚ
-        dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz =
-      norm_sq ax ay az *ₚ norm_sq bx «by» bz :=
-    by simp_all (config := { zetaDelta := true }) [taste_ingr]; ring
-  have ht_2 :
-    norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) ≥ (0 : Int) := by
-    simp_all (config := { zetaDelta := true }) [taste_ingr]; nlinarith
-  have ht_3 : dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz ≤ norm_sq ax ay az *ₚ norm_sq bx «by» bz := by simp_all (config := { zetaDelta := true }) [taste_ingr]; linarith
-  ()
+  (show Unit from
+    /-
+    Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
+        local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
+          1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
+          2. the cross norm is non-negative   |a x b|^2 >= 0,
+        whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
+    -/
+    have ht_1 :
+      norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) +ₚ
+          dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz =
+        norm_sq ax ay az *ₚ norm_sq bx «by» bz :=
+      by simp_all (config := { zetaDelta := true }) [taste_ingr]; ring
+    have ht_2 :
+      norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) ≥ (0 : Int) :=
+      by simp_all (config := { zetaDelta := true }) [taste_ingr]; nlinarith
+    have ht_3 : dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz ≤ norm_sq ax ay az *ₚ norm_sq bx «by» bz := by simp_all (config := { zetaDelta := true }) [taste_ingr]; linarith
+    ())
 
 attribute [simp] cauchy_schwarz
 
 def cauchy_schwarz'rn := fun (ax : Float) ↦ fun (ay : Float) ↦ fun (az : Float) ↦ fun (bx : Float) ↦
   fun («by» : Float) ↦ fun (bz : Float) ↦
-  /-
-  Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
-      local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
-        1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
-        2. the cross norm is non-negative   |a x b|^2 >= 0,
-      whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
-  -/
-  ()
+  (show Unit from
+    /-
+    Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
+        local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
+          1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
+          2. the cross norm is non-negative   |a x b|^2 >= 0,
+        whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
+    -/
+    ())
 
 -- ----------------------------------------------------------------------------------------------
 -- Provable invariants: physical conservation laws

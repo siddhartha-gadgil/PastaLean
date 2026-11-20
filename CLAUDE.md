@@ -11,6 +11,9 @@ only the files you actually need.
 
 ## Working rules (read first)
 
+- **`TODO.md`** lists all known incomplete work. Update it as you go: delete what you finish, add what
+  you find missing.
+
 - **NEVER `git commit` (or push) until the user explicitly tells you to in that moment.** Permission
   is per-commit and does NOT carry forward — a "commit" earlier in the session does not authorise the
   next one. Make and stage changes freely; leave committing to the user's explicit say-so.
@@ -18,6 +21,10 @@ only the files you actually need.
   fixing a regression it would catch — not routinely.** During a batch, verify with a single targeted
   `pastalean translate <the file you're fixing>`, not PALC.
 - **Batch builds.** `lake build` is slow (Mathlib); group related edits, build once, test once.
+- **Memory cap.** Every process PastaLean spawns (Lean backend, search harnesses, benchmark tools) is
+  capped at `PASTALEAN_MEM_GB` (default 64) via `src/refute/limits.py`; cap direct `lake` runs yourself
+  (`prlimit --as=$((64<<30)) lake exe palc`). The cap is virtual memory: 32 GB is too low for Lean
+  (thread creation fails), so don't go below 64.
 - **Comments: minimal and precise** (see Code writing tips below).
 - **STOP** only after significant changes are done. Donot stop after any small change. Edit your fix properly, test, edit again. Only stop when it's a good place to stop.
 ---
@@ -73,10 +80,23 @@ case-insensitive filesystems.) Install it with `uv pip install -e '.[server]'`.
 - `transpile/` — everything that manipulates Python AST/IR (the three stages above, plus
   `normalize_loops.py`, `contract_passta.py`, `llm.py`).
 - `prepasses.py` — the optional LLM source rewrites (`--contracts`, `--redesign`).
-- `refute/` — `pastalean refute`: counterexample search (CPython engines + the backend `refute` task,
-  `PastaLean/PyVerify/Refute/`), three-world verdicts, IEEE enclosures (`fi.py`, `lift.py`, spec proved
-  in `PastaLean/PyAPI/FloatInterval.lean`), `--float-report` (`floatreport.py`) and stdin programs
-  (`stdin.py` + `stdin_harness.py`: on-demand input generation, `--against` a reference).
+- `refute/` — `pastalean refute` (user guide: `docs/refute.md`): Python supplies the program and contracts only. The search is in Lean
+  (`PastaLean/PyVerify/Refute/`): **Plausible is the primary engine** (`Obligation.lean`,
+  `runPlausible`: the obligation as `∀ x : Lit τ, guard = true → body = true`, sampled through `PyArb`
+  over a literal pool mined from the program and the libraries it calls — strings, integers, members of
+  its `re` patterns (`RegexLang.lean`) and library constructor literals (`ctorPool`); run in chunks
+  until the deadline; a contract's `raises:` kinds count as passes); then a coverage-guided search over
+  an instrumented copy of the program (`Instrument.lean`: probes log each branch, its distance to
+  flipping and the compared operands; `Search.lean` mutates inputs toward unreached branches with
+  `PyArb.mutate` and splices logged operands into the pool), after an exhaustive small-scope pass
+  is the fallback, and `grind` on guards ∧ ¬body (`Solve.lean`) proves or yields a cutsat model. CPython
+  only executes the witnesses Lean finds (`harness.py`). The first `pastalean refute` starts a warm daemon
+  (`daemon.py`, one per backend binary, idle exit after 10 min) that later calls reuse: ~0.3 s instead of
+  ~3.6 s of backend boot. It serves callers in parallel on a pool of warm backends (`PASTALEAN_DAEMON_POOL`,
+  long-lived worker threads: a backend dies with the thread that started it); `PASTALEAN_NO_DAEMON=1`
+  runs cold. Also IEEE
+  enclosures (`fi.py`, `lift.py`, spec in `PastaLean/PyAPI/FloatInterval.lean`), `--float-report`, and
+  stdin programs (`stdin.py`; its input generation is still Python-side).
 - `paths.py` — every filesystem location, resolved from `__file__`. Never derive paths from the cwd.
 
 ```bash
@@ -167,6 +187,15 @@ await into the pure position rather than letting a raw `IO _` leak — see `inli
 
 - `Libraries/` (lean lib `Libraries`) — a small standard-library surface that generated code
   `open`s alongside `PastaLean` (e.g. numpy-like shims under `PastaLeanTest/Libraries/numpy`).
+  - **Python-module libraries** (`json`, `datetime`): `Libraries/<lib>/<Lib>Def.lean` is the
+    implementation (both twins: the provable defs and their `'rn` runnable counterparts; first produced by
+    translating CPython's pure-Python sources with PastaLean, now maintained as Lean). A function
+    library is wired through `Mapping.lean` (raising members listed for the driver). A class library
+    (`datetime`) declares its classes as JSON-IR in `Mapping.lean` (`classLibraryDecls?`): the driver
+    (`inject_class_libraries`) adds them, flagged `_library`, to an importing program so dispatch,
+    effects and TypeInfer treat them as user classes; codegen skips them and resolves names via
+    `open Libraries.<lib>`. Keep those declarations in step with the Lean when a signature changes.
+  - `tests/test_libraries.py` runs `example_scripts/libraries/` through CPython and the Lean.
 - `example_scripts/` — sample Python inputs grouped by `--target`: `terms/`, `commands/`,
   `modules/`. Good smoke-test inputs.
 - `docs/phases.md` — design notes on the translation phases.

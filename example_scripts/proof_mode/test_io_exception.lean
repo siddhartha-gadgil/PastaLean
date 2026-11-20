@@ -20,7 +20,7 @@ def main' :=
       try
         x := (← PastaLean.ProofMode.pyInputProof "")
       catch caught =>
-        if (caught).OfKind == "EOFError" then 
+        if PastaLean.pyExcIsA caught "EOFError" then 
           x := "default"
         else
           throw caught
@@ -35,7 +35,7 @@ def main''rn :=
       try
         x := (← PastaLean.PyExcept.captureIOErrors (PastaLean.pyInputIO ""))
       catch caught =>
-        if (caught).OfKind == "EOFError" then 
+        if PastaLean.pyExcIsA caught "EOFError" then 
           x := "default"
         else
           throw caught

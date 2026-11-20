@@ -857,18 +857,42 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
         -- `then` branch must not leak into the `else` branch's scope (which would make the `else`
         -- assignment a reassignment of a `let mut` it cannot see). Names that escape the whole
         -- `if` are handled by the hoist above; everything else stays branch-local.
+        -- `if x is not None:` on an `Option` (`_unwrap_some`): the branch sees the payload, as in Python.
+        -- A `let mut x` cannot be shadowed in `do`, so its payload gets a fresh name the branch reads.
+        let unwrap? ← match json.getObjValAs? String "_unwrap_some" with
+          | .ok x => do
+              let src ← getCode (Json.mkObj [("node_type", "Name"), ("id", x)]) `ident
+              if ← isMutVar src.getId then pure (some (src, mkIdent (← freshRenameName src.getId)))
+              else pure (some (src, src))
+          | .error _ => pure none
+        let savedRenames := (← get).renames
+        if let some (src, payload) := unwrap? then
+          if src.getId != payload.getId then
+            addRename ((json.getObjValAs? String "_unwrap_some").toOption.getD "").toName payload.getId
         let bodyStxArray ← withFixedVariables do
+          if let some (_, payload) := unwrap? then addVar payload.getId
           let mut arr : Array (TSyntax `doElem) := #[]
           for elem in bodyElems do
             arr := appendDoElems arr (← getStmtDoElem elem)
           pure arr
+        modify fun st => { st with renames := savedRenames }
         let orelseStxArray ← withFixedVariables do
           let mut arr : Array (TSyntax `doElem) := #[]
           for elem in orelseElems do
             arr := appendDoElems arr (← getStmtDoElem elem)
           pure arr
         let ifStx ←
-          if orelseStxArray.isEmpty then
+          if let some (src, payload) := unwrap? then
+            if orelseStxArray.isEmpty then
+              `(doElem| if let some $payload:ident := $src:ident then
+                  $[$bodyStxArray:doElem]*
+              )
+            else
+              `(doElem| if let some $payload:ident := $src:ident then
+                  $[$bodyStxArray:doElem]*
+                else
+                  $[$orelseStxArray:doElem]*)
+          else if orelseStxArray.isEmpty then
             -- No `else`: omit it entirely rather than a `let _ := ()` placeholder, which is an invalid
             -- do-sequence terminator (`if h : c then body` in `do` has an implicit `else pure ()`).
             `(doElem| if $hName : $testStx then

@@ -135,6 +135,20 @@ partial def typeOfExpr (sigs : Sigs) (env : Env) (e : Json) : PyType :=
       | some l, some r =>
           let lt := typeOfExpr sigs env l
           let rt := typeOfExpr sigs env r
+          -- A class operand dispatches to its dunder: the return type of `C.__add__` (or of the
+          -- `@overload` for this operand, `C.__sub__'T`).
+          let dunder? : Option String := match (e.getObjValAs? String "op").toOption with
+            | some "add" => some "__add__" | some "sub" => some "__sub__" | some "mul" => some "__mul__"
+            | some "div" => some "__truediv__" | some "floordiv" => some "__floordiv__"
+            | some "mod" => some "__mod__" | _ => none
+          let classRet? : Option PyType := match lt, dunder? with
+            | .cls c, some d =>
+                let operand := rt.operandName
+                (sigs.get? s!"{c}.{d}'{operand}").orElse (fun _ => sigs.get? s!"{c}.{d}")
+            | _, _ => none
+          match classRet? with
+          | some t => t
+          | none =>
           match (e.getObjValAs? String "op").toOption with
           -- `[0] * n` / `n * [0]` repeats a list; every other `*` is arithmetic.
           | some "mul" =>
@@ -175,8 +189,13 @@ partial def typeOfExpr (sigs : Sigs) (env : Env) (e : Json) : PyType :=
       else (field e "operand").elim .unknown (typeOfExpr sigs env)
   | some "Compare" => .bool
   | some "BoolOp" =>
-      -- `a and b` / `a or b` evaluate to one operand, so the type is their join.
-      PyType.joinAll (((e.getObjValAs? (Array Json) "values").toOption.getD #[]).toList.map (typeOfExpr sigs env))
+      -- `a and b` / `a or b` evaluate to one operand, so the type is their join; under `or` a `None`
+      -- before the last operand is falsy and never the result (`items or []` is a list).
+      let ts := ((e.getObjValAs? (Array Json) "values").toOption.getD #[]).toList.map (typeOfExpr sigs env)
+      let ts := if (e.getObjValAs? String "op").toOption == some "or" then
+          ts.dropLast.map (fun t => match t with | .opt u => u | u => u) ++ ts.getLast?.toList
+        else ts
+      PyType.joinAll ts
   | some "IfExp" =>
       match field e "body", field e "orelse" with
       | some b, some o => (typeOfExpr sigs env b).join (typeOfExpr sigs env o)
@@ -401,7 +420,9 @@ partial def methodReturn (sigs : Sigs) (env : Env) (attr : String) (recv : Optio
   -- `sigs`, where a class is registered as `.cls Name`, and resolve the method on it.
   let recvName? := recv.bind (fun r =>
     if nodeType? r == some "Name" then (r.getObjValAs? String "id").toOption else none)
-  let recvT := if recvT0 == .unknown then
+  -- (A class name reads as a constructor value `.fn [] (.cls C)` through `typeOfExpr`.)
+  let isClassName := recvName?.any fun n => sigs.get? n == some (.cls n)
+  let recvT := if recvT0 == .unknown || isClassName then
       (recvName?.bind (sigs.get? ·)).getD .unknown
     else recvT0
   -- A user method call `obj.attr(...)` on a class instance resolves to `Class.attr`'s inferred return.

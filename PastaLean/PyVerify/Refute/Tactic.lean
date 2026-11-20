@@ -1,5 +1,7 @@
 import PastaLean.PyVerify.Refute.Obligation
+import PastaLean.PyVerify.Refute.Solve
 import PastaLean.PyAPI.TasteIngr
+import Mathlib.Tactic.Linter.UnusedTactic
 
 /-!
 # `refute?`, `#refute` and `refute_at`
@@ -82,6 +84,27 @@ def describe (o : SearchOutcome) (names : Array (Name × Expr)) (cert : Option S
 
 syntax (name := refuteStx) "refute?" Lean.Parser.Tactic.optConfig : tactic
 
+-- a goal with no counterexample may be left unchanged: that is a finding, not an unused tactic
+#allow_unused_tactic! PastaLean.Refute.refuteStx
+
+/-- What `grind` says about an obligation, before any search: a model the kernel certifies as a
+counterexample, a proof that none exists, or nothing usable. -/
+inductive SolverVerdict where
+  | refuted (o : SearchOutcome) (names : Array (Name × Expr)) (cert : String)
+  | proved
+  | none
+
+def trySolver (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM SolverVerdict := do
+  match ← solveObligation ty maxHeartbeats with
+  | .proved => return .proved
+  | .model vals =>
+    let names ← obligationBinders ty
+    let some ws ← modelWitness names vals | return .none
+    -- The model may lean on functions `grind` left uninterpreted: only a kernel-checked refutation counts.
+    let some cert ← certify ty names ws | return .none
+    return .refuted { status := .refuted, witness? := some ws, tested := 1 } names cert
+  | .unknown _ => return .none
+
 @[tactic refuteStx] def evalRefute : Tactic := fun stx => withMainContext do
   let cfg ← elabRefuteConfig stx[1]
   let goal ← getMainGoal
@@ -89,7 +112,19 @@ syntax (name := refuteStx) "refute?" Lean.Parser.Tactic.optConfig : tactic
   let lctx ← getLCtx
   let hyps := lctx.getFVarIds.filter fun f => !(lctx.get! f).isImplementationDetail
   let (_, closed) ← goal.revert hyps (preserveOrder := true)
+  replaceMainGoal [closed]
   let ty ← instantiateMVars (← closed.getType)
+  -- a goal no input violates is closed by the proof that showed it, so `refute?` decides the goal
+  let closeWith (tac : TSyntax `tactic) (msg : String) : TacticM Unit := do
+    let saved ← saveState
+    try evalTactic tac; logInfo msg
+    catch _ => saved.restore; logInfo msg
+  match ← trySolver ty with
+  | .refuted o names cert => throwError (describe o names (some cert))
+  | .proved =>
+      closeWith (← `(tactic| grind)) "refute?: no counterexample exists — grind proves this goal for every input"
+      return
+  | .none => pure ()
   let (o, names) ← refuteType ty cfg
   match o.status with
   | .refuted =>
@@ -97,7 +132,12 @@ syntax (name := refuteStx) "refute?" Lean.Parser.Tactic.optConfig : tactic
         | some ws => if o.hang then pure none else certify ty names ws
         | none => pure none
       throwError (describe o names cert)
-  | _ => logInfo (describe o names none)
+  | _ =>
+      if ← tasteProves ty then
+        let taste : TSyntax `tactic := ⟨Syntax.node .none `PastaLean.tasteStx #[Syntax.atom .none "taste?"]⟩
+        withOptions (fun o => o.setBool `pastalean.taste.refute false) <|
+          closeWith taste "refute?: no counterexample exists — taste? proves this goal for every input"
+      else logInfo (describe o names none)
 
 syntax (name := refuteCmd) "#refute " ident Lean.Parser.Tactic.optConfig : command
 
@@ -106,12 +146,18 @@ syntax (name := refuteCmd) "#refute " ident Lean.Parser.Tactic.optConfig : comma
   liftTermElabM do
   let declName ← realizeGlobalConstNoOverloadWithInfo stx[1]
   let ty ← instantiateMVars (← getConstInfo declName).type
+  match ← trySolver ty with
+  | .refuted o names cert => logWarning (describe o names (some cert)); return
+  | .proved => logInfo m!"#refute: no counterexample exists — grind proves {declName} for every input"; return
+  | .none => pure ()
   let (o, names) ← refuteType ty cfg
   match o.status, o.witness? with
   | .refuted, some ws =>
       let cert ← if o.hang then pure none else certify ty names ws
       logWarning (describe o names cert)
-  | _, _ => logInfo (describe o names none)
+  | _, _ =>
+      if ← tasteProves ty then logInfo m!"#refute: no counterexample exists — taste? proves {declName} for every input"
+      else logInfo (describe o names none)
 
 /-! ### `taste?` runs this first
 
@@ -160,9 +206,18 @@ def tastePrecheck (stx : Syntax) : TacticM Bool := withMainContext do
   -- Opaque code (partial defs, while loops) cannot be refuted with a kernel certificate, so the
   -- pre-check could never admit it; it would only risk running a non-terminating loop.
   if ← reachesOpaque ty then return false
-  let cfg : RefuteConfig := { numInst := 40, maxSize := 12, timeMs := pastalean.taste.refuteMs.get opts,
+  let cfg : RefuteConfig := { numInst := 40, maxSize := 12, plausible := false, instrument := false, timeMs := pastalean.taste.refuteMs.get opts,
                               perCaseMs := 50, maxShrinks := 50, enumDepth := 3, enumMax := 400 }
   let saved ← saveState
+  -- `grind` first, on a small budget: a model the kernel certifies is the counterexample.
+  if let .refuted o names cert ← (try trySolver ty 100000 catch _ => pure .none) then
+    logWarning m!"taste?: {describe o names (some cert)}"
+    if let some pos := stx.getPos? then
+      let j ← counterexampleJson (← Term.getDeclName?) o names (some cert)
+      tasteCounterexamplesRef.modify (·.push (pos.byteIdx, j))
+    admitGoal goal
+    return true
+  saved.restore
   let r ← try some <$> refuteType ty cfg catch _ => pure none
   let some (o, names) := r | do saved.restore; return false
   let .refuted := o.status | do saved.restore; return false

@@ -47,7 +47,7 @@ def safe := fun n ↦
         let p'_ret_1 := (← fail n)
         return p'_ret_1
       catch caught =>
-        if (caught).OfKind == "ValueError" then 
+        if PastaLean.pyExcIsA caught "ValueError" then 
           let err := caught
           let p'_ret_2 := s! "bad value: {err}"
           return p'_ret_2
@@ -63,7 +63,7 @@ def safe'rn := fun n ↦
         let p'_ret_1 := (← fail'rn n)
         return p'_ret_1
       catch caught =>
-        if (caught).OfKind == "ValueError" then 
+        if PastaLean.pyExcIsA caught "ValueError" then 
           let err := caught
           let p'_ret_2 := s! "bad value: {err}"
           return p'_ret_2
@@ -110,7 +110,7 @@ def fixed_catch : PastaLean.ProofMode.PyProofM String := do
     let mut _ := (1 : Int) /ₚ (0 : Int)
     return "1 just got divided by 0"
   catch caught =>
-    if (caught).OfKind == "ZeroDivisionError" then 
+    if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
       let e := caught
       let p'_ret_1 := s! "Caught ZeroDivisionError: {e}"
       return p'_ret_1
@@ -129,7 +129,7 @@ def fixed_catch'rn : PastaLean.PyExcept String := do
     let mut _ := PastaLean.pyTrueDiv (1 : Int) (0 : Int)
     return "1 just got divided by 0"
   catch caught =>
-    if (caught).OfKind == "ZeroDivisionError" then 
+    if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
       let e := caught
       let p'_ret_1 := s! "Caught ZeroDivisionError: {e}"
       return p'_ret_1
@@ -148,7 +148,7 @@ def nested_try : PastaLean.ProofMode.PyProofM String := do
             let mut _ := (1 : Int) /ₚ (0 : Int)
             return "1 just got divided by 0"
           catch caught =>
-            if (caught).OfKind == "ZeroDivisionError" then 
+            if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
               let e := caught
               let p'_ret_1 := s! "Caught inner ZeroDivisionError: {e}"
               return p'_ret_1
@@ -172,7 +172,7 @@ def nested_try'rn : PastaLean.PyExcept String := do
             let mut _ := PastaLean.pyTrueDiv (1 : Int) (0 : Int)
             return "1 just got divided by 0"
           catch caught =>
-            if (caught).OfKind == "ZeroDivisionError" then 
+            if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
               let e := caught
               let p'_ret_1 := s! "Caught inner ZeroDivisionError: {e}"
               return p'_ret_1
@@ -198,12 +198,12 @@ def try_with_else_finally : Int → PastaLean.ProofMode.PyProofM String := fun (
         let p'_ret_1 := s! "Number is {num}"
         return p'_ret_1
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       let e := caught
       let p'_ret_1 := s! "Caught ValueError: {e}"
       return p'_ret_1
     else
-      if (caught).OfKind == "ZeroDivisionError" then 
+      if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
         let e := caught
         let p'_ret_2 := s! "Caught ZeroDivisionError: {e}"
         return p'_ret_2
@@ -226,12 +226,12 @@ def try_with_else_finally'rn : Int → PastaLean.PyExcept String := fun (num : I
         let p'_ret_1 := s! "Number is {num}"
         return p'_ret_1
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       let e := caught
       let p'_ret_1 := s! "Caught ValueError: {e}"
       return p'_ret_1
     else
-      if (caught).OfKind == "ZeroDivisionError" then 
+      if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
         let e := caught
         let p'_ret_2 := s! "Caught ZeroDivisionError: {e}"
         return p'_ret_2
@@ -273,11 +273,11 @@ def catch_loop := fun (num : Int) ↦
             if h_2 : i = (5 : Int) then 
               throw (PastaLean.PyException.Raise "ZeroDivisionError" (ToString.toString "i cannot be 5"))
         catch caught =>
-          if (caught).OfKind == "ValueError" then 
+          if PastaLean.pyExcIsA caught "ValueError" then 
             let e := caught
             let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "Caught ValueError at i={i }: {e}"]
           else
-            if (caught).OfKind == "ZeroDivisionError" then 
+            if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
               let e := caught
               let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "Caught ZeroDivisionError at i={i }: {e}"]
             else
@@ -296,11 +296,11 @@ def catch_loop'rn := fun (num : Int) ↦
             if h_2 : i == (5 : Int) then 
               throw (PastaLean.PyException.Raise "ZeroDivisionError" (ToString.toString "i cannot be 5"))
         catch caught =>
-          if (caught).OfKind == "ValueError" then 
+          if PastaLean.pyExcIsA caught "ValueError" then 
             let e := caught
             let _ ← pyPrintIO [pyPrintArg s! "Caught ValueError at i={i }: {e}"]
           else
-            if (caught).OfKind == "ZeroDivisionError" then 
+            if PastaLean.pyExcIsA caught "ZeroDivisionError" then 
               let e := caught
               let _ ← pyPrintIO [pyPrintArg s! "Caught ZeroDivisionError at i={i }: {e}"]
             else

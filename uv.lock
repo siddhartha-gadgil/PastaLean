@@ -140,11 +140,14 @@ wheels = [
 
 [[package]]
 name = "asttokens"
-version = "3.0.1"
+version = "2.4.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/be/a5/8e3f9b6771b0b408517c82d97aed8f2036509bc247d46114925e32fe33f0/asttokens-3.0.1.tar.gz", hash = "sha256:71a4ee5de0bde6a31d64f6b13f2293ac190344478f081c3d1bccfcf5eacb0cb7", size = 62308, upload-time = "2025-11-15T16:43:48.578Z" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/45/1d/f03bcb60c4a3212e15f99a56085d93093a497718adf828d050b9d675da81/asttokens-2.4.1.tar.gz", hash = "sha256:b03869718ba9a6eb027e134bfdf69f38a236d681c83c160d510768af11254ba0", size = 62284, upload-time = "2023-10-26T10:03:05.06Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/39/e7eaf1799466a4aef85b6a4fe7bd175ad2b1c6345066aa33f1f58d4b18d0/asttokens-3.0.1-py3-none-any.whl", hash = "sha256:15a3ebc0f43c2d0a50eeafea25e19046c68398e487b9f1f5b517f7c0f40f976a", size = 27047, upload-time = "2025-11-15T16:43:16.109Z" },
+    { url = "https://files.pythonhosted.org/packages/45/86/4736ac618d82a20d87d2f92ae19441ebc7ac9e7a581d7e58bbe79233b24a/asttokens-2.4.1-py2.py3-none-any.whl", hash = "sha256:051ed49c3dcae8913ea7cd08e46a606dba30b79993209636c4875bc1d637bc24", size = 27764, upload-time = "2023-10-26T10:03:01.789Z" },
 ]
 
 [[package]]
@@ -895,6 +898,19 @@ wheels = [
 ]
 
 [[package]]
+name = "icontract"
+version = "2.7.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asttokens" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/41/93/8a7d5850d848cba73aa094b961459d8101b7c96837b2e8dc91083adcf7ae/icontract-2.7.3.tar.gz", hash = "sha256:df37a43d86d532407bc6b84dea29dd9f7ece794b73211769fa8a33a76b8ed145", size = 68361, upload-time = "2026-01-29T13:11:14.724Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/aa/ffc16b7ed17e052e7d2140e66336f829e9383f61f31249c4d181e12fcdea/icontract-2.7.3-py3-none-any.whl", hash = "sha256:8fb0f93f71211416f214f37c01b8017fdc8c079d70159f49f0ddcc10918c14d0", size = 40983, upload-time = "2026-01-29T13:11:13.198Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.20"
 source = { registry = "https://pypi.org/simple" }
@@ -1552,6 +1568,7 @@ mcp = [
 refute = [
     { name = "crosshair-tool" },
     { name = "hypothesis" },
+    { name = "icontract" },
 ]
 server = [
     { name = "fastapi" },
@@ -1577,6 +1594,7 @@ requires-dist = [
     { name = "datasets", marker = "extra == 'showcase'", specifier = ">=4.8.5" },
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.115" },
     { name = "hypothesis", marker = "extra == 'refute'", specifier = ">=6" },
+    { name = "icontract", marker = "extra == 'refute'", specifier = ">=2.6" },
     { name = "matplotlib", marker = "extra == 'showcase'", specifier = ">=3.11.1" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.3" },
     { name = "numpy", marker = "extra == 'showcase'", specifier = ">=2.4.5" },

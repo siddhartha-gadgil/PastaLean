@@ -17,6 +17,20 @@ class PyIterable (α : Type) (β : outParam Type) where
 def pyIter {α β : Type} [inst : PyIterable α β] (value : α) : List β :=
   inst.toPyList value
 
+/-- A list of subclass instances where a list of the base class is expected (`Coe Sub Base`, emitted
+for each class base). -/
+instance (priority := low) {α β : Type} [Coe α β] : CoeTail (List α) (List β) := ⟨List.map (fun a => ↑a)⟩
+
+/-- `next(iter(xs))`: the first element, `StopIteration` when there is none. -/
+def pyFirst {α β : Type} [PyIterable α β] [Inhabited β] (value : α) : β :=
+  match pyIter value with
+  | x :: _ => x
+  | [] => pyPanic "StopIteration"
+
+/-- `next(iter(xs), default)`. -/
+def pyFirstOr {α β : Type} [PyIterable α β] (value : α) (default : β) : β :=
+  (pyIter value).headD default
+
 /--
 Unpack exactly two elements from a Python-style iterable.
 

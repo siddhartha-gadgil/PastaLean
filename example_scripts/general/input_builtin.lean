@@ -74,15 +74,10 @@ def echo_input'rn : IO Int := do
 def input_inside_print :=
   ((do
       let _ ←
-        ((do
-              let p'_input0 ← PastaLean.ProofMode.pyInputProof ""
-              let __py_result ←
-                PastaLean.ProofMode.pyPrintProof
-                    [pyPrintArg
-                        (String.append (String.append "" "Enter a number: ")
-                          (ToString.toString (PastaLean.pyInt p'_input0)))]
-              return __py_result) :
-            PastaLean.ProofMode.PyProofM _)) :
+        PastaLean.ProofMode.pyPrintProof
+            [pyPrintArg
+                (String.append (String.append "" "Enter a number: ")
+                  (ToString.toString (PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof ""))))]) :
     PastaLean.ProofMode.PyProofM _)
 
 attribute [simp] input_inside_print
@@ -90,15 +85,10 @@ attribute [simp] input_inside_print
 def input_inside_print'rn :=
   ((do
       let _ ←
-        ((do
-              let p'_input0 ← PastaLean.pyInputIO ""
-              let __py_result ←
-                pyPrintIO
-                    [pyPrintArg
-                        (String.append (String.append "" "Enter a number: ")
-                          (ToString.toString (PastaLean.pyInt p'_input0)))]
-              return __py_result) :
-            IO _)) :
+        pyPrintIO
+            [pyPrintArg
+                (String.append (String.append "" "Enter a number: ")
+                  (ToString.toString (PastaLean.pyInt (← PastaLean.pyInputIO ""))))]) :
     IO _)
 
 end PastaLean.User.Root

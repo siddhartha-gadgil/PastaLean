@@ -35,4 +35,11 @@ instance (priority := 50) {α : Type} : PyTruthy (Option α) where truthy o := o
 instance {κ ν : Type} [BEq κ] [Hashable κ] : PyTruthy (Std.HashMap κ ν) where
   truthy m := !m.isEmpty
 
+/-- Python's `a or b` for a nullable `a` and a plain `b` (`items or []`): the payload when truthy,
+else `b` (`None` is falsy, so it is never the result). -/
+def pyOrElse {α : Type} [PyTruthy α] (a : Option α) (b : α) : α :=
+  match a with
+  | some v => if PyTruthy.truthy v then v else b
+  | none => b
+
 end PastaLean

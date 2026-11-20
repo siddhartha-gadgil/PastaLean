@@ -40,8 +40,24 @@ instance : PyIntCast Bool where
     | true => 1
     | false => 0
 
+/-- Python's `int(s)` literal: surrounding whitespace, an optional sign, decimal digits with single `_`
+separators between them. -/
+def pyParseIntLiteral? (s : String) : Option Int :=
+  let t := s.trimAscii.toString
+  let (neg, body) := match t.front with
+    | '-' => (true, (t.drop 1).toString)
+    | '+' => (false, (t.drop 1).toString)
+    | _ => (false, t)
+  let groups := body.splitOn "_"
+  if body.isEmpty || groups.any (fun g => g.isEmpty || !g.all Char.isDigit) then none
+  else
+    let n : Int := (String.join groups).toNat!
+    some (if neg then -n else n)
+
 instance : PyIntCast String where
-  pyInt s := s.trimAscii.toString.toInt? |>.getD 0
+  pyInt s := match pyParseIntLiteral? s with
+    | some n => n
+    | none => pyPanic s!"ValueError: invalid literal for int() with base 10: {pyReprString s}"
 
 /-- Python `int(x)` on a float truncates toward zero (e.g. `int(n ** 0.5)`). -/
 instance : PyIntCast Float where
@@ -159,7 +175,7 @@ private def parseFloatString (s : String) : Float :=
     let (mant, exp) :=
       match lower.splitOn "e" with
       | [m] => (m, (0 : Int))
-      | [m, e] => (m, e.toInt?.getD 0)
+      | [m, e] => (m, ((if e.startsWith "+" then (e.drop 1).toString else e).toInt?).getD 0)
       | _ => (lower, 0)
     let (ip, fp) :=
       match mant.splitOn "." with
@@ -284,7 +300,7 @@ private def parseRatString (s : String) : Rat :=
     let (mant, exp) :=
       match lower.splitOn "e" with
       | [m] => (m, (0 : Int))
-      | [m, e] => (m, e.toInt?.getD 0)
+      | [m, e] => (m, ((if e.startsWith "+" then (e.drop 1).toString else e).toInt?).getD 0)
       | _ => (lower, 0)
     let (ip, fp) :=
       match mant.splitOn "." with
@@ -293,6 +309,12 @@ private def parseRatString (s : String) : Rat :=
       | _ => (mant, "")
     let intVal : Nat := ip.toNat?.getD 0
     let fracVal : Nat := fp.toNat?.getD 0
+    -- past a double's range the literal is `inf` (the non-finite sentinel) or `0`, as the run twin's
+    -- `pyParseFloat` decides; computing `10 ^ exp` exactly there would never finish
+    if intVal + fracVal == 0 then 0
+    else if exp > 330 then pyRatNonFinite (if neg then "-inf" else "inf")
+    else if exp < -(345 + (fp.length : Int)) then 0
+    else
     let base : Rat := (intVal : Rat) + (fracVal : Rat) / tenPowNatRat fp.length
     let scale : Rat := if exp ≥ 0 then tenPowNatRat exp.toNat else 1 / tenPowNatRat (-exp).toNat
     let v := base * scale

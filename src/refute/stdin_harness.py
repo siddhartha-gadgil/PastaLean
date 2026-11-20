@@ -17,6 +17,7 @@ import random
 import sys
 
 from harness import Timeout, call_with_deadline  # noqa: E402  (runs with its own directory on sys.path)
+import limits  # noqa: E402
 
 STRIP = {"strip", "rstrip", "lstrip"}
 WRAPPERS = {"list", "tuple", "sorted", "set", "deque"}
@@ -295,6 +296,7 @@ def replay(source, req):
 
 
 def main():
+    limits.apply_memory_cap()
     sys.setrecursionlimit(10000)
     req = json.load(sys.stdin)
     fn = {"generate": generate, "replay": replay}[req["mode"]]

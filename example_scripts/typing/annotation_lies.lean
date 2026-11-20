@@ -29,6 +29,8 @@ structure ListNode where
 
 instance : PastaLean.PyTruthy ListNode where truthy _ := true
 
+instance : PastaLean.PyBool ListNode where pyBool _ := true
+
 instance : PastaLean.PyTyped ListNode where pyTypeOf _ := TypeInfer.PyType.cls "ListNode"
 
 instance : Coe ListNode (Option ListNode) :=
@@ -43,6 +45,8 @@ structure ListNode'rn where
   deriving Inhabited, Repr, BEq
 
 instance : PastaLean.PyTruthy ListNode'rn where truthy _ := true
+
+instance : PastaLean.PyBool ListNode'rn where pyBool _ := true
 
 instance : PastaLean.PyTyped ListNode'rn where pyTypeOf _ := TypeInfer.PyType.cls "ListNode"
 

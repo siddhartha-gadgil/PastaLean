@@ -6,6 +6,7 @@ in CPython, in Lean's `Float` and in `ℚ`.
 
 from __future__ import annotations
 
+import datetime
 import math
 import struct
 
@@ -33,9 +34,33 @@ def encode(v):
         return {"dict": [[encode(k), encode(x)] for k, x in v.items()]}
     if isinstance(v, (set, frozenset)):
         return {"set": [encode(x) for x in v]}
+    if isinstance(v, (datetime.date, datetime.timedelta)):
+        return {"pyrepr": repr(v)}
     if hasattr(v, "__dict__"):
         return {"obj": {"cls": type(v).__name__, "fields": {k: encode(x) for k, x in vars(v).items()}}}
     raise TypeError(f"no PyLit for {type(v).__name__}")
+
+
+#: Classes of the Lean libraries that model Python modules, as CPython builds them from keyword fields.
+_LIBRARY_CLASSES = {"date": datetime.date, "datetime": datetime.datetime, "timedelta": datetime.timedelta,
+                    "time": datetime.time}
+
+
+class TableFn:
+    """A generated callable: a finite table and a default, as the Lean search drew it."""
+
+    def __init__(self, table, default):
+        self.table, self.default = table, default
+
+    def __call__(self, *args):
+        key = args[0] if len(args) == 1 else args
+        for k, v in self.table:
+            if k == key:
+                return v
+        return self.default
+
+    def __repr__(self):
+        return "(lambda x: {" + ", ".join(f"{k!r}: {v!r}" for k, v in self.table) + f"}}.get(x, {self.default!r}))"
 
 
 def decode(lit, classes=None):
@@ -61,11 +86,18 @@ def decode(lit, classes=None):
         return {decode(x, classes) for x in v}
     if tag == "obj":
         cls = (classes or {}).get(v["cls"])
+        if v["cls"] in _LIBRARY_CLASSES and cls in (None, _LIBRARY_CLASSES[v["cls"]]):
+            # A Lean library value (`datetime.date`): rebuilt through CPython's own constructor.
+            return _LIBRARY_CLASSES[v["cls"]](**{k: decode(x, classes) for k, x in v["fields"].items()})
         if cls is None:
             raise KeyError(f"unknown class {v['cls']}")
         o = object.__new__(cls)
         o.__dict__.update({k: decode(x, classes) for k, x in v["fields"].items()})
         return o
+    if tag == "pyrepr":
+        return eval(v, {"datetime": datetime})  # noqa: S307  (only reprs this module wrote)
+    if tag == "fn":
+        return TableFn([(decode(k, classes), decode(x, classes)) for k, x in v["table"]], decode(v["default"], classes))
     if tag == "exc":
         raise ValueError("an exception is a result, not an input")
     raise ValueError(f"unknown PyLit tag {tag}")

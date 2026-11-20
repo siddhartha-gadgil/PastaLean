@@ -24,6 +24,8 @@ structure DSU where
 
 instance : PastaLean.PyTruthy DSU where truthy _ := true
 
+instance : PastaLean.PyBool DSU where pyBool _ := true
+
 instance : PastaLean.PyTyped DSU where pyTypeOf _ := TypeInfer.PyType.cls "DSU"
 
 instance : Coe DSU (Option DSU) :=
@@ -37,9 +39,9 @@ partial def DSU.find := fun (self : DSU) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.parent⦋x⦌ ≠ x then 
-        let _popval'rb1 := DSU.find self self.parent⦋x⦌ |>.1
+        let _popval'rb0 := DSU.find self self.parent⦋x⦌ |>.1
         self := DSU.find self self.parent⦋x⦌ |>.2
-        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb1 }
+        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb0 }
       let p'_ret_1 := (self.parent⦋x⦌, self)
       return p'_ret_1)
 
@@ -72,6 +74,8 @@ structure DSU'rn where
 
 instance : PastaLean.PyTruthy DSU'rn where truthy _ := true
 
+instance : PastaLean.PyBool DSU'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped DSU'rn where pyTypeOf _ := TypeInfer.PyType.cls "DSU"
 
 instance : Coe DSU'rn (Option DSU'rn) :=
@@ -85,9 +89,9 @@ partial def DSU'rn.find := fun (self : DSU'rn) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.parent⦋x⦌ != x then 
-        let _popval'rb1 := DSU'rn.find self self.parent⦋x⦌ |>.1
+        let _popval'rb0 := DSU'rn.find self self.parent⦋x⦌ |>.1
         self := DSU'rn.find self self.parent⦋x⦌ |>.2
-        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb1 }
+        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb0 }
       let p'_ret_1 := (self.parent⦋x⦌, self)
       return p'_ret_1)
 

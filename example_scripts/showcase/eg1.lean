@@ -65,7 +65,7 @@ noncomputable def find_nearest_neighbor := fun (target : List Int) ↦ fun (data
         let p'_ret_1 := (min_dist, dataset⦋min_index⦌)
         return p'_ret_1
       catch caught =>
-        if (caught).OfKind == "ValueError" then 
+        if PastaLean.pyExcIsA caught "ValueError" then 
           let e := caught
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "Error calculating distances: {e}"]
           let p'_ret_2 := (-(1.0 : Real), [])
@@ -96,7 +96,7 @@ def find_nearest_neighbor'rn : List Int → List (List Int) → PastaLean.PyExce
     let p'_ret_1 := (min_dist, dataset⦋min_index⦌)
     return p'_ret_1
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       let e := caught
       let _ ← pyPrintIO [pyPrintArg s! "Error calculating distances: {e}"]
       let p'_ret_2 := (-(1.0 : Float), [])

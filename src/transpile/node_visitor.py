@@ -1,6 +1,7 @@
 import json
 import sys
 import ast
+import copy
 from io import StringIO
 from pathlib import Path
 import tokenize
@@ -758,11 +759,18 @@ class ASTToJsonLeanVisitorBase:
 
     def visit_FormattedValue(self, node):
         """Translates one interpolated f-string segment."""
-        if node.conversion != -1:
-            raise NotImplementedError("FormattedValue conversions are not supported.")
+        value = node.value
+        # `{x!r}` / `{x!s}` interpolate `repr(x)` / `str(x)`.
+        if node.conversion in (ord("r"), ord("s")):
+            fn = "repr" if node.conversion == ord("r") else "str"
+            value = ast.copy_location(
+                ast.Call(func=ast.copy_location(ast.Name(id=fn, ctx=ast.Load()), node.value),
+                         args=[node.value], keywords=[]), node.value)
+        elif node.conversion != -1:
+            raise NotImplementedError("Only the !r and !s f-string conversions are supported.")
         result = {
             "node_type": "FormattedValue",
-            "value": self.visit(node.value),
+            "value": self.visit(value),
         }
         if node.format_spec is not None:
             spec = self._const_format_spec(node.format_spec)
@@ -928,7 +936,8 @@ class ASTToJsonLeanVisitorBase:
             "decorator_list": [self.visit(decorator) for decorator in node.decorator_list],
             "returns": self.visit(node.returns) if node.returns is not None else None,
             "type_comment": node.type_comment,
-            "type_params": [self.visit(type_param) for type_param in getattr(node, "type_params", [])]
+            "type_params": [self.visit(type_param) for type_param in getattr(node, "type_params", [])],
+            **({"_called": True} if getattr(node, "_pl_called", False) else {}),
         }
     def _self_attr_name(self, target):
         """If `target` is the AST for `self.X`, return the attribute name `X`, else None."""
@@ -1120,6 +1129,14 @@ class ASTToJsonLeanVisitorBase:
         if node.body and self._is_docstring_stmt(node.body[0]):
             docstring = node.body[0].value.value
 
+        # `@overload` stubs give an operator one signature per operand type; the implementation that
+        # follows becomes one method per stub (`__sub__'date`), its `isinstance` tests on that operand
+        # folded to the stub's type (see `_specialise_overload`).
+        overloads = {}
+        for stmt in node.body:
+            if isinstance(stmt, ast.FunctionDef) and any(
+                    isinstance(d, ast.Name) and d.id == "overload" for d in stmt.decorator_list):
+                overloads.setdefault(stmt.name, []).append(stmt)
         # Class-body metadata dunders (`__slots__ = [...]`, `__qualname__`, `__module__`) are storage
         # hints, not data fields — drop them so they don't become a bogus struct field.
         CLASS_META_DUNDERS = {"__slots__", "__qualname__", "__module__", "__dict__", "__weakref__"}
@@ -1135,8 +1152,15 @@ class ASTToJsonLeanVisitorBase:
                     continue
                 self._add_class_field(fields, seen, stmt.targets[0].id, None, stmt.value)
             elif isinstance(stmt, ast.FunctionDef):
-                methods.append(self.visit(stmt))
                 deco_names = {d.id for d in stmt.decorator_list if isinstance(d, ast.Name)}
+                if "overload" in deco_names:
+                    continue
+                if stmt.name in overloads:
+                    for stub in overloads[stmt.name]:
+                        methods.append(self.visit(self._specialise_overload(stmt, stub)))
+                        methods[-1]["_dunder"] = stmt.name
+                    continue
+                methods.append(self.visit(stmt))
                 is_static = "staticmethod" in deco_names
                 if is_static:
                     staticmethods.append(stmt.name)
@@ -1179,6 +1203,51 @@ class ASTToJsonLeanVisitorBase:
             "staticmethods": staticmethods,
             "classmethods": classmethods,
         }
+
+    @staticmethod
+    def _specialise_overload(impl, stub):
+        """`impl` typed by one `@overload` `stub`: the stub's annotations, the name `impl'T` (T the type
+        of the first non-self operand), and each `isinstance(param, C)` on a param the stub annotates
+        with a class folded to a constant, with `if`s on a constant reduced to the branch taken."""
+        params = {a.arg: a.annotation for a in stub.args.args if a.annotation is not None}
+
+        def ann_name(ann):
+            if isinstance(ann, ast.Constant) and isinstance(ann.value, str):
+                return ann.value
+            return ast.unparse(ann)
+
+        class Fold(ast.NodeTransformer):
+            def visit_Call(self, node):
+                self.generic_visit(node)
+                if (isinstance(node.func, ast.Name) and node.func.id == "isinstance" and len(node.args) == 2
+                        and isinstance(node.args[0], ast.Name) and node.args[0].id in params
+                        and isinstance(node.args[1], ast.Name)):
+                    return ast.copy_location(
+                        ast.Constant(ann_name(params[node.args[0].id]) == node.args[1].id), node)
+                return node
+
+        def prune(stmts):
+            out = []
+            for st in stmts:
+                if isinstance(st, ast.If) and isinstance(st.test, ast.Constant):
+                    out.extend(prune(st.body if st.test.value else st.orelse))
+                    continue
+                for field in ("body", "orelse", "finalbody"):
+                    if isinstance(getattr(st, field, None), list):
+                        setattr(st, field, prune(getattr(st, field)))
+                out.append(st)
+                if isinstance(st, (ast.Return, ast.Raise)):
+                    break
+            return out
+
+        fn = copy.deepcopy(impl)
+        fn.decorator_list = []
+        fn.args = copy.deepcopy(stub.args)
+        fn.returns = copy.deepcopy(stub.returns)
+        fn.body = prune([Fold().visit(st) for st in fn.body])
+        operand = next((ann_name(a.annotation) for a in stub.args.args[1:] if a.annotation is not None), "")
+        fn.name = f"{impl.name}'{operand}"
+        return ast.fix_missing_locations(fn)
 
     def visit_Lambda(self, node):
         """Translates ast.Lambda to a JSON IR node."""

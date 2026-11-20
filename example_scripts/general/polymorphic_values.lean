@@ -61,7 +61,7 @@ def describe : Int → PastaLean.ProofMode.PyProofM PastaLean.PyAny := fun (x : 
       throw (PastaLean.PyException.Raise "ValueError" "")
     return (x : PastaLean.PyAny)
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       return ("negative" : PastaLean.PyAny)
     else
       throw caught
@@ -74,7 +74,7 @@ def describe'rn : Int → PastaLean.PyExcept PastaLean.PyAny := fun (x : Int) �
       throw (PastaLean.PyException.Raise "ValueError" "")
     return (x : PastaLean.PyAny)
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       return ("negative" : PastaLean.PyAny)
     else
       throw caught
@@ -87,7 +87,7 @@ def main : IO Unit := do
     (((do
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (classify (5 : Int))]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (classify (-(3 : Int)))]
-          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (reassigned)]
+          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg reassigned]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (add (3 : Int) (4 : Int))]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (add "x" "y")]
           let mut d1 := (← describe (5 : Int))
@@ -111,7 +111,7 @@ def main'rn : IO Unit := do
     (((do
             let _ ← pyPrintIO [pyPrintArg (classify'rn (5 : Int))]
             let _ ← pyPrintIO [pyPrintArg (classify'rn (-(3 : Int)))]
-            let _ ← pyPrintIO [pyPrintArg (reassigned'rn)]
+            let _ ← pyPrintIO [pyPrintArg reassigned'rn]
             let _ ← pyPrintIO [pyPrintArg (add'rn (3 : Int) (4 : Int))]
             let _ ← pyPrintIO [pyPrintArg (add'rn "x" "y")]
             let mut d1 := (← describe'rn (5 : Int))

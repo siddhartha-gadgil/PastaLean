@@ -250,7 +250,9 @@ def pyParseFloat (s : String) : Float :=
     then pyPanic s!"ValueError: could not convert string to float: '{s}'"
     else
       let digits := clean ip ++ clean fp
-      let e10 : Int := ((clean (ex.getD "0")).toInt?.getD 0) - (clean fp).length
+      let exDigits := clean (ex.getD "0")
+      let exDigits := if exDigits.startsWith "+" then (exDigits.drop 1).toString else exDigits
+      let e10 : Int := (exDigits.toInt?.getD 0) - (clean fp).length
       let m := digits.toNat?.getD 0
       let mag : Int := e10 + (toString m).length
       let r : Float :=

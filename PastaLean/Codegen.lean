@@ -53,6 +53,11 @@ initialize boxReturnRef : IO.Ref Bool ← IO.mkRef false
 /-- Read whether we're lowering inside a `PyAny`-boxed-return function body. -/
 def getBoxReturnContext : IO Bool := boxReturnRef.get
 
+/-- The return annotation (`returns`/`_ret_ty` JSON) of the function whose body is being lowered. -/
+initialize retAnnotationRef : IO.Ref (Option Lean.Json) ← IO.mkRef none
+
+def getReturnAnnotation : IO (Option Lean.Json) := retAnnotationRef.get
+
 /-- Set while lowering a function whose returns mix `int` and `float` (`_ret_float`): each return
 value is ascribed to the mode float (`ℚ`/`Float`) so a mixed ternary `return -1 if … else v`
 coerces the `int` branch up instead of pinning the type to `ℤ` from the first branch. -/
@@ -122,7 +127,12 @@ def withRunSuffix (name : String) : IO String := return name ++ (← getRunSuffi
 /-- Append the run-twin suffix to a *reference* only when it names a user function/class (so locals
 and library names are untouched). -/
 def suffixIfUserName (name : String) : IO String := do
-  if (← userNamesRef.get).contains name then return name ++ (← getRunSuffix) else return name
+  let names ← userNamesRef.get
+  -- A class-library name (`date!lib`) is compiled with both twins, so the run twin is `date'rn`
+  -- in every runnable translation, `--mode run` included.
+  if names.contains (name ++ "!lib") then
+    return if (← numericModeRef.get) == .approx then name ++ "'rn" else name
+  if names.contains name then return name ++ (← getRunSuffix) else return name
 
 /-!
 ## Code generation from JSON data
@@ -237,81 +247,43 @@ def withoutCheck {α : Type} (x : PygenM α) : PygenM α :=
 def withUseArrow {α : Type} (x : PygenM α) : PygenM α :=
   withPygenStateField (·.useArrow) (fun st useArrow => { st with useArrow := useArrow }) true x
 
+/-- Run `x` with `r` set to `v`, restoring its value afterwards (also when `x` throws). -/
+def withRefSet {α β : Type} (r : IO.Ref β) (v : β) (x : PygenM α) : PygenM α := do
+  let saved ← r.get
+  r.set v
+  try x finally r.set saved
+
 /-- Run `x` with the real-context flag set to `b` (restoring it afterwards). Used to lower a
 real-marked assignment's RHS so its float literals (and list literals) become `ℝ`. -/
-def withRealContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α := do
-  let saved ← realContextRef.get
-  realContextRef.set b
-  try
-    let r ← x
-    realContextRef.set saved
-    return r
-  catch e =>
-    realContextRef.set saved
-    throw e
+def withRealContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α :=
+  withRefSet realContextRef b x
 
 /-- Run `x` with the boxed-return flag set to `b` (restoring it afterwards). -/
-def withBoxReturnContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α := do
-  let saved ← boxReturnRef.get
-  boxReturnRef.set b
-  try
-    let r ← x
-    boxReturnRef.set saved
-    return r
-  catch e =>
-    boxReturnRef.set saved
-    throw e
+def withBoxReturnContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α :=
+  withRefSet boxReturnRef b x
+
+/-- Run `x` with the current function's return annotation set to `ann?` (restoring it afterwards). -/
+def withReturnAnnotation {α : Type} (ann? : Option Lean.Json) (x : PygenM α) : PygenM α :=
+  withRefSet retAnnotationRef ann? x
 
 /-- Run `x` with the float-return-reconcile flag set to `b` (restoring it afterwards). -/
-def withRetFloatContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α := do
-  let saved ← retFloatRef.get
-  retFloatRef.set b
-  try
-    let r ← x
-    retFloatRef.set saved
-    return r
-  catch e =>
-    retFloatRef.set saved
-    throw e
+def withRetFloatContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α :=
+  withRefSet retFloatRef b x
 
 /-- Run `x` with the memoize-self context set (a recursive self-call to `name` lowers to
 `(← $worker args)`), restoring it afterwards. -/
-def withMemoizeSelf {α : Type} (ctx : Option (String × Lean.Name)) (x : PygenM α) : PygenM α := do
-  let saved ← memoizeSelfRef.get
-  memoizeSelfRef.set ctx
-  try
-    let r ← x
-    memoizeSelfRef.set saved
-    return r
-  catch e =>
-    memoizeSelfRef.set saved
-    throw e
+def withMemoizeSelf {α : Type} (ctx : Option (String × Lean.Name)) (x : PygenM α) : PygenM α :=
+  withRefSet memoizeSelfRef ctx x
 
 /-- Run `x` with the truthiness flag set to `b` (restoring it afterwards). Set by `any`/`all` around
 their element so a `BoolOp` there stays a `Bool` connective, not the mixed-type value form. -/
-def withTruthinessContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α := do
-  let saved ← truthinessContextRef.get
-  truthinessContextRef.set b
-  try
-    let r ← x
-    truthinessContextRef.set saved
-    return r
-  catch e =>
-    truthinessContextRef.set saved
-    throw e
+def withTruthinessContext {α : Type} (b : Bool) (x : PygenM α) : PygenM α :=
+  withRefSet truthinessContextRef b x
 
 /-- Run `x` with the prop-condition flag set to `b` (restoring it afterwards). `if`/`while` set it
 `true` around lowering their test; `and`/`or`/`not` operands set it back `false` (they need `Bool`). -/
-def withPropCondition {α : Type} (b : Bool) (x : PygenM α) : PygenM α := do
-  let saved ← propConditionRef.get
-  propConditionRef.set b
-  try
-    let r ← x
-    propConditionRef.set saved
-    return r
-  catch e =>
-    propConditionRef.set saved
-    throw e
+def withPropCondition {α : Type} (b : Bool) (x : PygenM α) : PygenM α :=
+  withRefSet propConditionRef b x
 
 /-- Lower `x` in real-context when `json` carries the per-variable `_real` stamp (exact mode) — set
 by the Python pass on every assignment whose root variable holds an `ℝ` value, so the RHS literals
@@ -572,6 +544,14 @@ initialize noncomputableDefRegistry : IO.Ref (Std.HashSet String) ←
 def registerNoncomputableDef (name : String) : PygenM Unit := do
   noncomputableDefRegistry.modify (·.insert name)
 
+/-- Exact-mode defs emitted `Id`-typed (Track M contracts); a pure caller reads them through `runPure`,
+whose identity fallback keeps a stale entry from another file harmless. -/
+initialize idDefRegistry : IO.Ref (Std.HashSet String) ←
+  IO.mkRef (Std.HashSet.emptyWithCapacity 16)
+
+def registerIdDef (name : String) : PygenM Unit := do
+  idDefRegistry.modify (·.insert name)
+
 /-- The class whose body is currently being lowered (`self`'s class), if any. -/
 def getCurrentClass : PygenM (Option String) := do
   return (← get).currentClass
@@ -797,6 +777,12 @@ def codeFromFunc (f: Name) (json: Json) (kind: SyntaxNodeKind)  : PygenM <| TSyn
 def getCode (json: Json) (kind: SyntaxNodeKind) : PygenM <| TSyntax kind := do
   let .ok key := json.getObjValAs? String "node_type" | throwError
     s!"pygen: JSON object does not have a 'node_type' field or it is not a string: {json}"
+  -- a field read the receiver's type cannot have (TypeInfer's `markAttrErrors`): Python's AttributeError
+  if kind == `term then
+    if let .ok ty := json.getObjValAs? String "_attr_error" then
+      let attr := (json.getObjValAs? String "attr").toOption.getD ""
+      let msg := Syntax.mkStrLit s!"AttributeError: '{ty}' object has no attribute '{attr}'"
+      return ⟨(← `(term| PastaLean.pyPanic $msg)).raw⟩
   let fs ← pygenMatches key
   -- IO.eprintln s!"getting code for json: \n{json.pretty}"
   -- IO.eprintln s!"getCode: found functions '{fs}' for key '{key}' and syntax category '{kind}'" -- Debugging output
@@ -815,7 +801,12 @@ def getCode (json: Json) (kind: SyntaxNodeKind) : PygenM <| TSyntax kind := do
     if inner.startsWith "Error in code generation function" then throw e
     else throwError s!"Error in code generation function {f} for key '{key}' and syntax category '{kind}': {inner}")
   match code? with
-  | some code => return code
+  | some code =>
+      -- an `Optional` value read only where the program has tested it is not `None` (`_or_default`,
+      -- see TypeInfer's `markNarrowed`): its payload; the default is never observed
+      if kind == `term && json.getObjValAs? Bool "_or_default" == .ok true then
+        return ⟨(← `(term| (($(⟨code.raw⟩) : Option _).getD default))).raw⟩
+      return code
   | none => throwError s!"pygen: no function found for key '{key}' and syntax category '{kind}'"
 
 def getCodeCore (json: Json) (kind: SyntaxNodeKind) (checkCode : Bool := true) : CoreM <| Except String Format := do

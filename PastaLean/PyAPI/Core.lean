@@ -35,6 +35,36 @@ def OfKind (exc : PyException) : String :=
 
 end PyException
 
+/-- The base class of a builtin (or modelled library) exception, per Python's hierarchy. -/
+def pyExcParent : String → Option String
+  | "ArithmeticError" | "AssertionError" | "AttributeError" | "EOFError" | "ImportError"
+  | "LookupError" | "NameError" | "OSError" | "RuntimeError" | "StopIteration" | "TypeError"
+  | "ValueError" => some "Exception"
+  | "ZeroDivisionError" | "OverflowError" | "FloatingPointError" => some "ArithmeticError"
+  | "IndexError" | "KeyError" => some "LookupError"
+  | "ModuleNotFoundError" => some "ImportError"
+  | "RecursionError" | "NotImplementedError" => some "RuntimeError"
+  | "UnboundLocalError" => some "NameError"
+  | "FileNotFoundError" | "PermissionError" | "TimeoutError" => some "OSError"
+  | "UnicodeError" | "JSONDecodeError" | "PatternError" => some "ValueError"
+  | "UnicodeDecodeError" | "UnicodeEncodeError" => some "UnicodeError"
+  | "Exception" | "KeyboardInterrupt" | "SystemExit" => some "BaseException"
+  | _ => none
+
+/-- Is the exception kind `kind` (`"KeyError"`) an instance of class `cls` (`"LookupError"`)? -/
+def pyKindIsA (kind cls : String) : Bool :=
+  go kind 8
+where
+  go (k : String) : Nat → Bool
+    | 0 => false
+    | n + 1 => k == cls || match pyExcParent k with
+      | some p => go p n
+      | none => cls == "Exception" || cls == "BaseException"
+
+/-- `except cls:` catches `exc` when its class is `cls` or a subclass (`except ValueError` catches a
+`json.JSONDecodeError`). An unknown kind is a direct `Exception` subclass. -/
+def pyExcIsA (exc : PyException) (cls : String) : Bool := pyKindIsA exc.kind cls
+
 /-- Concrete exception monad used for translated Python code that can raise (with IO). -/
 abbrev PyExcept (α : Type) := ExceptT PyException IO α
 
@@ -196,7 +226,7 @@ out-of-range index yields the empty string. -/
 def pyStringGetItemStr (s : String) (idx : Int) : String :=
   match pyStringGetItem s idx with
   | some c => c.toString
-  | none => ""
+  | none => pyPanic "IndexError: string index out of range"
 
 /-- Python-style slicing for strings. -/
 def pyStringSlice (s : String) (start : Option Int) (stop : Option Int) : String :=

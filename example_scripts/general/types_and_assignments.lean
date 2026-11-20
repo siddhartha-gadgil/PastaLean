@@ -14,38 +14,40 @@ set_option maxHeartbeats 200000
 namespace PastaLean.User.Root
 
 def basic_types :=
-  Id.run do
-    let mut a : Int := (1 : Int)
-    let mut b := (2.5 : Rat)
-    let mut c : String := "hello"
-    let mut d : Bool := Bool.true
-    let mut e : List Int := [(1 : Int), (2 : Int)]
-    let mut f : Int × String := ((1 : Int), "a")
-    let mut g : Int := (3 : Int)
-    let mut h := (4.5 : Rat)
-    let mut m : Int := (5 : Int)
-    let mut n : String := "world"
-    let mut p : Bool := Bool.false
-    let mut tup1 : String × Int := ("foo", (42 : Int))
-    let mut tup2 := (g, h)
+  (show Unit from
+    Id.run do
+      let mut a : Int := (1 : Int)
+      let mut b := (2.5 : Rat)
+      let mut c : String := "hello"
+      let mut d : Bool := Bool.true
+      let mut e : List Int := [(1 : Int), (2 : Int)]
+      let mut f : Int × String := ((1 : Int), "a")
+      let mut g : Int := (3 : Int)
+      let mut h := (4.5 : Rat)
+      let mut m : Int := (5 : Int)
+      let mut n : String := "world"
+      let mut p : Bool := Bool.false
+      let mut tup1 : String × Int := ("foo", (42 : Int))
+      let mut tup2 := (g, h))
 
 attribute [simp, taste_ingr] basic_types
 
 def basic_types'rn :=
-  Id.run do
-    let mut a : Int := (1 : Int)
-    let mut b := (2.5 : Float)
-    let mut c : String := "hello"
-    let mut d : Bool := Bool.true
-    let mut e : Array Int := #[(1 : Int), (2 : Int)]
-    let mut f : Int × String := ((1 : Int), "a")
-    let mut g : Int := (3 : Int)
-    let mut h := (4.5 : Float)
-    let mut m : Int := (5 : Int)
-    let mut n : String := "world"
-    let mut p : Bool := Bool.false
-    let mut tup1 : String × Int := ("foo", (42 : Int))
-    let mut tup2 := (g, h)
+  (show Unit from
+    Id.run do
+      let mut a : Int := (1 : Int)
+      let mut b := (2.5 : Float)
+      let mut c : String := "hello"
+      let mut d : Bool := Bool.true
+      let mut e : Array Int := #[(1 : Int), (2 : Int)]
+      let mut f : Int × String := ((1 : Int), "a")
+      let mut g : Int := (3 : Int)
+      let mut h := (4.5 : Float)
+      let mut m : Int := (5 : Int)
+      let mut n : String := "world"
+      let mut p : Bool := Bool.false
+      let mut tup1 : String × Int := ("foo", (42 : Int))
+      let mut tup2 := (g, h))
 
 def starred_unpacking := fun (lst : List Int) ↦
   Id.run
@@ -193,7 +195,8 @@ def int_init_float_container'rn := fun (nums : List Int) ↦
 def heterogeneous_pyany :=
   (show PastaLean.PyAny from
     -- `[1, "hi", 3]` is `List PyAny`; arithmetic on a boxed element (`* 2`, `+`) dispatches on the tag.
-    let xs := ([(1 : Int), "hi", (3 : Int)] : List PyAny)
+    let xs :=
+      ([((1 : Int) : PastaLean.PyAny), ("hi" : PastaLean.PyAny), ((3 : Int) : PastaLean.PyAny)] : List PyAny)
     let total := (0 : Int)
     let total := total +ₚ xs⦋(0 : Int)⦌ *ₚ (2 : Int)
     total)
@@ -203,7 +206,8 @@ attribute [simp] heterogeneous_pyany
 def heterogeneous_pyany'rn :=
   (show PastaLean.PyAny from
     -- `[1, "hi", 3]` is `List PyAny`; arithmetic on a boxed element (`* 2`, `+`) dispatches on the tag.
-    let xs := ([(1 : Int), "hi", (3 : Int)] : List PyAny)
+    let xs :=
+      ([((1 : Int) : PastaLean.PyAny), ("hi" : PastaLean.PyAny), ((3 : Int) : PastaLean.PyAny)] : List PyAny)
     let total := (0 : Int)
     let total := total +ₚ xs⦋(0 : Int)⦌ *ₚ (2 : Int)
     total)

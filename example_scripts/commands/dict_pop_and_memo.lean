@@ -110,7 +110,7 @@ def collatz_steps'rn : Int → Int := fun (x : Int) ↦ (collatz_steps'memo'rn x
 
 def main' :=
   ((do
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (dict_pop_demo)]
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg dict_pop_demo]
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (counter_pop_demo "aabbccd")]
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (collatz_steps (6 : Int))]) :
     PastaLean.ProofMode.PyProofM _)
@@ -119,7 +119,7 @@ attribute [simp] main'
 
 def main''rn :=
   ((do
-      let _ ← pyPrintIO [pyPrintArg (dict_pop_demo'rn)]
+      let _ ← pyPrintIO [pyPrintArg dict_pop_demo'rn]
       let _ ← pyPrintIO [pyPrintArg (counter_pop_demo'rn "aabbccd")]
       let _ ← pyPrintIO [pyPrintArg (collatz_steps'rn (6 : Int))]) :
     IO _)

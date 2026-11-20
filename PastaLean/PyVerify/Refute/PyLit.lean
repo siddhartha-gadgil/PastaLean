@@ -29,7 +29,23 @@ inductive PyLit where
   | set (xs : List PyLit)
   | obj (cls : String) (fields : List (String × PyLit))
   | exc (kind : String)
+  /-- A callable: a finite table and a default (`lambda x: {0: 42}.get(x, 0)`). -/
+  | fn (table : List (PyLit × PyLit)) (dflt : PyLit)
   deriving Repr, BEq, Inhabited
+
+/-- A size every shrink step must strictly decrease, so shrinking terminates (Plausible's `minimize`
+recurses for as long as candidates keep failing). -/
+partial def PyLit.measure : PyLit → Nat
+  | .int n | .rat n _ => n.natAbs
+  | .float k e => k.natAbs + e
+  | .str s | .exc s => s.length
+  | .bool b => if b then 1 else 0
+  | .none => 0
+  | .double b => b.toNat
+  | .list xs | .tuple xs | .set xs => xs.foldl (· + ·.measure + 1) 0
+  | .dict kvs => kvs.foldl (fun a (k, v) => a + k.measure + v.measure + 1) 0
+  | .obj _ fs => fs.foldl (· + ·.2.measure) 0
+  | .fn t d => t.foldl (fun a (k, v) => a + k.measure + v.measure + 1) d.measure
 
 /-- The `k / 2^e` of a dyadic float in lowest terms. -/
 def normDyadic (k : Int) (e : Nat) : Int × Nat := Id.run do
@@ -75,6 +91,8 @@ partial def PyLit.toPyString : PyLit → String
   | .set xs => "{" ++ ", ".intercalate (xs.map toPyString) ++ "}"
   | .obj cls fs => cls ++ "(" ++ ", ".intercalate (fs.map fun (n, v) => n ++ "=" ++ toPyString v) ++ ")"
   | .exc kind => s!"<raises {kind}>"
+  | .fn t d => "(lambda x: {" ++ ", ".intercalate (t.map fun (k, v) => toPyString k ++ ": " ++ toPyString v)
+      ++ "}.get(x, " ++ toPyString d ++ "))"
 
 partial def PyLit.toJson : PyLit → Json
   | .int n => Json.mkObj [("int", Lean.toJson n)]
@@ -91,6 +109,9 @@ partial def PyLit.toJson : PyLit → Json
   | .obj cls fs => Json.mkObj [("obj", Json.mkObj [("cls", Lean.toJson cls),
       ("fields", Json.mkObj (fs.map fun (n, v) => (n, PyLit.toJson v)))])]
   | .exc kind => Json.mkObj [("exc", Lean.toJson kind)]
+  | .fn t d => Json.mkObj [("fn", Json.mkObj [
+      ("table", Json.arr (t.map fun (k, v) => Json.arr #[PyLit.toJson k, PyLit.toJson v]).toArray),
+      ("default", PyLit.toJson d)])]
 
 partial def PyLit.fromJson? (j : Json) : Except String PyLit := do
   let some (tag, v) := (match j with | .obj kvs => kvs.toList.head? | _ => Option.none)
@@ -118,6 +139,12 @@ partial def PyLit.fromJson? (j : Json) : Except String PyLit := do
         | _ => throw "PyLit.obj: fields must be an object"
       return .obj cls fields
   | "exc" => return .exc (← v.getStr?)
+  | "fn" => do
+      let t ← (← v.getObjVal? "table").getArr?
+      return .fn (← t.toList.mapM fun kv => do
+          let p ← kv.getArr?
+          return ((← fromJson? p[0]!), (← fromJson? p[1]!)))
+        (← fromJson? (← v.getObjVal? "default"))
   | t => throw s!"PyLit: unknown tag {t}"
 
 instance : ToJson PyLit := ⟨PyLit.toJson⟩

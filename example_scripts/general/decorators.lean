@@ -122,6 +122,8 @@ structure Vec where
 
 instance : PastaLean.PyTruthy Vec where truthy _ := true
 
+instance : PastaLean.PyBool Vec where pyBool _ := true
+
 instance : PastaLean.PyTyped Vec where pyTypeOf _ := TypeInfer.PyType.cls "Vec"
 
 instance : Coe Vec (Option Vec) :=
@@ -149,6 +151,8 @@ structure Vec'rn where
 
 instance : PastaLean.PyTruthy Vec'rn where truthy _ := true
 
+instance : PastaLean.PyBool Vec'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped Vec'rn where pyTypeOf _ := TypeInfer.PyType.cls "Vec"
 
 instance : Coe Vec'rn (Option Vec'rn) :=
@@ -170,7 +174,7 @@ def main' :=
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (add (3 : Int) (4 : Int))]
       let mut v := Vec.new (3 : Int) (4 : Int)
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg v.norm2]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (Vec.unit)]
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg Vec.unit]
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (Vec.diag (7 : Int))]) :
     PastaLean.ProofMode.PyProofM _)
 
@@ -183,7 +187,7 @@ def main''rn :=
       let _ ← pyPrintIO [pyPrintArg (add'rn (3 : Int) (4 : Int))]
       let mut v := Vec'rn.new (3 : Int) (4 : Int)
       let _ ← pyPrintIO [pyPrintArg v.norm2]
-      let _ ← pyPrintIO [pyPrintArg (Vec'rn.unit)]
+      let _ ← pyPrintIO [pyPrintArg Vec'rn.unit]
       let _ ← pyPrintIO [pyPrintArg (Vec'rn.diag (7 : Int))]) :
     IO _)
 

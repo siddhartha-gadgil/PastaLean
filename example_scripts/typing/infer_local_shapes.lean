@@ -22,6 +22,8 @@ structure Counter where
 
 instance : PastaLean.PyTruthy Counter where truthy _ := true
 
+instance : PastaLean.PyBool Counter where pyBool _ := true
+
 instance : PastaLean.PyTyped Counter where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 
 instance : Coe Counter (Option Counter) :=
@@ -35,6 +37,8 @@ structure Counter'rn where
   deriving Inhabited, Repr, BEq
 
 instance : PastaLean.PyTruthy Counter'rn where truthy _ := true
+
+instance : PastaLean.PyBool Counter'rn where pyBool _ := true
 
 instance : PastaLean.PyTyped Counter'rn where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 

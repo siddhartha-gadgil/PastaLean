@@ -25,9 +25,18 @@ CASES = {
     "div_by_len.py": {"mean_bound": ("PARTIALITY_GAP", False)},
     "interval_overlap.py": {"overlap_agree": ("REFUTED", True)},
     "float_midpoint.py": {"midpoint_between": ("REFUTED", True)},
+    "deep_branch.py": {"classify": ("REFUTED", True)},
     # HashMap operations do not reduce in the kernel, so the refutation is evaluated, not certified.
     "dict_first_key.py": {"first_is_smallest": ("REFUTED", False)},
+    "regex_near_miss.py": {"is_falsey": ("REFUTED", False)},
+    "str_keyed_dict.py": {"bump": ("REFUTED", False)},
+    "version_compare.py": {"compare_versions": ("REFUTED", False)},
+    "local_postcondition.py": {"isqrt": ("REFUTED", False)},
+    "assert_precondition.py": {"headline": ("REFUTED", False)},
 }
+
+# Lean tests per search where the default (1000) is too few to reach the bug.
+TESTS = {"regex_near_miss.py": 20000, "version_compare.py": 200000}
 
 STDIN_CASES = {
     # file: (reference or None, negative ints?, expected verdict, expected note substring)
@@ -49,7 +58,8 @@ def main() -> int:
         print("skip sparse_precondition.py (CrossHair not installed: uv pip install -e '.[refute]')")
     with Session(target="command", mode="both") as session:
         for file, expected in CASES.items():
-            report = refute_file(ROOT / "example_scripts" / "refute" / file, session=session)
+            report = refute_file(ROOT / "example_scripts" / "refute" / file, session=session,
+                                 tests=TESTS.get(file, 1000))
             got = {o.name: (o.verdict, bool(o.kernel_proof)) for o in report.obligations}
             for fn, want in expected.items():
                 ok = got.get(fn) == want

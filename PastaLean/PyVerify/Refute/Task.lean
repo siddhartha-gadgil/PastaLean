@@ -1,4 +1,6 @@
 import PastaLean.PyVerify.Refute.Tactic
+import PastaLean.PyVerify.Refute.Solve
+import PastaLean.PyAPI.RunPure
 
 /-!
 # The `refute` backend task
@@ -25,6 +27,8 @@ structure Target where
   provChk? : Option Name := none
   runPre? : Option Name := none
   runChk? : Option Name := none
+  /-- The contract's `raises:` exceptions. -/
+  allowed : List String := []
 
 def nameOpt (j : Json) (k : String) : Option Name :=
   match j.getObjValAs? String k with
@@ -34,28 +38,43 @@ def nameOpt (j : Json) (k : String) : Option Name :=
 def Target.ofJson (j : Json) : Target :=
   { id := (j.getObjValAs? String "id").toOption.getD "",
     theorem? := nameOpt j "theorem", provPre? := nameOpt j "provPre", provChk? := nameOpt j "provChk",
-    runPre? := nameOpt j "runPre", runChk? := nameOpt j "runChk" }
+    runPre? := nameOpt j "runPre", runChk? := nameOpt j "runChk",
+    allowed := (j.getObjValAs? (List String) "raises").toOption.getD [] }
 
 def configOfJson (j : Json) (base : RefuteConfig) : RefuteConfig :=
   let n (k : String) (d : Nat) : Nat := (j.getObjValAs? Nat k).toOption.getD d
   { base with numInst := n "numInst" base.numInst, maxSize := n "maxSize" base.maxSize,
               seed := n "seed" base.seed, timeMs := n "timeMs" base.timeMs,
               perCaseMs := n "perCaseMs" base.perCaseMs, enumDepth := n "enumDepth" base.enumDepth,
-              enumMax := n "enumMax" base.enumMax }
+              enumMax := n "enumMax" base.enumMax,
+              plausible := (j.getObjValAs? Bool "plausible").toOption.getD base.plausible,
+              solver := (j.getObjValAs? Bool "solver").toOption.getD base.solver,
+              intCap := n "intCap" base.intCap }
 
-/-- `∀ args, pre args = true → chk args = true` from a checker (and optional precondition) constant. -/
+/-- A program constant with its universe parameters (if any) set to `0`, ready to evaluate. -/
+def constZ (n : Name) : MetaM Expr := do
+  let info ← getConstInfo n
+  return mkConst n (info.levelParams.map fun _ => levelZero)
+
+/-- A checker's verdict as a `Bool`: a checker of a function that can raise is monadic, and runs from an
+empty state (`PyRunPure`); an exception it does not catch (not one its contract's `raises:` allows) is a
+violation, recorded like any runtime error so the witness reports its kind. -/
+def checkerBool (app : Expr) : MetaM Expr := mkAppM ``PastaLean.runPure #[app]
+
+/-- `∀ args, pre args = true → chk args = true` from a checker (and optional precondition) constant.
+Binders are read off the checker's type without unfolding a monadic codomain into more arrows. -/
 def checkerStatement (chk : Name) (pre? : Option Name) : MetaM Expr := do
-  let chkTy ← inferType (mkConst chk)
-  forallTelescopeReducing chkTy fun args _ => do
-    let concl ← mkEq (mkAppN (mkConst chk) args) (toExpr true)
+  let chkTy ← inferType (← constZ chk)
+  forallTelescope chkTy fun args _ => do
+    let concl ← mkEq (← checkerBool (mkAppN (← constZ chk) args)) (toExpr true)
     let body ← match pre? with
-      | some pre => mkArrow (← mkEq (mkAppN (mkConst pre) args) (toExpr true)) concl
+      | some pre => mkArrow (← mkEq (← checkerBool (mkAppN (← constZ pre) args)) (toExpr true)) concl
       | none => pure concl
     mkForallFVars args body
 
 /-- The argument types of a checker constant. -/
 def checkerArgTypes (chk : Name) : MetaM (Array Expr) := do
-  forallTelescopeReducing (← inferType (mkConst chk)) fun args _ => args.mapM inferType
+  forallTelescope (← inferType (← constZ chk)) fun args _ => args.mapM inferType
 
 /-- Evaluate a closed `Bool` term. -/
 unsafe def evalBoolUnsafe (e : Expr) : MetaM Bool := do
@@ -83,23 +102,25 @@ def withPyError (x : MetaM α) : MetaM (α × Option String) := do
 /-- Evaluate a witness against a checker (and precondition) in one world. With `executes` (the runnable
 twin) a runtime error is a raise, as under CPython: in the precondition it rejects the input, in the
 property it violates it. Otherwise (the provable twin) the logical value stands and the error is noted. -/
-def judgeChecker (chk : Name) (pre? : Option Name) (ws : List PyLit) (executes := true) : MetaM Json := do
+def judgeChecker (chk : Name) (pre? : Option Name) (ws : List PyLit) (executes := true)
+    (allowed : List String := []) : MetaM Json := do
   try
     let tys ← checkerArgTypes chk
     if tys.size != ws.length then return judgeJson none none (some "arity mismatch")
     let args ← (tys.toList.zip ws).mapM fun (τ, w) => litToExpr τ w
     let (guardOk, gexc) ← withPyError do match pre? with
-      | some pre => evalBool (← mkAppM ``BEq.beq #[mkAppN (mkConst pre) args.toArray, toExpr true])
+      | some pre => evalBool (← checkerBool (mkAppN (← constZ pre) args.toArray))
       | none => pure true
     if !guardOk || (executes && gexc.isSome) then return judgeJson (some false) none
     let (holds, exc) ← withPyError do
-      evalBool (← mkAppM ``BEq.beq #[mkAppN (mkConst chk) args.toArray, toExpr true])
+      evalBool (← checkerBool (mkAppN (← constZ chk) args.toArray))
+    if exc.any (errAllowed allowed) then return judgeJson (some true) (some true)
     if executes then return judgeJson (some true) (some (holds && exc.isNone)) none exc
     return judgeJson (some true) (some holds) none none (exc <|> gexc)
   catch e => return judgeJson none none (some (← e.toMessageData.toString))
 
 /-- Evaluate a witness against the obligation theorem (its guards, then its body), by `decide`. -/
-def judgeTheorem (thm : Name) (ws : List PyLit) : MetaM Json := do
+def judgeTheorem (thm : Name) (ws : List PyLit) (allowed : List String := []) : MetaM Json := do
   try
     let ty ← instantiateMVars (← getConstInfo thm).type
     withObligation ty fun ob => do
@@ -116,6 +137,7 @@ def judgeTheorem (thm : Name) (ws : List PyLit) : MetaM Json := do
       | .error e => return judgeJson (some true) none (some e)
       | .ok d =>
         let (holds, exc) ← withPyError (evalBool d)
+        if exc.any (errAllowed allowed) then return judgeJson (some true) (some true)
         return judgeJson (some true) (some holds) none none exc
   catch e => return judgeJson none none (some (← e.toMessageData.toString))
 
@@ -126,57 +148,121 @@ def searchJson (o : SearchOutcome) (names : Array (Name × Expr)) (cert : Option
     ("proof", toJson (cert.getD "")),
     ("python", toJson ((o.witness?.getD []).map PyLit.toPyString))])
 
+/-- `x`, with a resource-limit exception (heartbeats, recursion depth) turned into an ordinary error that
+`try … catch` handles: one step running out of its budget must not end the whole target. -/
+def budgeted {α : Type} (x : TermElabM α) : TermElabM α :=
+  tryCatchRuntimeEx x fun e => do throwError (← e.toMessageData.toString)
+
+/-- A judgement that ran out of its budget reads as an evaluation error, like any other failure to judge. -/
+def budgetedJudge (x : TermElabM Json) : TermElabM Json :=
+  tryCatchRuntimeEx x fun e => do return judgeJson none none (some (← e.toMessageData.toString))
+
 /-- Run one target: both searches, then every witness through both worlds. -/
 def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : TermElabM Json := do
+  let cfg := { cfg with allowed := t.allowed }
   let mut fields : Array (String × Json) := #[("id", toJson t.id)]
   let mut witnesses : Array (String × List PyLit) := #[]
+  -- witnesses whose evaluation ran past the per-case deadline: judged `Timeout`, never re-evaluated
+  let mut hung : Array (List PyLit) := #[]
+  -- where the searches stalled: inputs closest to unreached branches, for `solvePlateau`
+  let mut seeds : List (List PyLit) := []
   -- Provable world: the theorem if there is one (certifiable), else the exact-mode checker.
   let provTy? ← match t.theorem?, t.provChk? with
     | some thm, _ => pure (some ((← getConstInfo thm).type, true))
     | none, some chk => pure (some (← checkerStatement chk t.provPre?, false))
     | none, none => pure none
+  -- Each world searches on its own: one that cannot be evaluated (e.g. a twin that does not elaborate)
+  -- must not stop the other.
   if let some (ty, isThm) := provTy? then
-    let ty ← instantiateMVars ty
-    let (o, names) ← refuteType ty cfg
-    let cert ← match o.status, o.witness? with
-      | .refuted, some ws => if isThm && !o.hang then certify ty names ws else pure none
-      | _, _ => pure none
-    fields := fields.push ("prov", ← searchJson o names cert)
-    if let some ws := o.witness? then witnesses := witnesses.push ("prov", ws)
+    try
+      let ty ← instantiateMVars ty
+      let (o, names) ← budgeted (refuteType ty cfg)
+      let cert ← match o.status, o.witness? with
+        | .refuted, some ws => if isThm && !o.hang then budgeted (certify ty names ws) else pure none
+        | _, _ => pure none
+      fields := fields.push ("prov", ← searchJson o names cert)
+      seeds := seeds ++ o.seeds
+      if let some ws := o.witness? then
+        witnesses := witnesses.push ("prov", ws)
+        if o.hang then hung := hung.push ws
+    catch e => fields := fields.push ("prov", Json.mkObj [("error", toJson (← e.toMessageData.toString))])
+  -- The solver: `grind` on guards ∧ ¬body. A model is one more witness to judge (and certify); a proof
+  -- means no input violates the provable obligation.
+  if let some (ty, _) := provTy?.filter (fun _ => cfg.solver) then
+    try
+      let ty ← instantiateMVars ty
+      match ← budgeted (solveObligation ty) with
+      | .proved => fields := fields.push ("solver", Json.mkObj [("status", toJson "proved")])
+      | .model vals =>
+        let names ← obligationBinders ty
+        let shown := Json.mkObj (vals.toList.map fun (n, v) => (n.eraseMacroScopes.toString, toJson (toString v)))
+        match ← modelWitness names vals with
+        | some ws =>
+          witnesses := witnesses.push ("grind", ws)
+          fields := fields.push ("solver", Json.mkObj [("status", toJson "model"), ("model", shown)])
+        | none => fields := fields.push ("solver", Json.mkObj [("status", toJson "model-unusable"), ("model", shown)])
+      | .unknown why =>
+        fields := fields.push ("solver", Json.mkObj [("status", toJson "unknown"), ("why", toJson (why.take 300))])
+    catch e => fields := fields.push ("solver", Json.mkObj [("status", toJson "unknown"),
+      ("why", toJson ((← e.toMessageData.toString).take 300))])
   -- Runnable world: the `'rn` checker over its own types (Float, Array).
   if let some chk := t.runChk? then
-    let ty ← checkerStatement chk t.runPre?
-    let (o, names) ← refuteType ty { cfg with errorsFail := true }
-    fields := fields.push ("run", ← searchJson o names none)
-    if let some ws := o.witness? then witnesses := witnesses.push ("run", ws)
+    try
+      let ty ← checkerStatement chk t.runPre?
+      let (o, names) ← budgeted (refuteType ty { cfg with errorsFail := true })
+      fields := fields.push ("run", ← searchJson o names none)
+      seeds := seeds ++ o.seeds
+      if let some ws := o.witness? then
+        witnesses := witnesses.push ("run", ws)
+        if o.hang then hung := hung.push ws
+    catch e => fields := fields.push ("run", Json.mkObj [("error", toJson (← e.toMessageData.toString))])
+  -- Nothing found: finish the stalled searches by solving for the integer leaves of their closest inputs.
+  if !witnesses.any (fun (o, _) => o == "prov" || o == "run") && cfg.solver then
+    if let some (ty, _) := provTy? then
+      for seed in seeds.eraseDups.take 3 do
+        if let some ws ← (try budgeted (solvePlateau (← instantiateMVars ty) seed) catch _ => pure none) then
+          if !witnesses.any (·.2 == ws) then witnesses := witnesses.push ("plateau", ws)
   for ws in extra do witnesses := witnesses.push ("given", ws)
   -- Cross-check every witness in both worlds; certify the first one (from any engine) that refutes the
   -- theorem in the provable twin.
   let mut evals : Array Json := #[]
-  let mut certified : Option (List PyLit × String) := none
+  let mut certified : Array (List PyLit × String) := #[]
   for (origin, ws) in witnesses do
-    let prov ← match t.theorem?, t.provChk? with
-      | some thm, _ => judgeTheorem thm ws
-      | none, some chk => judgeChecker chk t.provPre? ws (executes := false)
-      | none, none => pure Json.null
+    if hung.contains ws then
+      let timeout := Json.mkObj [("guard", toJson true), ("exc", toJson "Timeout")]
+      evals := evals.push (Json.mkObj [("origin", toJson origin), ("lits", toJson ws),
+        ("python", toJson (ws.map PyLit.toPyString)), ("prov", timeout), ("provChk", timeout), ("run", timeout)])
+      continue
     let provChk ← match t.provChk? with
-      | some chk => judgeChecker chk t.provPre? ws (executes := false)
+      | some chk => budgetedJudge (judgeChecker chk t.provPre? ws (executes := false) t.allowed)
       | none => pure Json.null
+    let prov ← match t.theorem? with
+      | some thm => budgetedJudge (judgeTheorem thm ws t.allowed)
+      | none => pure provChk
     let run ← match t.runChk? with
-      | some chk => judgeChecker chk t.runPre? ws
+      | some chk => budgetedJudge (judgeChecker chk t.runPre? ws (allowed := t.allowed))
       | none => pure Json.null
     evals := evals.push (Json.mkObj [("origin", toJson origin), ("lits", toJson ws),
       ("python", toJson (ws.map PyLit.toPyString)), ("prov", prov), ("provChk", provChk), ("run", run)])
-    if certified.isNone && (prov.getObjValAs? Bool "guard").toOption == some true
+    -- A few, so the report can show a certificate for the witness it leads with.
+    if certified.size < 3 && (prov.getObjValAs? Bool "guard").toOption == some true
         && (prov.getObjValAs? Bool "holds").toOption == some false then
       if let some thm := t.theorem? then
         let ty ← instantiateMVars (← getConstInfo thm).type
-        let names ← withObligation ty fun ob => ob.data.mapM fun x => do
-          return ((← x.fvarId!.getDecl).userName, ← inferType x)
-        if let some line ← certify ty names ws then certified := some (ws, line)
+        let names ← obligationBinders ty
+        if let some line ← (try budgeted (certify ty names ws) catch _ => pure none) then
+          certified := certified.push (ws, line)
   fields := fields.push ("witnesses", Json.arr evals)
-  if let some (ws, line) := certified then
-    fields := fields.push ("certified", Json.mkObj [("lits", toJson ws), ("proof", toJson line)])
+  -- No witness violates anything: let `taste?` try to prove the obligation for every input.
+  let violated := evals.any fun e => ["prov", "run"].any fun w =>
+    ((e.getObjValD w).getObjValAs? Bool "holds").toOption == some false
+  let solverProved := fields.any fun (k, v) => k == "solver" && (v.getObjValAs? String "status").toOption == some "proved"
+  if !violated && !solverProved && cfg.solver then
+    if let some (ty, _) := provTy? then
+      if ← tasteProves (← instantiateMVars ty) then
+        fields := (fields.filter (·.1 != "solver")).push ("solver", Json.mkObj [("status", toJson "proved"), ("by", toJson "taste?")])
+  fields := fields.push ("certifiedAll", Json.arr (certified.map fun (ws, line) =>
+    Json.mkObj [("lits", toJson ws), ("proof", toJson line)]))
   return Json.mkObj fields.toList
 
 /-- The Python class a Lean structure stands for: its last name component, without the runnable twin's
@@ -185,22 +271,31 @@ def pyClassName (n : Name) : String :=
   let last := n.getString!
   if last.endsWith "'rn" then (last.dropEnd 3).toString else last
 
+/-- The fields of structure `n` (flattened: inherited ones too) with their types; `none` when a field has
+no projection to read its type from. -/
+def fieldTypes (n : Name) : MetaM (Array (Name × Option Expr)) := do
+  let env ← getEnv
+  (getStructureFieldsFlattened env n (includeSubobjectFields := false)).mapM fun f => do
+    -- an inherited field's projection belongs to the ancestor that declares it
+    let proj? := (findField? env n f).bind (getProjFnForField? env · f)
+    return (f, ← proj?.mapM fun p => do forallTelescopeReducing (← getConstInfo p).type fun _ r => pure r)
+
 /-- Structures (user classes) among `e`'s constants, transitively through field types. -/
 partial def structuresIn (e : Expr) (acc : NameSet := {}) : MetaM NameSet := do
   let env ← getEnv
   let mut acc := acc
   for c in e.getUsedConstants do
     if acc.contains c || !isStructure env c then continue
+    -- program and library classes only, not Lean's own (`String` → `ByteArray` → `BitVec`)
+    if !isProgramConst c then continue
     acc := acc.insert c
-    for f in getStructureFieldsFlattened env c (includeSubobjectFields := false) do
-      if let some proj := getProjFnForField? env c f then
-        let fieldTy ← forallTelescopeReducing (← getConstInfo proj).type fun _ r => pure r
-        acc ← structuresIn fieldTy acc
+    for (_, ty?) in ← fieldTypes c do
+      if let some ty := ty? then acc ← structuresIn ty acc
   return acc
 
 /-- A `PyArb` instance, as a command, for every structure among the targets' inputs that has none:
-built through the constructor, read back as the Python class with its fields. Self-referential
-structures are left out (their generator would not terminate). -/
+built field by field, read back as the Python class with its fields. Self-referential
+structures get a depth-bounded generator through `Option S` / `List S` fields. -/
 def structInstanceCommands (targets : Array Target) : MetaM (Array String) := do
   let env ← getEnv
   let mut tys : Array Expr := #[]
@@ -209,25 +304,65 @@ def structInstanceCommands (targets : Array Target) : MetaM (Array String) := do
       if let some ci := env.find? n then tys := tys.push ci.type
   let mut structs : NameSet := {}
   for ty in tys do structs ← structuresIn ty structs
+  -- dependency order: a structure after those its fields mention, whose instances it uses
+  let deps (n : Name) : MetaM (List Name) := do
+    let mut ds : NameSet := {}
+    for (_, ty?) in ← fieldTypes n do
+      if let some ty := ty? then ds ← structuresIn ty ds
+    return ds.toList.filter (fun d => d != n && structs.contains d)
+  let mut order : Array Name := #[]
+  let mut seen : NameSet := {}
+  let mut stack : List (Name × Bool) := structs.toList.map (·, false)
+  while !stack.isEmpty do
+    let (n, expanded) := stack.head!
+    stack := stack.tail!
+    if expanded then
+      if !order.contains n then order := order.push n
+    else if !seen.contains n then
+      seen := seen.insert n
+      stack := (← deps n).map (·, false) ++ [(n, true)] ++ stack
   let mut out := #[]
-  for n in structs.toList do
+  for n in order.toList do
     let ci ← getConstInfo n
     if !ci.levelParams.isEmpty || ci.type.isForall then continue
     let existing ← try (some <$> synthInstance (← mkAppM ``PyArb #[mkConst n])) catch _ => pure none
     if existing.isSome then continue
-    let fields := getStructureFieldsFlattened env n (includeSubobjectFields := false)
-    -- A field whose own type mentions the structure (its codomain, not the projection's domain).
-    let selfRef ← fields.anyM fun f => do
-      match getProjFnForField? env n f with
-      | some proj => forallTelescopeReducing (← getConstInfo proj).type fun _ r =>
-          return r.getUsedConstants.contains n
-      | none => return true
-    if selfRef then continue
-    let ctor := getStructureCtor env n
-    let gens := " ".intercalate (fields.toList.map fun _ => "(← PastaLean.Refute.PyArb.arb)")
-    let lits := ", ".intercalate (fields.toList.map fun f =>
-      s!"(\"{f}\", PastaLean.Refute.ToPyLit.toLit s.{f})")
-    out := out.push s!"instance : PastaLean.Refute.PyArb {n} where\n  arb := do return {ctor.name} {gens}\n  toLit s := .obj \"{pyClassName n}\" [{lits}]"
+    let ftys ← fieldTypes n
+    let fields := ftys.map (·.1)
+    -- Each field's shape: plain, or a reference back to the structure as `Option S` / `List S` (a tree,
+    -- a linked list); any other self-reference is left without a generator.
+    let shapes := ftys.map fun (_, ty?) => ty?.bind fun r =>
+      if !r.getUsedConstants.contains n then some "plain"
+      else if r.isAppOfArity ``Option 1 && r.appArg!.isConstOf n then some "opt"
+      else if r.isAppOfArity ``List 1 && r.appArg!.isConstOf n then some "list"
+      else none
+    if shapes.any (·.isNone) then continue
+    let shapes := shapes.map (·.getD "plain")
+    let fs := fields.toList.zip shapes.toList
+    let alts := "".intercalate (fields.toList.zipIdx.map fun (f, i) =>
+      s!"\n    | {i} => return \{ s with «{f}» := ← PastaLean.Refute.PyArb.mutateField s.«{f}» }")
+    let mutate := s!"\n  mutate s := do\n    match (← Plausible.Gen.choose Nat 0 {fields.size - 1} (by omega)).val with{alts}\n    | _ => return s"
+    if shapes.all (· == "plain") then
+      -- structure-instance notation, not the constructor: a class extending another takes its parent
+      -- as one constructor argument, while the flattened fields name every slot
+      let gens := ", ".intercalate (fields.toList.map fun f => s!"«{f}» := (← PastaLean.Refute.PyArb.arbField)")
+      let lits := ", ".intercalate (fields.toList.map fun f =>
+        s!"(\"{f}\", PastaLean.Refute.ToPyLit.toLit s.«{f}»)")
+      out := out.push (s!"instance : PastaLean.Refute.PyArb {n} where\n  arb := do return (\{ {gens} } : {n})\n  toLit s := .obj \"{pyClassName n}\" [{lits}]"
+        ++ (if fields.isEmpty then "" else mutate))
+    else
+      -- recursive: a depth-bounded generator and a recursive read-back
+      let lits := ", ".intercalate (fs.map fun (f, sh) => match sh with
+        | "opt" => s!"(\"{f}\", match s.«{f}» with | some c => {n}.pyLitRec c | none => .none)"
+        | "list" => s!"(\"{f}\", .list (s.«{f}».map {n}.pyLitRec))"
+        | _ => s!"(\"{f}\", PastaLean.Refute.ToPyLit.toLit s.«{f}»)")
+      let gens := ", ".intercalate (fs.map fun (f, sh) => s!"«{f}» := " ++ match sh with
+        | "opt" => s!"(← if d == 0 then pure none else do if (← Plausible.Gen.chooseAny Bool) then pure (some (← {n}.pyArbRec (d - 1))) else pure none)"
+        | "list" => s!"(← do let k := if d == 0 then 0 else (← Plausible.Gen.choose Nat 0 2 (by omega)).val; (List.range k).mapM fun _ => {n}.pyArbRec (d - 1))"
+        | _ => "(← PastaLean.Refute.PyArb.arbField)")
+      out := out.push s!"partial def {n}.pyLitRec (s : {n}) : PastaLean.Refute.PyLit := .obj \"{pyClassName n}\" [{lits}]"
+      out := out.push s!"partial def {n}.pyArbRec (d : Nat) : Plausible.Gen {n} := do return (\{ {gens} } : {n})"
+      out := out.push s!"instance : PastaLean.Refute.PyArb {n} where\n  arb := {n}.pyArbRec 3\n  toLit := {n}.pyLitRec"
   return out
 
 unsafe def evalLitUnsafe (e : Expr) : MetaM PyLit := do
@@ -239,10 +374,10 @@ opaque evalLit (e : Expr) : MetaM PyLit
 /-- `fn` applied to one input, as a `PyLit` (an `Id` result is unwrapped). -/
 def evalAt (fn : Name) (ws : List PyLit) : MetaM Json := do
   try
-    forallTelescopeReducing (← inferType (mkConst fn)) fun xs res => do
+    forallTelescopeReducing (← inferType (← constZ fn)) fun xs res => do
       if xs.size != ws.length then return Json.mkObj [("error", toJson "arity mismatch")]
       let args ← (← xs.mapM inferType).toList.zip ws |>.mapM fun (τ, w) => litToExpr τ w
-      let mut call := mkAppN (mkConst fn) args.toArray
+      let mut call := mkAppN (← constZ fn) args.toArray
       let mut τ := res.replaceFVars xs args.toArray
       if τ.isAppOfArity ``Id 1 then
         call ← mkAppM ``Id.run #[call]; τ := τ.appArg!
@@ -265,8 +400,8 @@ def runEvals (json : Json) : MetaM Json := do
     return Json.mkObj [("id", r.getObjValD "id"), ("values", Json.arr (← inputs.toArray.mapM (evalAt fn)))]
   return Json.arr out
 
-unsafe def evalIOUnsafe (fn : Name) : MetaM (IO Unit) :=
-  evalExpr (IO Unit) (mkApp (mkConst ``IO) (mkConst ``Unit)) (mkConst fn)
+unsafe def evalIOUnsafe (fn : Name) : MetaM (IO Unit) := do
+  evalExpr (IO Unit) (mkApp (mkConst ``IO) (mkConst ``Unit)) (← constZ fn)
 
 @[implemented_by evalIOUnsafe]
 opaque evalIO (fn : Name) : MetaM (IO Unit)
@@ -346,7 +481,7 @@ def runRefuteTargets (json : Json) : TermElabM Json := do
         ((w.getObjValAs? (Array Json) "lits").toOption.bind fun ls =>
           (ls.toList.mapM PyLit.fromJson?).toOption)
       else none
-    out := out.push (← try runTarget t cfg extra
+    out := out.push (← try budgeted (runTarget t cfg extra)
       catch e => return Json.mkObj [("id", toJson t.id), ("error", toJson (← e.toMessageData.toString))])
   return Json.mkObj [("result", Json.bool true), ("targets", Json.arr out), ("evals", ← runEvals json),
     ("programs", ← runPrograms json cfg.perCaseMs)]

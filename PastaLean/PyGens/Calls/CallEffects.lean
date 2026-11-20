@@ -98,6 +98,21 @@ partial def basicJsonUsesIOEffect (json : Json) : Bool :=
 def basicJsonUsesMonadicEffect (json : Json) : Bool :=
   basicJsonUsesExceptionEffect json || basicJsonUsesIOEffect json
 
+/-- `f a₁ … aₙ (k₁ := v₁) …` as ONE application, so named arguments bind the callee's own parameters
+(applying them to a complete `(f a₁ … aₙ)` would be "Invalid argument name"). -/
+def mkAppNamed (f : TSyntax `term) (args : Array (TSyntax `term)) (named : Array (Name × TSyntax `term)) :
+    PygenM (TSyntax `term) := do
+  if args.isEmpty && named.isEmpty then return f
+  let namedStx ← named.mapM fun (n, v) => do
+    let a ← `(Lean.Parser.Term.namedArgument| ($(mkIdent n):ident := $v))
+    pure a.raw
+  return ⟨Syntax.node .none ``Lean.Parser.Term.app #[f.raw, mkNullNode (args.map (·.raw) ++ namedStx)]⟩
+
+/-- Does an effect sit strictly inside `json` (an operand or argument), not only on the node itself?
+Then the node is not one action to await whole: its effectful parts are awaited in place. -/
+def jsonNestedMonadicEffect (json : Json) : Bool :=
+  basicJsonUsesMonadicEffect (json.setObjVal! "effect_mode" Json.null)
+
 /--
 Lower an expression that carries a monadic effect into a term whose effectful sub-actions are
 awaited inline (`← …`). Used inside surrounding `do` notation: the do-elaborator hoists each inline
@@ -215,11 +230,11 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
           else
             match funcJson.getObjValAs? String "node_type", funcJson.getObjValAs? String "id" with
             | .ok "Name", .ok funcName =>
-                match (if heap then (json.getObjValAs? String "_class_ctor").toOption else none) with
+                match (json.getObjValAs? String "_class_ctor").toOption with
                 | some cls =>
-                    -- Heap constructor `C(args)` → `(← C.new args)`.
+                    -- Constructor `C(args)` → `C.new args`, awaited under `--heap` (or when it raises).
                     funcTerm := mkIdent (Name.mkStr (← suffixIfUserName cls).toName "new")
-                    heapAwait := true
+                    heapAwait := heap
                 | none =>
                     match ← builtinMappedName? funcName with
                     | some mappedName => funcTerm := (mkIdent mappedName : TSyntax `term)
@@ -234,15 +249,15 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
                       heapAwait := true
             | _, _ =>
                 funcTerm ← getCode funcJson `term
-          let mut t ← `($funcTerm $inlineArgs*)
+          let mut named : Array (Name × TSyntax `term) := #[]
           for (kwName, kwValueJson) in keyWordsMap.toList do
             let kwValueCode ←
               if basicJsonUsesMonadicEffect kwValueJson then
                 inlineEffectfulTerm kwValueJson
               else
                 getCode kwValueJson `term
-            let kwId := mkIdent kwName.toName
-            t ← `($t ($kwId:ident := $kwValueCode))
+            named := named.push (kwName.toName, kwValueCode)
+          let t ← mkAppNamed funcTerm inlineArgs named
           -- Await when this call is itself an effectful action: a `_heap_call`/ctor/method (flagged
           -- above) OR any call the effect analysis stamped (`effect_mode` set to whichever monad it
           -- runs in). The `←` is emitted inline; the enclosing `do` sequences it. This is the single,
@@ -275,18 +290,23 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
       let .ok rightJson := json.getObjValAs? Json "right" | throwError s!"BinOp node missing 'right': {json}"
       let leftCode ← inlineEffectfulTerm leftJson
       let rightCode ← inlineEffectfulTerm rightJson
-      binOpApplyTerm op leftCode rightCode
+      let t ← binOpApplyTerm op leftCode rightCode
+      -- An operator dunder that raises (`effect_mode` stamped by TypeInfer) yields an action.
+      if (json.getObjValAs? String "effect_mode").toOption.isSome then `((← $t)) else pure t
   | "UnaryOp" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"UnaryOp node missing 'op': {json}"
       let .ok operandJson := json.getObjValAs? Json "operand" | throwError s!"UnaryOp node missing 'operand': {json}"
       let operandCode ← inlineEffectfulTerm operandJson
-      unaryOpApplyTerm op operandCode
+      match (json.getObjValAs? String "_dunder_class").toOption with
+      | some cls => `((← $(mkIdent (Name.mkStr (← suffixIfUserName cls).toName "__neg__")) $operandCode))
+      | none => unaryOpApplyTerm op operandCode
   | "Compare" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"Compare node missing 'op': {json}"
       let .ok leftJson := json.getObjValAs? Json "left" | throwError s!"Compare node missing 'left': {json}"
       let .ok rightJson := json.getObjValAs? Json "right" | throwError s!"Compare node missing 'right': {json}"
       let leftCode ← inlineEffectfulTerm leftJson
       let rightCode ← inlineEffectfulTerm rightJson
+      if let some t ← raisingCompareTerm? json leftCode rightCode then return ← `((← $t))
       compareApplyTerm op leftJson leftCode rightCode (rightJson := some rightJson)
   | "BoolOp" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"BoolOp node missing 'op': {json}"
@@ -307,8 +327,17 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
       let compTerm ← getCode json `term
       match json.getObjValAs? Json "elt" with
       | .ok eltJson =>
-          if basicJsonUsesIOEffect eltJson then `((← $compTerm)) else pure compTerm
+          if basicJsonUsesMonadicEffect eltJson then `((← $compTerm)) else pure compTerm
       | _ => pure compTerm
+  | "Attribute" => do
+      -- `C(...).field` / `f().attr`: await the receiver, then project.
+      let .ok valueJson := json.getObjValAs? Json "value" | throwError
+        s!"Attribute node missing 'value' field: {json}"
+      let .ok attr := json.getObjValAs? String "attr" | throwError
+        s!"Attribute node missing 'attr' field: {json}"
+      if (json.getObjValAs? String "library_module").isOk then return ← getCode json `term
+      let recv ← inlineEffectfulTerm valueJson
+      `($recv.$(mkIdent attr.toName):ident)
   | "Subscript" => do
       -- `foo()[i]` where `foo()` is `IO _`: inline the awaited container into the index
       -- position so the subscript runs on the value, not on a raw `IO _`.
@@ -318,8 +347,19 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
         s!"Subscript node does not have a 'slice' field: {json}"
       let valueCode ← inlineEffectfulTerm valueJson
       subscriptTermFromValue valueJson sliceJson valueCode
+  | "Tuple" | "List" => do
+      let elts := (json.getObjValAs? (Array Json) "elts").toOption.getD #[]
+      if elts.any (jsonNodeType? · == some "Starred") then return ← getCode json `term
+      let codes ← elts.mapM inlineEffectfulTerm
+      if nodeType == "List" then `([$codes,*])
+      else match codes.toList with
+        | [] => getCode json `term
+        | [c] => pure c
+        | cs => cs.dropLast.foldrM (fun c acc => `(($c, $acc))) cs.getLast!
   | _ =>
-      return ← getCode json `term
+      -- No in-place lowering for this node: await it whole when it is itself an action.
+      let s ← getCode json `term
+      if basicJsonUsesMonadicEffect json then `((← $s)) else pure s
 
 /--
 Hoist translated `IO` subexpressions into surrounding `do` blocks and return a pure term
@@ -465,7 +505,10 @@ def buildIOPureApplicationFromArgs (argJsons : Array Json) (argCodes : Array (TS
   for idx in [0:argCodes.size] do
     let argJson := argJsons[idx]!
     let argCode := argCodes[idx]!
-    if basicJsonUsesIOEffect argJson then
+    if jsonNestedMonadicEffect argJson then
+      -- An effect inside the argument (`f(C(...))`, `[g(x)]`, `C(...).m()`): await it in place.
+      resolvedArgs := resolvedArgs.push (← inlineEffectfulTerm argJson)
+    else if basicJsonUsesIOEffect argJson then
       let (argBindings, argTerm) ← hoistIOTerm argJson
       if argBindings.isEmpty then
         let binder := mkIdent (s!"p'_arg{idx}").toName
@@ -483,9 +526,11 @@ def buildIOPureApplicationFromArgs (argJsons : Array Json) (argCodes : Array (TS
   let resultTerm ← mkResult resolvedArgs
   if bindings.isEmpty then
     return resultTerm
-  -- Choose monad type: PyProofM in proof mode, IO in run mode
+  -- Choose monad type: PyProofM in proof mode, IO in run mode (`PyExcept` when an argument raises)
   let monadType ← if (← shouldUseProofMonad) then
       `(PastaLean.ProofMode.PyProofM)
+    else if argJsons.any basicJsonUsesExceptionEffect then
+      `(PastaLean.PyExcept)
     else
       `(IO)
   `(((do
@@ -500,7 +545,10 @@ def buildIOActionApplicationFromArgs (argJsons : Array Json) (argCodes : Array (
   for idx in [0:argCodes.size] do
     let argJson := argJsons[idx]!
     let argCode := argCodes[idx]!
-    if basicJsonUsesIOEffect argJson then
+    if jsonNestedMonadicEffect argJson then
+      -- An effect inside the argument (`f(C(...))`, `[g(x)]`, `C(...).m()`): await it in place.
+      resolvedArgs := resolvedArgs.push (← inlineEffectfulTerm argJson)
+    else if basicJsonUsesIOEffect argJson then
       let (argBindings, argTerm) ← hoistIOTerm argJson
       if argBindings.isEmpty then
         let binder := mkIdent (s!"p'_arg{idx}").toName
@@ -518,9 +566,11 @@ def buildIOActionApplicationFromArgs (argJsons : Array Json) (argCodes : Array (
   let actionTerm ← mkAction resolvedArgs
   if bindings.isEmpty then
     return actionTerm
-  -- Choose monad type: PyProofM in proof mode, IO in run mode
+  -- Choose monad type: PyProofM in proof mode, IO in run mode (`PyExcept` when an argument raises)
   let monadType ← if (← shouldUseProofMonad) then
       `(PastaLean.ProofMode.PyProofM)
+    else if argJsons.any basicJsonUsesExceptionEffect then
+      `(PastaLean.PyExcept)
     else
       `(IO)
   `(((do

@@ -127,6 +127,9 @@ def runRefuteTask (jsonTask : Json) (env : Environment) : IO Json := do
   let frontendState ← Lean.Elab.IO.processCommands inputCtx {} cmdState
   let env' := frontendState.commandState.env
   let hasErrors := frontendState.commandState.messages.hasErrors
+  let mut errors : Array String := #[]
+  for m in frontendState.commandState.messages.toList do
+    if m.severity == .error && errors.size < 5 then errors := errors.push (← m.toString)
   let coreCtx : Core.Context := { fileName := "<refute>", fileMap := default, maxHeartbeats := 0 }
   -- Generators for user classes among the inputs, elaborated into the environment before searching.
   let targets := ((jsonTask.getObjValAs? (Array Json) "targets").toOption.getD #[]).map PastaLean.Refute.Target.ofJson
@@ -143,7 +146,7 @@ def runRefuteTask (jsonTask : Json) (env : Environment) : IO Json := do
     pure st.commandState.env
   try
     let (j, _) ← (((PastaLean.Refute.runRefuteTargets jsonTask).run' {} {}).run' {}).toIO coreCtx { env := env' }
-    pure (j.mergeObj (Json.mkObj [("hasErrors", Json.bool hasErrors),
+    pure (j.mergeObj (Json.mkObj [("hasErrors", Json.bool hasErrors), ("errors", toJson errors),
       ("generatedInstances", toJson cmds), ("instanceErrors", toJson instanceErrors)]))
   catch e => pure (errorResponse s!"refute: {e}")
 
@@ -176,7 +179,10 @@ def handleTaskJson (jsonTask : Json) (ctx : Core.Context) (env : Environment) : 
   | "libraryInfo" =>
       pure <| Json.mkObj [
         ("result", Json.bool true),
-        ("ioEffectfulLibraries", Json.arr (Libraries.ioEffectfulLibraries.toArray.map Json.str))]
+        ("ioEffectfulLibraries", Json.arr (Libraries.ioEffectfulLibraries.toArray.map Json.str)),
+        ("raisingLibraryMembers", Json.arr (Libraries.raisingLibraryMembers.toArray.map Json.str)),
+        ("classLibraries", Json.mkObj (Libraries.classLibraries.map fun lib =>
+          (lib, Json.str ((Libraries.classLibraryDecls? lib).getD ""))))]
   | _ => pure <| errorResponse s!"Unknown task: {task}"
 
 def handleTaskString (payload : String) (ctx : Core.Context) (env : Environment) : IO Json := do

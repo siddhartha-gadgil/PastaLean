@@ -34,8 +34,8 @@ with the CLI (`uv run pastalean translate f.py -o f.lean`, `lake env lean f.lean
    - `compile.errors` should be empty. `open_obligations` lists the theorems to prove.
 
 3b. **Look for a counterexample first**: `find_counterexample(source=..., name="f")`. It searches every
-   property function (`def p(x): assert brute(x) == fast(x)`) and contract with CPython engines
-   (enumeration, precondition-directed search, Hypothesis, CrossHair) and in both Lean twins, then
+   property function (`def p(x): assert brute(x) == fast(x)`) and contract in both Lean twins (CPython
+   only executes the witnesses found, to confirm them), then
    judges each witness in all three worlds:
    - `REFUTED`: the claim is false everywhere. Report **False** with the witness and the
      `refutation_theorem` (kernel-checked); do not try to prove it.

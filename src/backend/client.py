@@ -22,6 +22,7 @@ except ImportError:  # pragma: no cover - non-POSIX
     fcntl = None
 
 from ..paths import REPO_ROOT, lake_executable
+from ..refute.limits import backend_preexec, lean_env
 
 logger = logging.getLogger(__name__)
 
@@ -141,16 +142,32 @@ class LeanBackendClient:
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
 
     def _command(self):
-        return [lake_executable(), "env", str(self.binary_path), "--server"]
+        # The binary itself, not `lake env <binary>`: a parent-death signal set before exec must land
+        # on the server (lake would pass it no further), so `_lake_env` supplies lake's environment.
+        return [str(self.binary_path), "--server"]
+
+    _lake_env_cache: dict[str, str] | None = None
+
+    def _lake_env(self) -> dict[str, str]:
+        """The environment `lake env` runs a command in (LEAN_PATH, LEAN_SYSROOT, …), read once."""
+        if LeanBackendClient._lake_env_cache is None:
+            out = subprocess.run([lake_executable(), "env", "env", "-0"], cwd=self.cwd, capture_output=True,
+                                 text=True, check=True).stdout
+            LeanBackendClient._lake_env_cache = dict(kv.split("=", 1) for kv in out.split("\0") if "=" in kv)
+        return LeanBackendClient._lake_env_cache
 
     def _drain_stderr(self):
         assert self.proc is not None and self.proc.stderr is not None
-        for line in self.proc.stderr:
-            line = line.rstrip()
-            if not line:
-                continue
-            self._stderr_lines.append(line)
-            logger.debug("Lean backend stderr: %s", line)
+        stream = self.proc.stderr
+        try:
+            for line in stream:
+                line = line.rstrip()
+                if not line:
+                    continue
+                self._stderr_lines.append(line)
+                logger.debug("Lean backend stderr: %s", line)
+        except (ValueError, OSError):   # `close()` shut the pipe under us (a restart after a hang)
+            pass
 
     def _recent_stderr(self):
         return "\n".join(self._stderr_lines)
@@ -205,6 +222,8 @@ class LeanBackendClient:
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
+            preexec_fn=backend_preexec,
+            env=lean_env(self._lake_env()),
         )
         self._warm = False
         self._stderr_lines.clear()

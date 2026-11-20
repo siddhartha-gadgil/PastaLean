@@ -47,8 +47,8 @@ Workflow for verifying a Python function:
 2. translate_python. It returns lean_path plus the open proof obligations (theorems ending in
    `taste?`). If `degraded` is true, the relevant logic was replaced by pyUnsupported and cannot be
    verified -- restructure the Python (get_guide("verifiable_design")) and translate again.
-   Then find_counterexample: it searches every property function and contract (CPython engines incl.
-   precondition-directed search, Hypothesis and CrossHair, plus both Lean twins). REFUTED means the
+   Then find_counterexample: it searches every property function and contract in Lean (both twins;
+   CPython only executes the witnesses found, to confirm them). REFUTED means the
    claim is FALSE -- report it with the witness and do not try to prove it; FLOAT_ONLY /
    ROUNDING_SENSITIVE / TWIN_DIVERGENCE_* mean a proof over exact ℚ would not cover the float program
    -- say so (ROUNDING_SENSITIVE: the proved IEEE error enclosure shows the flip is a rounding effect);
@@ -362,8 +362,7 @@ def build_server():
         the two programs print differently (PROGRAM_DIFF, confirmed in both Lean worlds). `negative`
         lets generated integers be negative.
 
-        `tests` is how many inputs satisfying the `Requires` each search runs (draws are generated from
-        the preconditions, and rejected ones do not count). `equiv` (e.g. ["brute=fast"]) also checks
+        `tests` is how many guard-satisfying inputs each Lean search runs. `equiv` (e.g. ["brute=fast"]) also checks
         `brute(x) == fast(x)` on brute's inputs, without writing a property function. A contract
         witness reports what the function returned and which Ensures it broke: either the code or that
         Ensures is wrong."""
@@ -399,9 +398,7 @@ def build_server():
                     "worlds": {"provable": w.prov, "runnable": w.run, "cpython": w.py},
                     "exception": w.exc, "found_by": w.origin, "ieee_enclosure": w.interval,
                     "explain": w.explain})
-            py = o.searches.get("cpython") or {}
-            entry["searched"] = {"valid_inputs": py.get("valid"), "rejected_by_requires": py.get("rejected"),
-                                 "generated_from": py.get("plan")}
+            entry["lean_tests"] = sum((o.searches.get(w) or {}).get("tested", 0) for w in ("prov", "run"))
             if o.kernel_proof:
                 thm = o.theorem or o.name
                 entry["refutation_theorem"] = (f"theorem {thm}_counterexample : ¬ type_of% @{thm} := by\n"

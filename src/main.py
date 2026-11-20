@@ -275,7 +275,16 @@ def cmd_typeinfer(args) -> int:
 
 def cmd_refute(args) -> int:
     """Counterexamples to the file's property functions and contracts, confirmed in all three worlds."""
-    from .refute import EXPLAIN, VERDICT_ORDER, refute_file
+    from .refute import EXPLAIN, VERDICT_ORDER, _request_session, refute_file
+    from .refute import daemon
+
+    # Through the warm daemon when one runs (the backend boot is most of a short run); otherwise run here
+    # and start one for the next call.
+    if _request_session() is None and getattr(args, "raw_argv", None) is not None:
+        code = daemon.request(args.raw_argv)
+        if code is not None:
+            return code
+        daemon.spawn()
 
     if args.float_report:
         return _float_report(args)
@@ -297,8 +306,7 @@ def cmd_refute(args) -> int:
     tests = args.tests or 1000
     try:
         report = refute_file(args.file, seed=args.seed, time_ms=args.time, only=args.only, tests=tests,
-                             equiv=equiv, cpython_search=not args.no_cpython_search,
-                             lean_search=not args.no_lean_search)
+                             equiv=equiv)
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -312,14 +320,17 @@ def cmd_refute(args) -> int:
         for o in report.obligations:
             name = o.theorem or o.name
             s = o.searches
-            py = s.get("cpython") or {}
             lean_tested = sum((s.get(w) or {}).get("tested", 0) for w in ("prov", "run"))
-            stats = (f"{py.get('valid', 0)} valid CPython inputs ({py.get('rejected', 0)} rejected by Requires), "
-                     f"{lean_tested} Lean tests")
+            stats = f"{lean_tested} Lean tests (provable + runnable twins)"
+            if o.witness is None and o.verdict == "PROVED":
+                print(f"{name:28} PROVED                   {EXPLAIN['PROVED']}")
+                continue
             if o.witness is None:
+                if o.error and not lean_tested:
+                    # Nothing was searched: an error, not evidence that the property holds.
+                    print(f"{name:28} search failed: {o.error[-300:]}")
+                    continue
                 print(f"{name:28} no counterexample: {stats}, seed {args.seed}")
-                if py.get("plan"):
-                    print(f"{'':28} generated from: {', '.join(py['plan'])}")
                 continue
             w = o.witness
             print(f"{name:28} {o.verdict:24} {o.witness_text()}")
@@ -327,12 +338,17 @@ def cmd_refute(args) -> int:
             if w.explain and w.explain.get("sides"):
                 (lt, lv), (rt, rv) = w.explain["sides"]
                 print(f"{'':28} {lt} = {lv}, but {rt} = {rv}")
-            if w.explain and w.explain.get("failed"):
+            if w.explain and w.explain.get("raised"):
+                print(f"{'':28} {o.name}({', '.join(w.python)}) raised {w.explain['raised']}")
+            elif w.explain and w.explain.get("failed"):
                 call = f"{o.name}({', '.join(w.python)})"
                 print(f"{'':28} {call} returned {w.explain['returned']}, breaking: "
                       + "; ".join(w.explain["failed"]))
                 if o.verdict == "REFUTED":
                     print(f"{'':28} so either the code is wrong on this input or that Ensures is too strong")
+            if "unavailable" in (w.prov, w.run):
+                missing = "provable" if w.prov == "unavailable" else "runnable"
+                print(f"{'':28} (the {missing} twin does not elaborate for this program, so it is left out)")
             print(f"{'':28} provable: {w.prov} · runnable: {w.run} · CPython: {w.py}"
                   + (f" ({w.exc})" if w.exc else "")
                   + (f" · IEEE enclosure: {w.interval}" if w.interval else "") + f" · found by {w.origin}")
@@ -346,6 +362,12 @@ def cmd_refute(args) -> int:
                     seen.add(other.verdict)
                     shown = ", ".join(f"{n} = {v}" for n, v in zip(o.params, other.python))
                     print(f"{'':28} also {other.verdict}: {shown} ({EXPLAIN[other.verdict]})")
+            confused = next((x for x in o.witnesses if x.verdict == o.verdict and x.exc == "TypeError"
+                             and x.lits != w.lits), None)
+            if confused is not None:
+                shown = ", ".join(f"{n} = {v}" for n, v in zip(o.params, confused.python))
+                print(f"{'':28} also: {shown} — a value of another type that nothing excludes; CPython raises "
+                      f"TypeError (found by {confused.origin})")
     if report.error and not report.obligations:
         return 2
     return 1 if any(o.verdict in VERDICT_ORDER for o in report.obligations) else 0
@@ -538,8 +560,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_refute.add_argument("--equiv", action="append", metavar="F=G",
                           help="Also check f(x) == g(x) on f's inputs (under f's Requires); repeatable.")
     p_refute.add_argument("--json", action="store_true", help="Machine-readable report.")
-    p_refute.add_argument("--no-cpython-search", action="store_true", help="Skip the CPython-side engines.")
-    p_refute.add_argument("--no-lean-search", action="store_true", help="Skip the Lean-side searches.")
+
     p_refute.add_argument("--float-report", action="store_true",
                           help="Measure both twins' float functions against the IEEE enclosure instead.")
     p_refute.add_argument("--samples", type=int, default=200, help="Inputs per function for --float-report.")
@@ -551,11 +572,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_refute.add_argument("--stdin-examples", nargs="+", metavar="IN.txt",
                           help="Example inputs to mutate instead of generating from the reading code.")
     p_refute.add_argument("--tests", type=int, default=None,
-                          help="Valid inputs per search: precondition-satisfying draws (default 1000), "
+                          help="Guard-satisfying inputs per Lean search (default 1000), "
                                "or generated stdin inputs (default 150).")
     p_refute.add_argument("--negative", action="store_true", help="Generated integers may be negative.")
     p_refute.add_argument("--heap", action="store_true", help="Translate with reference semantics (stdin mode).")
     p_refute.set_defaults(func=cmd_refute)
+
+    p_daemon = sub.add_parser("refute-daemon")   # internal: the warm backend `refute` calls reuse
+    p_daemon.set_defaults(func=lambda _args: __import__("pastalean.refute.daemon", fromlist=["serve"]).serve())
 
     p_libs = sub.add_parser("libraries", help="List Python libraries with a Lean shim.")
     p_libs.set_defaults(func=cmd_libraries)
@@ -565,7 +589,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv=None) -> int:
     parser = build_parser()
+    raw = list(sys.argv[1:] if argv is None else argv)
     args = parser.parse_args(argv)
+    if args.func is cmd_refute:
+        # the command line after `refute`, for the daemon (global flags such as `-v` stay local)
+        args.raw_argv = raw[raw.index("refute") + 1:] if "refute" in raw else None
     configure_logging(args.verbose)
     try:
         return args.func(args)

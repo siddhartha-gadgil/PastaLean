@@ -49,7 +49,7 @@ def scalar_defaults := fun (keys : List PyAny) ↦
   Id.run
     (do
       let mut sums := Libraries.collections.PyDefaultDict.empty (0.0 : Float)
-      let mut names := Libraries.collections.PyDefaultDict.empty ""
+      let mut names : Libraries.collections.PyDefaultDict PyAny String := Libraries.collections.PyDefaultDict.empty ""
       for k in (PastaLean.pyIter keys)do
         sums := PastaLean.pySetItem sums k (sums⦋k⦌ +ₚ (1.5 : Rat))
         names := PastaLean.pySetItem names k (names⦋k⦌ +ₚ "x")
@@ -62,7 +62,7 @@ def scalar_defaults'rn := fun (keys : List PyAny) ↦
   Id.run
     (do
       let mut sums := Libraries.collections.PyDefaultDict.empty (0.0 : Float)
-      let mut names := Libraries.collections.PyDefaultDict.empty ""
+      let mut names : Libraries.collections.PyDefaultDict PyAny String := Libraries.collections.PyDefaultDict.empty ""
       for k in (PastaLean.pyIter keys)do
         sums := PastaLean.pySetItem sums k (sums⦋k⦌ +ₚ (1.5 : Float))
         names := PastaLean.pySetItem names k (names⦋k⦌ +ₚ "x")

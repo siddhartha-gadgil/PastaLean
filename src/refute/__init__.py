@@ -1,26 +1,35 @@
-"""Counterexamples to a program's contracts and properties, confirmed in all three worlds.
+"""Counterexamples to a program's contracts and properties, found in Lean and confirmed in all three worlds.
 
 `refute_source(source)`:
 
 1. finds the obligations (`obligations.collect`) and writes a checker for each;
 2. translates the program plus checkers once in `both` mode;
-3. searches on the CPython side (`harness.py`: enumeration, precondition-directed hill climbing,
-   Hypothesis) and in both Lean worlds (the backend `refute` task: enumeration + random, with the
-   provable refutation certified by the kernel);
-4. judges every witness, whoever found it, in the provable twin, the runnable twin and CPython;
+3. searches in both Lean worlds (the backend `refute` task, the `refute?` machinery), certifying a
+   provable refutation with the kernel;
+4. executes each witness Lean found once under CPython (no search on the Python side);
 5. classifies each witness (`classify`) and keeps the most telling one per obligation.
 """
 
 from __future__ import annotations
 
+import logging
 import json
+import os
 import subprocess
 import sys
+import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import obligations as O
 from .pylit import py_repr
+
+# witnesses travel as JSON text: an exact big integer (`fib(100000)`) must not hit the 4300-digit limit
+if hasattr(sys, "set_int_max_str_digits"):
+    sys.set_int_max_str_digits(0)
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["refute_source", "refute_file", "RefuteReport", "ObligationReport", "VERDICT_ORDER"]
 
@@ -30,7 +39,7 @@ HARNESS = Path(__file__).with_name("harness.py")
 #: Most telling first: a genuine refutation beats a divergence, which beats an inconclusive witness.
 VERDICT_ORDER = ["REFUTED", "PROGRAM_DIFF", "PARTIALITY_GAP", "FLOAT_ONLY", "ROUNDING_SENSITIVE", "TWIN_DIVERGENCE_PROVABLE", "FIDELITY_BUG",
                  "RUN_TWIN_BUG", "ENCLOSURE_VIOLATION",
-                 "PROVABLE_TWIN_DIVERGENCE", "PRECONDITION_MISMATCH", "NONTERMINATION", "CPYTHON_ONLY",
+                 "PROVABLE_TWIN_DIVERGENCE", "PRECONDITION_MISMATCH", "NONTERMINATION",
                  "INCONCLUSIVE"]
 
 EXPLAIN = {
@@ -46,7 +55,7 @@ EXPLAIN = {
     "NONTERMINATION": "the input made some world run past its deadline",
     "INCONCLUSIVE": "some world could not evaluate the input",
     "PROGRAM_DIFF": "the program and the reference print differently on this input",
-    "CPYTHON_ONLY": "false under CPython; the Lean twins could not evaluate it (see the error), so the finding is not cross-checked",
+    "PROVED": "no counterexample exists: grind or taste? proved the property for every input satisfying the precondition (provable twin)",
     "PARTIALITY_GAP": "Python raises here, but the provable twin's total model returns a default value instead (e.g. x // 0 = 0), so the theorem can hold, and be proved, although the program crashes on this input",
 }
 
@@ -57,6 +66,10 @@ def world_state(j: dict | None) -> str:
         return "unknown"
     if j.get("exc") == "Timeout":
         return "timeout"
+    # a contract over the function's locals (`Ensures(base ** Result() >= n)`) cannot be evaluated
+    # outside it: a `NameError` there says nothing about the program
+    if j.get("exc") in ("MemoryError", "NameError"):
+        return "unknown"
     if j.get("guard") is False:
         return "vacuous"
     if j.get("guard") is True:
@@ -91,6 +104,11 @@ def classify(prov: str, run: str, py: str) -> str | None:
         return None
     if "timeout" in worlds:
         return "NONTERMINATION"
+    live = [w for w in worlds if w != "unavailable"]
+    if len(live) < 3:
+        # A world that cannot run at all (e.g. a twin that does not elaborate) is left out; the two that
+        # remain (always CPython and one Lean twin) must both see the violation.
+        return "REFUTED" if len(live) >= 2 and all(w == "violates" for w in live) else "INCONCLUSIVE"
     if "unknown" in worlds:
         return "INCONCLUSIVE"
     if "vacuous" in worlds:
@@ -155,14 +173,14 @@ class RefuteReport:
         return any(o.verdict in VERDICT_ORDER for o in self.obligations)
 
 
-def _run_harness(module: str, obs: list[O.Obligation], witnesses: dict[str, list], *, search: bool,
-                 seed: int, search_ms: int, per_case_ms: int, timeout: float, tests: int = 1000) -> dict:
-    req = {"module": module, "search": search, "seed": seed, "searchMs": search_ms,
-           "perCaseMs": per_case_ms, "tests": tests,
+def _run_harness(module: str, obs: list[O.Obligation], witnesses: dict[str, list], *, per_case_ms: int,
+                 timeout: float) -> dict:
+    """Execute the given witnesses under CPython (`harness.py`); it never generates inputs."""
+    req = {"module": module, "perCaseMs": per_case_ms,
            "obligations": [{"name": o.name, "kind": o.kind, "params": o.params, "pre": o.pre,
                             "chk": o.chk, "pre_fn": o.pre_fn, "chk_fn": o.chk_fn, "ensures": o.ensures,
-                            "lets": o.lets,
-                            "witnesses": witnesses.get(o.name, [])} for o in obs]}
+                            "raises": o.raises, "lets": o.lets, "witnesses": witnesses.get(o.name, [])}
+                           for o in obs]}
     try:
         p = subprocess.run([sys.executable, str(HARNESS)], input=json.dumps(req), capture_output=True,
                            text=True, timeout=timeout, cwd=str(HARNESS.parent))
@@ -173,71 +191,85 @@ def _run_harness(module: str, obs: list[O.Obligation], witnesses: dict[str, list
     return json.loads(p.stdout)
 
 
+#: Per-thread context the refute daemon (`daemon.py`) sets for each request it serves: the warm `session`
+#: to use when a call is given none, and `env` overrides (`PASTALEAN_REFUTE_CONFIG`) of the caller.
+REQUEST = threading.local()
+
+
+def _request_session():
+    return getattr(REQUEST, "session", None)
+
+
+def _request_env(name: str, default: str) -> str:
+    return getattr(REQUEST, "env", {}).get(name, os.environ.get(name, default))
+
+
 def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int | None = None,
-                  per_case_ms: int = 1000, only: str | None = None, cpython_search: bool = True,
-                  lean_search: bool = True, tests: int = 1000,
+                  per_case_ms: int = 1000, only: str | None = None, tests: int = 1000,
                   equiv: list[tuple[str, str]] | None = None) -> RefuteReport:
-    """Search for counterexamples to every obligation in `source` and classify them across worlds.
-    `tests` is how many precondition-satisfying inputs each search runs (rejected draws do not count);
-    `equiv` adds a property `f(x) == g(x)` per pair, guarded by `f`'s `Requires`."""
+    """Search for counterexamples to every obligation in `source`, in Lean only, and classify each one
+    across the worlds. Python supplies the program and its contracts; the search runs over the
+    translated twins (the `refute?` machinery), and CPython only executes the witnesses Lean found, as
+    the ground truth the twins are checked against. A program PastaLean cannot translate is reported as
+    such. `tests` is the Lean search's count of guard-satisfying inputs per world; `equiv` adds a
+    property `f(x) == g(x)` per pair, guarded by `f`'s `Requires`."""
     from ..api import Session
 
     if time_ms is None:
         time_ms = 4000 + tests // 2
+    started = time.monotonic()
     if equiv:
         source = source.rstrip() + "\n" + "".join(O.equiv_source(source, f, g) for f, g in equiv)
     obs = [o for o in O.collect(source) if only is None or o.name == only or o.theorem == only]
     if not obs:
         return RefuteReport([], error="no property functions or contracts found")
-    own = session is None
-    sess = session or Session(target="command", mode="both")
+    program = O.asserts_raise(source, obs)
+    O.refine_params(program, obs)
+    cpy_module = O.cpython_module(source, obs)
+    own = session is None and _request_session() is None
+    sess = session or _request_session() or Session(target="command", mode="both")
     try:
-        res = sess.translate(O.lean_module(source, obs), prove_asserts=False)
+        res = sess.translate(O.lean_module(program, obs), prove_asserts=False)
         if not res.ok:
-            return RefuteReport([], error=f"translation failed: {res.error}")
+            return RefuteReport([], error=f"PastaLean cannot translate this program, so refute cannot search it: "
+                                          f"{(res.error or '')[:300]}")
         code = res.lean_code
-        cpy_module = O.cpython_module(source, obs)
-
-        # CPython-side search first: its witnesses are then judged by both Lean worlds as well.
-        found = _run_harness(cpy_module, obs, {}, search=cpython_search, seed=seed, search_ms=time_ms,
-                             per_case_ms=per_case_ms, timeout=time_ms / 1000 * len(obs) * 1.5 + 60,
-                             tests=tests)
-        py_found = {o["id"]: (o.get("search") or {}) for o in found.get("obligations", [])}
-
-        targets, given = [], []
+        targets = []
         for o in obs:
             t = {"id": o.name, "provPre": NS + o.pre_fn, "provChk": NS + o.chk_fn,
-                 "runPre": NS + o.pre_fn + "'rn", "runChk": NS + o.chk_fn + "'rn"}
+                 "runPre": NS + o.pre_fn + "'rn", "runChk": NS + o.chk_fn + "'rn", "raises": [r.rsplit(".", 1)[-1] for r in o.raises]}
             if o.theorem and (f"theorem {o.theorem} " in code or f"theorem {o.theorem}\n" in code):
                 t["theorem"] = NS + o.theorem
             targets.append(t)
-            lits = py_found.get(o.name, {}).get("lits")
-            if lits:
-                given.append({"target": o.name, "lits": lits})
-            # Valid inputs CPython passed, re-checked in both twins: a twin failing one is a divergence.
-            given += [{"target": o.name, "lits": s} for s in py_found.get(o.name, {}).get("samples") or []]
-        config = {"seed": seed, "timeMs": time_ms, "perCaseMs": per_case_ms, "numInst": tests}
-        if not lean_search:
-            config.update({"numInst": 0, "enumDepth": 0})
-        lean = sess.client.refute(code, targets, given, config) or {}
-        if not lean.get("result"):
-            return RefuteReport([], lean_code=code, error=f"Lean refute task failed: {lean.get('error')}")
-        lean_by_id = {t["id"]: t for t in lean.get("targets", [])}
+        # `time_ms` is the whole run's budget per obligation; the two worlds search one after the other.
+        left_ms = time_ms * len(obs) - (time.monotonic() - started) * 1000
+        per_world = int(max(0, left_ms) / max(1, len(obs)) * 0.45)
+        config = {"seed": seed, "timeMs": max(per_world, 300), "perCaseMs": per_case_ms, "numInst": tests,
+                  # experiments: e.g. {"plausible": false, "solver": false} to measure one engine alone
+                  **json.loads(_request_env("PASTALEAN_REFUTE_CONFIG", "{}"))}
+        lean_out = sess.client.refute(code, targets, [], config) or {}
+        if not lean_out.get("result") and not lean_out.get("error"):
+            # The backend died, typically out of memory on a drawn table size (`[0] * (10**9 + 7)`):
+            # once more with generated integers kept small.
+            logger.warning("the Lean backend stopped during the search; retrying with small integers")
+            lean_out = sess.client.refute(code, targets, [], {**config, "intCap": 1000}) or {}
+        if not lean_out.get("result"):
+            return RefuteReport([], lean_code=code, error=f"Lean refute task failed: {lean_out.get('error')}")
+        if lean_out.get("errors"):
+            logger.warning("the translated program has Lean errors in the refute run: %s",
+                           "; ".join(lean_out["errors"]))
+        if lean_out.get("instanceErrors"):
+            logger.warning("generators for the program's classes failed to elaborate: %s",
+                           "; ".join(lean_out["instanceErrors"]))
+        lean_by_id = {t["id"]: t for t in lean_out.get("targets", [])}
         # A non-terminating evaluation leaves its thread spinning in the backend; restart it.
-        if any((t.get(w) or {}).get("hang") for t in lean.get("targets", []) for w in ("prov", "run")):
+        if any((t.get(w) or {}).get("hang") for t in lean_out.get("targets", []) for w in ("prov", "run")):
             sess.client.close()
 
-        # Every witness through CPython.
+        # Each witness Lean found, executed once under CPython.
         to_judge = {o.name: [w["lits"] for w in lean_by_id.get(o.name, {}).get("witnesses", [])] for o in obs}
-        # A CPython witness the Lean side never judged (e.g. the twins do not elaborate) is still judged here.
-        extra = {}
-        for o in obs:
-            lits = py_found.get(o.name, {}).get("lits")
-            if lits and lits not in to_judge[o.name]:
-                extra[o.name] = lits
-                to_judge[o.name].append(lits)
-        judged = _run_harness(cpy_module, obs, to_judge, search=False, seed=seed, search_ms=0,
-                              per_case_ms=per_case_ms, timeout=60 + 5 * sum(map(len, to_judge.values())))
+        judged = _run_harness(cpy_module, obs, to_judge, per_case_ms=per_case_ms,
+                              timeout=60 + 5 * sum(map(len, to_judge.values())))
         py_judged = {o["id"]: o.get("judged", []) for o in judged.get("obligations", [])}
 
         reports = []
@@ -247,42 +279,45 @@ def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int 
             for lw, pj in zip(lt.get("witnesses", []), py_judged.get(o.name, [])):
                 prov = world_state(lw.get("prov") or lw.get("provChk"))
                 run = world_state(lw.get("run"))
+                # A twin whose search could not even start (it does not elaborate) is unavailable.
+                if run == "unknown" and "error" in (lt.get("run") or {}):
+                    run = "unavailable"
+                if prov == "unknown" and "error" in (lt.get("prov") or {}):
+                    prov = "unavailable"
                 py = world_state(pj)
-                origin = lw.get("origin")
-                if origin == "given":
-                    origin = "cpython:" + (py_found.get(o.name, {}).get("engine") or "sample")
                 verdict = refine_with_interval(classify(prov, run, py), pj.get("interval"), prov, py)
                 provj = lw.get("prov") or lw.get("provChk") or {}
                 if prov == "holds" and py == "violates" and provj.get("panic") and provj["panic"] == pj.get("exc"):
                     verdict = "PARTIALITY_GAP"
-                ws.append(Witness(origin, lw["lits"], prov, run, py, verdict, pj.get("exc"), pj.get("interval"),
-                                  pj.get("explain")))
-            if o.name in extra:
-                pj = py_judged.get(o.name, [])[len(ws):len(ws) + 1]
-                pj = pj[0] if pj else {}
-                if world_state(pj) == "violates":
-                    ws.append(Witness("cpython:" + (py_found[o.name].get("engine") or "?"), extra[o.name],
-                                      "unknown", "unknown", "violates", "CPYTHON_ONLY", pj.get("exc"),
-                                      pj.get("interval"), pj.get("explain")))
+                ws.append(Witness(lw.get("origin"), lw["lits"], prov, run, py, verdict, pj.get("exc"),
+                                  pj.get("interval"), pj.get("explain")))
+            # A witness that only fails with a TypeError is a type confusion (a str where a list was meant):
+            # real, but a violation on well-typed input says more, so it leads.
             ranked = sorted((w for w in ws if w.verdict), key=lambda w: (VERDICT_ORDER.index(w.verdict),
+                                                                          w.exc == "TypeError",
                                                                           len(json.dumps(w.lits))))
             best = ranked[0] if ranked else None
-            prov_search = lt.get("prov") or {}
-            cert = lt.get("certified") or {}
-            # A kernel-checked refutation for any witness the provable twin rejects: prefer the one the
-            # report shows, else whichever was certified.
             proof = None
-            if best is not None and best.verdict == "REFUTED" and cert.get("proof"):
-                proof = cert["proof"]
-                if cert.get("lits") != best.lits:
-                    certified = next((w for w in ws if w.lits == cert.get("lits")), None)
-                    if certified is not None and certified.verdict == "REFUTED":
-                        best = certified
+            certs = lt.get("certifiedAll") or []
+            if best is not None and best.verdict == "REFUTED" and certs:
+                mine = next((c for c in certs if c.get("lits") == best.lits), None)
+                if mine is not None:
+                    proof = mine["proof"]
+                else:
+                    # Lead with a certified witness instead, unless that one is only a type confusion.
+                    for c in certs:
+                        other = next((w for w in ws if w.lits == c.get("lits")), None)
+                        if other is not None and other.verdict == "REFUTED" and \
+                                (other.exc != "TypeError" or best.exc == "TypeError"):
+                            best, proof = other, c["proof"]
+                            break
+            solver = lt.get("solver") or {}
+            verdict = best.verdict if best else ("PROVED" if solver.get("status") == "proved" else "NO_COUNTEREXAMPLE")
             reports.append(ObligationReport(
-                o.name, o.kind, o.theorem if "theorem" in next(t for t in targets if t["id"] == o.name) else None,
-                [n for n, _ in o.params], best.verdict if best else "NO_COUNTEREXAMPLE", best, proof, ws,
-                {"prov": prov_search, "run": lt.get("run") or {}, "cpython": py_found.get(o.name, {})},
-                lt.get("error") or found.get("error")))
+                o.name, o.kind, o.theorem if "theorem" in next((t for t in targets if t["id"] == o.name), {}) else None,
+                [n for n, _ in o.params], verdict, best, proof, ws,
+                {"prov": lt.get("prov") or {}, "run": lt.get("run") or {}, "solver": solver},
+                lt.get("error") or judged.get("error")))
         return RefuteReport(reports, lean_code=code)
     finally:
         if own:
