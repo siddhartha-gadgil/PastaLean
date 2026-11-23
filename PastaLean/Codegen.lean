@@ -840,7 +840,7 @@ def getCodeIO (json: Json) (kind: SyntaxNodeKind) (ctx : Core.Context) (env: Env
   -- counts from thread start and `CoreM.run'` keeps the caller's `initHeartbeats`, so the persistent
   -- backend server (`py2lean --server`) shares one budget across every request it ever serves. Once the
   -- process crosses the ceiling, each further translation fails at `isDefEq` however small its program is.
-  let ctx := { ctx with maxHeartbeats := 0, options := ctx.options.insert `maxHeartbeats (.ofNat 0) }
+  let ctx := { ctx.setOptions (ctx.options.insert `maxHeartbeats (.ofNat 0)) with maxHeartbeats := 0 }
   let eio := code.run' ctx {env := env}
   match ← eio.toIO' with
   | .ok code =>

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -24,7 +23,7 @@ private partial def _count_components'dfs := fun (i : Int) ↦ fun (adj : List (
       vis := PastaLean.pySetItem vis i Bool.true
       let mut nodes : Int := (1 : Int)
       let mut edges : Int := PastaLean.pyLen adj⦋i⦌
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         if h_1 : ¬PastaLean.pyTruthy vis⦋j⦌ = true then 
           let p'_unpack_value_1 := _count_components'dfs j adj vis
           let p'_unpack_pair_1 := p'_unpack_value_1
@@ -42,7 +41,7 @@ def count_components := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut vis : List Bool := PastaLean.pyListRepeat [Bool.false] n
       let mut complete : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : ¬PastaLean.pyTruthy vis⦋i⦌ = true then 
           let p'_unpack_value_1 := _count_components'dfs i adj vis
           let p'_unpack_pair_1 := p'_unpack_value_1
@@ -63,7 +62,7 @@ private partial def _count_components'dfs'rn := fun (i : Int) ↦ fun (adj : Lis
       vis := PastaLean.pySetItem vis i Bool.true
       let mut nodes : Int := (1 : Int)
       let mut edges : Int := PastaLean.pyLen adj⦋i⦌
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         if h_1 : !PastaLean.pyTruthy vis⦋j⦌ then 
           let p'_unpack_value_1 := _count_components'dfs'rn j adj vis
           let p'_unpack_pair_1 := p'_unpack_value_1
@@ -81,7 +80,7 @@ def count_components'rn := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut vis : List Bool := PastaLean.pyListRepeat [Bool.false] n
       let mut complete : Int := (0 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : !PastaLean.pyTruthy vis⦋i⦌ then 
           let p'_unpack_value_1 := _count_components'dfs'rn i adj vis
           let p'_unpack_pair_1 := p'_unpack_value_1

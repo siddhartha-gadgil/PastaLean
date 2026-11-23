@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -24,7 +23,7 @@ def dict_pop_demo :=
       d := PastaLean.pyDictKeyPopRest d (2 : Int)
       d := PastaLean.pyDictKeyPopRest d (1 : Int)
       let mut total : Int := v
-      for k in (PastaLean.pyIter d)do
+      for k in (PastaLean.pyIter d) do
         total := total +ₚ d⦋k⦌
       return total)
 
@@ -39,7 +38,7 @@ def dict_pop_demo'rn :=
       d := PastaLean.pyDictKeyPopRest d (2 : Int)
       d := PastaLean.pyDictKeyPopRest d (1 : Int)
       let mut total : Int := v
-      for k in (PastaLean.pyIter d)do
+      for k in (PastaLean.pyIter d) do
         total := total +ₚ d⦋k⦌
       return total)
 
@@ -48,7 +47,7 @@ def counter_pop_demo := fun (s : String) ↦
     (do
       let mut c : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
       let mut removed : Int := (0 : Int)
-      for ch in (PastaLean.pyIter "abc")do
+      for ch in (PastaLean.pyIter "abc") do
         if h_1 : PastaLean.pyContains c ch then 
           let mut p'_popv_1 := PastaLean.pyDictKeyPopValue c ch
           c := PastaLean.pyDictKeyPopRest c ch
@@ -63,7 +62,7 @@ def counter_pop_demo'rn := fun (s : String) ↦
     (do
       let mut c : Libraries.collections.PyDefaultDict String Int := Libraries.collections.pyCounter s
       let mut removed : Int := (0 : Int)
-      for ch in (PastaLean.pyIter "abc")do
+      for ch in (PastaLean.pyIter "abc") do
         if h_1 : PastaLean.pyContains c ch then 
           let mut p'_popv_1 := PastaLean.pyDictKeyPopValue c ch
           c := PastaLean.pyDictKeyPopRest c ch

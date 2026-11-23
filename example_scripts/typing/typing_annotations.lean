@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -17,7 +16,7 @@ def total := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         s := s +ₚ x
       return s)
 
@@ -27,7 +26,7 @@ def total'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         s := s +ₚ x
       return s)
 
@@ -36,7 +35,7 @@ def scale := fun (row : List Rat) ↦ fun (k : Rat) ↦
     Id.run
       (do
         let mut out := ([] : List Rat)
-        for v in (PastaLean.pyIter row)do
+        for v in (PastaLean.pyIter row) do
           out := PastaLean.pyAppend out (v *ₚ k)
         return out))
 
@@ -47,7 +46,7 @@ def scale'rn := fun (row : List Float) ↦ fun (k : Float) ↦
     Id.run
       (do
         let mut out := ([] : List Float)
-        for v in (PastaLean.pyIter row)do
+        for v in (PastaLean.pyIter row) do
           out := PastaLean.pyAppend out (v *ₚ k)
         return out))
 

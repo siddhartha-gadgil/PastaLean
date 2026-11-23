@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -43,8 +42,8 @@ partial def _max_score'dfs'memo'rn : Int → List Int → Int → StateM (Std.Ha
               PastaLean.pyMax
                 ((←
                     (PastaLean.pyRange n (i +ₚ (1 : Int))).mapM fun (j : Int) =>
-                      (do
-                        return (j -ₚ i) *ₚ nums⦋j⦌ +ₚ (← _max_score'dfs'memo'rn j nums n))) +ₚ
+                        (do
+                          return (j -ₚ i) *ₚ nums⦋j⦌ +ₚ (← _max_score'dfs'memo'rn j nums n))) +ₚ
                   [(0 : Int)])
             return p'_ret_1) :
           StateM (Std.HashMap Int Int) Int)

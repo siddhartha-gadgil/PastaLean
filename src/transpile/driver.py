@@ -2667,7 +2667,6 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
                     "open Std.Do",
                     "",
                     "set_option linter.all false", # shut up warnings which annoyingly popup in output
-                    "set_option mvcgen.warning false",
                     "",
                     f"set_option maxHeartbeats {heartbeats}",
                     "",

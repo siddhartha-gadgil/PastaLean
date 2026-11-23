@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,7 +27,7 @@ def count_items := fun (xs : List Int) ↦
   Id.run
     (do
       let mut n : Int := (0 : Int)
-      for _ in (PastaLean.pyIter xs)do
+      for _ in (PastaLean.pyIter xs) do
         n := n +ₚ (1 : Int)
       return n)
 
@@ -38,7 +37,7 @@ def count_items'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut n : Int := (0 : Int)
-      for _ in (PastaLean.pyIter xs)do
+      for _ in (PastaLean.pyIter xs) do
         n := n +ₚ (1 : Int)
       return n)
 

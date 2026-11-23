@@ -3,7 +3,6 @@ import Std.Tactic.Do
 
 namespace Libraries.passta
 
-set_option mvcgen.warning false
 
 open Std.Do
 

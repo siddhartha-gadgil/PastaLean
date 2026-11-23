@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,8 +27,8 @@ def count_beautiful_pairs := fun (nums : List Int) ↦
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange i)do
+      for hb'i : i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange i) do
           ans := ans +ₚ chk nums⦋j⦌ (PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i))
       return ans)
 
@@ -40,8 +39,8 @@ def count_beautiful_pairs'rn := fun (nums : List Int) ↦
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut ans : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange n)do
-        for j in (PastaLean.pyRange i)do
+      for hb'i : i in (PastaLean.pyRange n) do
+        for j in (PastaLean.pyRange i) do
           ans := ans +ₚ chk'rn nums⦋j⦌ (PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i))
       return ans)
 

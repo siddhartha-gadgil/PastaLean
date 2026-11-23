@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -120,7 +119,7 @@ def count_components := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU.new n
       let mut count : Int := n
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_2 := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         if h_1 : PastaLean.pyTruthy p'_popv_2 then 
@@ -134,7 +133,7 @@ def count_components'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU'rn.new n
       let mut count : Int := n
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_2 := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         if h_1 : PastaLean.pyTruthy p'_popv_2 then 
@@ -146,7 +145,7 @@ def count_merges := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU.new n
       let mut merges : Int := (0 : Int)
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_3 := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         merges := merges +ₚ p'_popv_3
@@ -159,7 +158,7 @@ def count_merges'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU'rn.new n
       let mut merges : Int := (0 : Int)
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_3 := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         merges := merges +ₚ p'_popv_3
@@ -172,7 +171,7 @@ def count_gated := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (gate
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU.new n
       let mut merges : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges)) do
         let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ = (1 : Int) then 
@@ -191,7 +190,7 @@ def count_gated'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (g
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU'rn.new n
       let mut merges : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges)) do
         let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ == (1 : Int) then 

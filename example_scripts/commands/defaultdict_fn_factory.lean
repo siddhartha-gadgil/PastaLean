@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -23,14 +22,14 @@ def count_interesting := fun (nums : List Int) ↦ fun (m : Int) ↦ fun (k : In
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut a : List Int := (PastaLean.pyRange (n +ₚ (1 : Int))).map fun (_ : Int) => (0 : Int)
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         if h_1 : PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) %ₚ m = k then 
           a := PastaLean.pySetItem a (i +ₚ (1 : Int)) (1 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         a := PastaLean.pySetItem a i (a⦋i⦌ +ₚ a⦋i -ₚ (1 : Int)⦌)
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.PyDefaultDict.empty (0 : Int)
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int))) do
         ans := ans +ₚ cnt⦋(a⦋i⦌ -ₚ k +ₚ m) %ₚ m⦌
         cnt := PastaLean.pySetItem cnt (a⦋i⦌ %ₚ m) (cnt⦋a⦋i⦌ %ₚ m⦌ +ₚ (1 : Int))
       return ans)
@@ -45,14 +44,14 @@ def count_interesting'rn := fun (nums : List Int) ↦ fun (m : Int) ↦ fun (k :
     (do
       let mut n : Int := PastaLean.pyLen nums
       let mut a : Array Int := ((PastaLean.pyRange (n +ₚ (1 : Int))).map fun (_ : Int) => (0 : Int)) |>.toArray
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         if h_1 : PastaLean.pyListGetProof nums i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) %ₚ m == k then 
           a := PastaLean.pySetItem a (i +ₚ (1 : Int)) (1 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         a := PastaLean.pySetItem a i (a⦋i⦌ +ₚ a⦋i -ₚ (1 : Int)⦌)
       let mut cnt : Libraries.collections.PyDefaultDict Int Int := Libraries.collections.PyDefaultDict.empty (0 : Int)
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int))) do
         ans := ans +ₚ cnt⦋(a⦋i⦌ -ₚ k +ₚ m) %ₚ m⦌
         cnt := PastaLean.pySetItem cnt (a⦋i⦌ %ₚ m) (cnt⦋a⦋i⦌ %ₚ m⦌ +ₚ (1 : Int))
       return ans)

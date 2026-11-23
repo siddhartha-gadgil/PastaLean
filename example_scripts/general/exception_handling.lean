@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -265,7 +264,7 @@ def raise_error'rn : Int → PastaLean.PyExcept String := fun (num : Int) ↦ do
 
 def catch_loop := fun (num : Int) ↦
   ((do
-      for i in (PastaLean.pyRange num)do
+      for i in (PastaLean.pyRange num) do
         try
           if h_1 : i = (3 : Int) then 
             throw (PastaLean.PyException.Raise "ValueError" (ToString.toString "i cannot be 3"))
@@ -288,7 +287,7 @@ attribute [simp] catch_loop
 
 def catch_loop'rn := fun (num : Int) ↦
   ((do
-      for i in (PastaLean.pyRange num)do
+      for i in (PastaLean.pyRange num) do
         try
           if h_1 : i == (3 : Int) then 
             throw (PastaLean.PyException.Raise "ValueError" (ToString.toString "i cannot be 3"))

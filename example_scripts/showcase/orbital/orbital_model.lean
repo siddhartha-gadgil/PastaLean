@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -386,7 +385,7 @@ def main' :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut t := (0.0 : Rat)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x
@@ -447,7 +446,7 @@ def main''rn :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut t := (0.0 : Float)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x

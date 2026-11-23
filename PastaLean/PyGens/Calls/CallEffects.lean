@@ -154,10 +154,10 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
             else
               pure (mkIdent ``pyInputIO)
           match argsArray.size with
-          | 0 => `((← $inputIdent ""))
+          | 0 => `((← $inputIdent:term ""))
           | 1 =>
               let arg0 ← inlineEffectfulTerm argsArray[0]!
-              `((← $inputIdent $arg0))
+              `((← $inputIdent:term $arg0))
           | _ => throwError "input() expects zero or one positional argument."
       | .ok "Name", .ok "int" => do
           unless keyWordsMap.isEmpty do
@@ -263,7 +263,7 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
           -- runs in). The `←` is emitted inline; the enclosing `do` sequences it. This is the single,
           -- monad-agnostic point where an action becomes a value — no effect needs its own await site.
           let selfIsAction := (json.getObjValAs? String "effect_mode").toOption.isSome
-          if heapAwait || selfIsAction then return ← `((← $t)) else return t
+          if heapAwait || selfIsAction then return ← `((← $t:term)) else return t
   | "FormattedValue" => do
       let .ok valueJson := json.getObjValAs? Json "value" | throwError
         s!"FormattedValue node does not have a 'value' field or it is not a JSON value: {json}"
@@ -292,13 +292,13 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
       let rightCode ← inlineEffectfulTerm rightJson
       let t ← binOpApplyTerm op leftCode rightCode
       -- An operator dunder that raises (`effect_mode` stamped by TypeInfer) yields an action.
-      if (json.getObjValAs? String "effect_mode").toOption.isSome then `((← $t)) else pure t
+      if (json.getObjValAs? String "effect_mode").toOption.isSome then `((← $t:term)) else pure t
   | "UnaryOp" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"UnaryOp node missing 'op': {json}"
       let .ok operandJson := json.getObjValAs? Json "operand" | throwError s!"UnaryOp node missing 'operand': {json}"
       let operandCode ← inlineEffectfulTerm operandJson
       match (json.getObjValAs? String "_dunder_class").toOption with
-      | some cls => `((← $(mkIdent (Name.mkStr (← suffixIfUserName cls).toName "__neg__")) $operandCode))
+      | some cls => `((← $(mkIdent (Name.mkStr (← suffixIfUserName cls).toName "__neg__")):term $operandCode))
       | none => unaryOpApplyTerm op operandCode
   | "Compare" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"Compare node missing 'op': {json}"
@@ -306,7 +306,7 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
       let .ok rightJson := json.getObjValAs? Json "right" | throwError s!"Compare node missing 'right': {json}"
       let leftCode ← inlineEffectfulTerm leftJson
       let rightCode ← inlineEffectfulTerm rightJson
-      if let some t ← raisingCompareTerm? json leftCode rightCode then return ← `((← $t))
+      if let some t ← raisingCompareTerm? json leftCode rightCode then return ← `((← $t:term))
       compareApplyTerm op leftJson leftCode rightCode (rightJson := some rightJson)
   | "BoolOp" => do
       let .ok op := json.getObjValAs? String "op" | throwError s!"BoolOp node missing 'op': {json}"
@@ -327,7 +327,7 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
       let compTerm ← getCode json `term
       match json.getObjValAs? Json "elt" with
       | .ok eltJson =>
-          if basicJsonUsesMonadicEffect eltJson then `((← $compTerm)) else pure compTerm
+          if basicJsonUsesMonadicEffect eltJson then `((← $compTerm:term)) else pure compTerm
       | _ => pure compTerm
   | "Attribute" => do
       -- `C(...).field` / `f().attr`: await the receiver, then project.
@@ -359,7 +359,7 @@ partial def inlineEffectfulTerm (json : Json) : PygenM (TSyntax `term) := do
   | _ =>
       -- No in-place lowering for this node: await it whole when it is itself an action.
       let s ← getCode json `term
-      if basicJsonUsesMonadicEffect json then `((← $s)) else pure s
+      if basicJsonUsesMonadicEffect json then `((← $s:term)) else pure s
 
 /--
 Hoist translated `IO` subexpressions into surrounding `do` blocks and return a pure term

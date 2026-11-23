@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -16,14 +15,14 @@ namespace PastaLean.User.Root
 def functions_append_closure :=
   ((do
       let mut f : List (Unit → String) := []
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         f := PastaLean.pyAppend f fun () ↦ s! "Function {i}"
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         f :=
           PastaLean.pyAppend f fun () ↦
             let i := i
             s! "Function {i}"
-      for func in (PastaLean.pyIter f)do
+      for func in (PastaLean.pyIter f) do
         let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (func ())]) :
     PastaLean.ProofMode.PyProofM _)
 
@@ -32,14 +31,14 @@ attribute [simp] functions_append_closure
 def functions_append_closure'rn :=
   ((do
       let mut f : List (Unit → String) := []
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         f := PastaLean.pyAppend f fun () ↦ s! "Function {i}"
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         f :=
           PastaLean.pyAppend f fun () ↦
             let i := i
             s! "Function {i}"
-      for func in (PastaLean.pyIter f)do
+      for func in (PastaLean.pyIter f) do
         let _ ← pyPrintIO [pyPrintArg (func ())]) :
     IO _)
 
@@ -95,7 +94,7 @@ def value_capture_loop :=
       -- The CORRECT loop-closure idiom: `n=n` captures BY VALUE, so each closure keeps its own `n` —
       -- which maps naturally to Lean. (Bare `lambda: n` late-binds to the final `n`, a Python footgun.)
       let mut fs : List (Unit → Int) := []
-      for n in (PastaLean.pyRange (3 : Int))do
+      for n in (PastaLean.pyRange (3 : Int)) do
         fs :=
           PastaLean.pyAppend fs fun () ↦
             let n := n
@@ -111,7 +110,7 @@ def value_capture_loop'rn :=
       -- The CORRECT loop-closure idiom: `n=n` captures BY VALUE, so each closure keeps its own `n` —
       -- which maps naturally to Lean. (Bare `lambda: n` late-binds to the final `n`, a Python footgun.)
       let mut fs : List (Unit → Int) := []
-      for n in (PastaLean.pyRange (3 : Int))do
+      for n in (PastaLean.pyRange (3 : Int)) do
         fs :=
           PastaLean.pyAppend fs fun () ↦
             let n := n

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -22,7 +21,7 @@ def total := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         s := s +ₚ PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
       return s)
 
@@ -32,7 +31,7 @@ def total'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         s := s +ₚ PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
       return s)
 
@@ -40,7 +39,7 @@ def pairwise_max := fun (xs : List Int) ↦
   Id.run
     (do
       let mut best : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         -- A second, non-refinable read of the same list in the same body: `i + 1` is not the loop
         -- variable, so it keeps the defaulting lowering while `xs[i]` gets the proof.
         if h_1 : PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) > best then 
@@ -53,7 +52,7 @@ def pairwise_max'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut best : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         -- A second, non-refinable read of the same list in the same body: `i + 1` is not the loop
         -- variable, so it keeps the defaulting lowering while `xs[i]` gets the proof.
         if h_1 : PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i) > best then 
@@ -64,9 +63,9 @@ def grid_sum := fun (g : List (List Int)) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen g))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen g)) do
         let mut row : List Int := PastaLean.pyListGetProof g i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
-        for j in (PastaLean.pyRange (PastaLean.pyLen row))do
+        for j in (PastaLean.pyRange (PastaLean.pyLen row)) do
           s := s +ₚ row⦋j⦌
       return s)
 
@@ -76,9 +75,9 @@ def grid_sum'rn := fun (g : List (List Int)) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen g))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen g)) do
         let mut row : List Int := PastaLean.pyListGetProof g i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
-        for j in (PastaLean.pyRange (PastaLean.pyLen row))do
+        for j in (PastaLean.pyRange (PastaLean.pyLen row)) do
           s := s +ₚ row⦋j⦌
       return s)
 
@@ -88,7 +87,7 @@ def grow_while_reading := fun (xs : List Int) ↦
       let mut xs := xs
       -- `xs` grows inside the loop, so `len(xs)` at entry bounds nothing.
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         s := s +ₚ xs⦋i⦌
         xs := PastaLean.pyAppend xs s
       return s)
@@ -101,7 +100,7 @@ def grow_while_reading'rn := fun (xs : List Int) ↦
       let mut xs := xs
       -- `xs` grows inside the loop, so `len(xs)` at entry bounds nothing.
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         s := s +ₚ xs⦋i⦌
         xs := PastaLean.pyAppend xs s
       return s)
@@ -111,7 +110,7 @@ def store_through_index := fun (xs : List Int) ↦
     (do
       let mut xs := xs
       -- An indexed STORE also invalidates the refinement's reasoning about `xs`.
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         xs := PastaLean.pySetItem xs i (xs⦋i⦌ *ₚ (2 : Int))
       return xs)
 
@@ -122,7 +121,7 @@ def store_through_index'rn := fun (xs : List Int) ↦
     (do
       let mut xs := xs
       -- An indexed STORE also invalidates the refinement's reasoning about `xs`.
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         xs := PastaLean.pySetItem xs i (xs⦋i⦌ *ₚ (2 : Int))
       return xs)
 
@@ -131,7 +130,7 @@ def shifted_reads := fun (xs : List Int) ↦
     (do
       -- `i + 1` and `len(xs) - 1 - i` are not the loop variable; both stay defaulting.
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs -ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs -ₚ (1 : Int))) do
         s := s +ₚ xs⦋i +ₚ (1 : Int)⦌
       return s)
 
@@ -142,7 +141,7 @@ def shifted_reads'rn := fun (xs : List Int) ↦
     (do
       -- `i + 1` and `len(xs) - 1 - i` are not the loop variable; both stay defaulting.
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs -ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs -ₚ (1 : Int))) do
         s := s +ₚ xs⦋i +ₚ (1 : Int)⦌
       return s)
 
@@ -150,7 +149,7 @@ def shadowed_index := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut f := fun i ↦ i *ₚ (2 : Int)
         s := s +ₚ f xs⦋i⦌
       return s)
@@ -161,7 +160,7 @@ def shadowed_index'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut s : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen xs))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen xs)) do
         let mut f := fun i ↦ i *ₚ (2 : Int)
         s := s +ₚ f xs⦋i⦌
       return s)
@@ -172,7 +171,7 @@ def aliased_len := fun (xs : List Int) ↦
       -- `n = len(xs)` once, then `range(n)`: the bound is still `xs`'s length, proved through the alias.
       let mut n : Int := PastaLean.pyLen xs
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         s := s +ₚ PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
       return s)
 
@@ -184,7 +183,7 @@ def aliased_len'rn := fun (xs : List Int) ↦
       -- `n = len(xs)` once, then `range(n)`: the bound is still `xs`'s length, proved through the alias.
       let mut n : Int := PastaLean.pyLen xs
       let mut s : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         s := s +ₚ PastaLean.pyListGetProof xs i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
       return s)
 
@@ -195,7 +194,7 @@ def rebound_alias := fun (xs : List Int) ↦
       let mut n : Int := PastaLean.pyLen xs
       let mut s : Int := (0 : Int)
       n := n -ₚ (1 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         s := s +ₚ xs⦋i⦌
       return s)
 
@@ -208,7 +207,7 @@ def rebound_alias'rn := fun (xs : List Int) ↦
       let mut n : Int := PastaLean.pyLen xs
       let mut s : Int := (0 : Int)
       n := n -ₚ (1 : Int)
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         s := s +ₚ xs⦋i⦌
       return s)
 

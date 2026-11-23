@@ -8,19 +8,19 @@ testDriver = "palc"
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 
 [[require]]
-name = "mathlib"
-scope = "leanprover-community"
-rev = "v4.31.0"
+name = "verso-snippets"
+git = "https://github.com/AnirudhG07/verso-snippets"
+rev = "master"
 
 [[require]]
 name = "verso-slides"
 scope = "leanprover"
-rev = "v4.31.0"
+rev = "v4.36.0"
 
 [[require]]
-name = "verso-snippets"
-git = "https://github.com/AnirudhG07/verso-snippets"
-rev = "master"
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.36.0"
 
 [[lean_lib]]
 name = "PastaLean"

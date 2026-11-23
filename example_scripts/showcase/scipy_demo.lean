@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -23,7 +22,7 @@ def variance := fun (xs : List Rat) ↦
       (do
         let mut m := Libraries.scipy.pyScipyTmean xs
         let mut total := (0.0 : Rat)
-        for x in (PastaLean.pyIter xs)do
+        for x in (PastaLean.pyIter xs) do
           total := total +ₚ (x -ₚ m) *ₚ (x -ₚ m)
         let p'_ret_1 := total /ₚ PastaLean.pyLen xs
         return p'_ret_1))
@@ -36,7 +35,7 @@ def variance'rn := fun (xs : List Float) ↦
       (do
         let mut m := Libraries.scipy.pyScipyTmean xs
         let mut total := (0.0 : Float)
-        for x in (PastaLean.pyIter xs)do
+        for x in (PastaLean.pyIter xs) do
           total := total +ₚ (x -ₚ m) *ₚ (x -ₚ m)
         let p'_ret_1 := PastaLean.pyTrueDiv total (PastaLean.pyLen xs)
         return p'_ret_1))

@@ -83,6 +83,34 @@ unsafe def evalBoolUnsafe (e : Expr) : MetaM Bool := do
 @[implemented_by evalBoolUnsafe]
 opaque evalBool (e : Expr) : MetaM Bool
 
+/-- Set when a judgement outlived its deadline: its thread keeps running, so the backend needs a restart. -/
+initialize judgeHung : IO.Ref Bool ← IO.mkRef false
+
+def judgeTimeout : String := "refute: the witness ran past its deadline"
+
+unsafe def evalBoolWithinUnsafe (ms : Nat) (e : Expr) : MetaM Bool := do
+  let f ← evalExpr (Unit → Bool) (← mkArrow (mkConst ``Unit) (mkConst ``Bool))
+    (mkLambda `_ .default (mkConst ``Unit) (← instantiateMVars e))
+  -- the error log is per thread: the evaluating thread's error is carried back to this one
+  let t ← IO.asTask (prio := .dedicated) do
+    discard <| pyErrorLog.swap none
+    let b ← IO.lazyPure f
+    return (b, ← pyErrorLog.swap none)
+  let start ← IO.monoMsNow
+  while !(← IO.hasFinished t) do
+    if (← IO.monoMsNow) - start > ms then
+      judgeHung.set true
+      throwError judgeTimeout
+    IO.sleep 2
+  match t.get with
+  | .ok (b, err) => if err.isSome then pyErrorLog.set err
+                    return b
+  | .error err => throwError (toString err)
+
+/-- `evalBool`, giving up after `ms` (a witness that loops); a stuck evaluation keeps its thread. -/
+@[implemented_by evalBoolWithinUnsafe]
+opaque evalBoolWithin (ms : Nat) (e : Expr) : MetaM Bool
+
 /-- What a world says about a witness: does it pass the precondition, does the property hold, the Python
 error the evaluation raised (`exc`), and a runtime error hit while the value stayed the logical default
 (`panic`, provable twin only). -/
@@ -92,6 +120,12 @@ def judgeJson (pass holds : Option Bool) (err : Option String := none) (exc : Op
     (match err with | some e => [("error", toJson e)] | none => []) ++
     (match exc with | some e => [("exc", toJson e)] | none => []) ++
     (match panic with | some e => [("panic", toJson e)] | none => []))
+
+/-- A judgement that failed: a witness past its deadline reads `Timeout`, as a hung search's does. -/
+def judgeError (e : Exception) : MetaM Json := do
+  let msg ← e.toMessageData.toString
+  return if msg == judgeTimeout then judgeJson (some true) none none (some "Timeout")
+    else judgeJson none none (some msg)
 
 /-- Run `x`, returning the Python error a runtime function hit meanwhile (see `pyErrorLog`). -/
 def withPyError (x : MetaM α) : MetaM (α × Option String) := do
@@ -103,24 +137,25 @@ def withPyError (x : MetaM α) : MetaM (α × Option String) := do
 twin) a runtime error is a raise, as under CPython: in the precondition it rejects the input, in the
 property it violates it. Otherwise (the provable twin) the logical value stands and the error is noted. -/
 def judgeChecker (chk : Name) (pre? : Option Name) (ws : List PyLit) (executes := true)
-    (allowed : List String := []) : MetaM Json := do
+    (allowed : List String := []) (ms : Nat := 1000) : MetaM Json := do
   try
     let tys ← checkerArgTypes chk
     if tys.size != ws.length then return judgeJson none none (some "arity mismatch")
     let args ← (tys.toList.zip ws).mapM fun (τ, w) => litToExpr τ w
     let (guardOk, gexc) ← withPyError do match pre? with
-      | some pre => evalBool (← checkerBool (mkAppN (← constZ pre) args.toArray))
+      | some pre => evalBoolWithin ms (← checkerBool (mkAppN (← constZ pre) args.toArray))
       | none => pure true
     if !guardOk || (executes && gexc.isSome) then return judgeJson (some false) none
     let (holds, exc) ← withPyError do
-      evalBool (← checkerBool (mkAppN (← constZ chk) args.toArray))
+      evalBoolWithin ms (← checkerBool (mkAppN (← constZ chk) args.toArray))
     if exc.any (errAllowed allowed) then return judgeJson (some true) (some true)
     if executes then return judgeJson (some true) (some (holds && exc.isNone)) none exc
     return judgeJson (some true) (some holds) none none (exc <|> gexc)
-  catch e => return judgeJson none none (some (← e.toMessageData.toString))
+  catch e => judgeError e
 
 /-- Evaluate a witness against the obligation theorem (its guards, then its body), by `decide`. -/
-def judgeTheorem (thm : Name) (ws : List PyLit) (allowed : List String := []) : MetaM Json := do
+def judgeTheorem (thm : Name) (ws : List PyLit) (allowed : List String := []) (ms : Nat := 1000) :
+    MetaM Json := do
   try
     let ty ← instantiateMVars (← getConstInfo thm).type
     withObligation ty fun ob => do
@@ -131,15 +166,15 @@ def judgeTheorem (thm : Name) (ws : List PyLit) (allowed : List String := []) : 
       for g in ob.guards do
         match ← mkDecideRunnable (inst (← inferType g)) with
         | .error e => return judgeJson none none (some e)
-        | .ok d => if !(← evalBool d) then return judgeJson (some false) none
+        | .ok d => if !(← evalBoolWithin ms d) then return judgeJson (some false) none
       -- The theorem's own truth: a runtime error inside it is the logical default, noted as `panic`.
       match ← mkDecideRunnable (inst ob.body) with
       | .error e => return judgeJson (some true) none (some e)
       | .ok d =>
-        let (holds, exc) ← withPyError (evalBool d)
+        let (holds, exc) ← withPyError (evalBoolWithin ms d)
         if exc.any (errAllowed allowed) then return judgeJson (some true) (some true)
         return judgeJson (some true) (some holds) none none exc
-  catch e => return judgeJson none none (some (← e.toMessageData.toString))
+  catch e => judgeError e
 
 def searchJson (o : SearchOutcome) (names : Array (Name × Expr)) (cert : Option String) : MetaM Json := do
   let binders ← names.mapM fun (n, τ) => do
@@ -234,13 +269,13 @@ def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : Te
         ("python", toJson (ws.map PyLit.toPyString)), ("prov", timeout), ("provChk", timeout), ("run", timeout)])
       continue
     let provChk ← match t.provChk? with
-      | some chk => budgetedJudge (judgeChecker chk t.provPre? ws (executes := false) t.allowed)
+      | some chk => budgetedJudge (judgeChecker chk t.provPre? ws (executes := false) t.allowed cfg.perCaseMs)
       | none => pure Json.null
     let prov ← match t.theorem? with
-      | some thm => budgetedJudge (judgeTheorem thm ws t.allowed)
+      | some thm => budgetedJudge (judgeTheorem thm ws t.allowed cfg.perCaseMs)
       | none => pure provChk
     let run ← match t.runChk? with
-      | some chk => budgetedJudge (judgeChecker chk t.runPre? ws (allowed := t.allowed))
+      | some chk => budgetedJudge (judgeChecker chk t.runPre? ws (allowed := t.allowed) (ms := cfg.perCaseMs))
       | none => pure Json.null
     evals := evals.push (Json.mkObj [("origin", toJson origin), ("lits", toJson ws),
       ("python", toJson (ws.map PyLit.toPyString)), ("prov", prov), ("provChk", provChk), ("run", run)])
@@ -253,14 +288,16 @@ def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : Te
         if let some line ← (try budgeted (certify ty names ws) catch _ => pure none) then
           certified := certified.push (ws, line)
   fields := fields.push ("witnesses", Json.arr evals)
-  -- No witness violates anything: let `taste?` try to prove the obligation for every input.
+  -- No witness violates anything (or loops): let `taste?` try to prove the obligation for every input.
   let violated := evals.any fun e => ["prov", "run"].any fun w =>
     ((e.getObjValD w).getObjValAs? Bool "holds").toOption == some false
+      || ((e.getObjValD w).getObjValAs? String "exc").toOption == some "Timeout"
   let solverProved := fields.any fun (k, v) => k == "solver" && (v.getObjValAs? String "status").toOption == some "proved"
   if !violated && !solverProved && cfg.solver then
     if let some (ty, _) := provTy? then
       if ← tasteProves (← instantiateMVars ty) then
         fields := (fields.filter (·.1 != "solver")).push ("solver", Json.mkObj [("status", toJson "proved"), ("by", toJson "taste?")])
+  if ← judgeHung.swap false then fields := fields.push ("judgeHang", toJson true)
   fields := fields.push ("certifiedAll", Json.arr (certified.map fun (ws, line) =>
     Json.mkObj [("lits", toJson ws), ("proof", toJson line)]))
   return Json.mkObj fields.toList
@@ -482,7 +519,7 @@ def runRefuteTargets (json : Json) : TermElabM Json := do
           (ls.toList.mapM PyLit.fromJson?).toOption)
       else none
     out := out.push (← try budgeted (runTarget t cfg extra)
-      catch e => return Json.mkObj [("id", toJson t.id), ("error", toJson (← e.toMessageData.toString))])
+      catch e => pure (Json.mkObj [("id", toJson t.id), ("error", toJson (← e.toMessageData.toString))]))
   return Json.mkObj [("result", Json.bool true), ("targets", Json.arr out), ("evals", ← runEvals json),
     ("programs", ← runPrograms json cfg.perCaseMs)]
 

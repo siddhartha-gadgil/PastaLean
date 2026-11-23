@@ -145,12 +145,13 @@ partial def wrapIOAwaitsWithCapture (stx : Syntax) : PygenM Syntax := do
     if (← getHeapMode) then pure ``PastaLean.PyHeapIO.captureIOErrors
     else pure ``PastaLean.PyExcept.captureIOErrors
   match stx with
-  | .node info ``Lean.Parser.Term.liftMethod args =>
-      if args.size ≥ 1 then
-        let inner ← wrapIOAwaitsWithCapture args[args.size - 1]!
-        let innerT : TSyntax `term := ⟨inner⟩
+  -- `← e`: the awaited `e` is a `doElem`, a `doExpr` around the term
+  | .node info ``Lean.Parser.Term.nestedAction args@#[_, .node ei ``Lean.Parser.Term.doExpr eargs] =>
+      if eargs.size ≥ 1 then
+        let innerT : TSyntax `term := ⟨← wrapIOAwaitsWithCapture eargs[0]!⟩
         let captured ← `($(mkIdent captureName) $innerT)
-        return .node info ``Lean.Parser.Term.liftMethod (args.set! (args.size - 1) captured.raw)
+        return .node info ``Lean.Parser.Term.nestedAction
+          (args.set! 1 (.node ei ``Lean.Parser.Term.doExpr (eargs.set! 0 captured.raw)))
       else return stx
   | .node info k args => return .node info k (← args.mapM wrapIOAwaitsWithCapture)
   | _ => return stx

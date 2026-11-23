@@ -100,7 +100,7 @@ def _contract(fn: ast.FunctionDef) -> Obligation | None:
     requires = [s.value.args[0] for s in body if _marker(s) in ("Requires", "Assume") and s.value.args]
     # plain assignments before the last `Requires` (`n = len(graph)`) are the precondition's context
     last_req = max((i for i, s in enumerate(body) if _marker(s) in ("Requires", "Assume")), default=-1)
-    lets = [ast.unparse(s) for s in body[:last_req] if isinstance(s, ast.Assign) and _marker(s) is None]
+    lets = [ast.unparse(s) for s in body[:max(last_req, 0)] if isinstance(s, ast.Assign) and _marker(s) is None]
     ensures = [s.value.args[0] for s in ast.walk(fn)
                if isinstance(s, ast.stmt) and _marker(s) in ("Ensures", "Assert")
                and s.value.args and _mentions_result(s.value.args[0])]

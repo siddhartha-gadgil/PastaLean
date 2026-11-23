@@ -263,7 +263,8 @@ def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int 
                            "; ".join(lean_out["instanceErrors"]))
         lean_by_id = {t["id"]: t for t in lean_out.get("targets", [])}
         # A non-terminating evaluation leaves its thread spinning in the backend; restart it.
-        if any((t.get(w) or {}).get("hang") for t in lean_out.get("targets", []) for w in ("prov", "run")):
+        if any((t.get(w) or {}).get("hang") for t in lean_out.get("targets", []) for w in ("prov", "run")) \
+                or any(t.get("judgeHang") for t in lean_out.get("targets", [])):
             sess.client.close()
 
         # Each witness Lean found, executed once under CPython.

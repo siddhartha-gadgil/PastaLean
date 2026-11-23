@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -19,7 +18,7 @@ def stack_sum := fun (n : Int) ↦
   Id.run
     (do
       let mut st : List Int := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         st := PastaLean.pyAppend st i
       let mut total : Int := (0 : Int)
       while (PastaLean.pyTruthy st) do
@@ -34,7 +33,7 @@ def stack_sum'rn := fun (n : Int) ↦
   Id.run
     (do
       let mut st : Array Int := #[]
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         st := PastaLean.pyArrayAppend st i
       let mut total : Int := (0 : Int)
       while (PastaLean.pyTruthy st) do

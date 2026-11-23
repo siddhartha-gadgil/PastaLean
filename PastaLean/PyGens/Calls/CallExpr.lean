@@ -561,7 +561,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
             for (kwName, kwValueJson) in keyWordsMap.toList do
               let kwValueCode ← inlineEffectfulTerm kwValueJson
               t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-            return ← `((← $t))
+            return ← `((← $t:term))
           if allJsons.toList.any basicJsonUsesIOEffect then
             return ← buildIOPureApplicationFromArgs allJsons allCodes build
           else
@@ -646,7 +646,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
           if funcJson.getObjValAs? String "id" == .ok memoName
              && funcJson.getObjValAs? String "node_type" == .ok "Name" then
             let argCodes ← argsArray.mapM (fun a => getCode a `term)
-            return ← `((← $(mkIdent memoWorker) $argCodes*))
+            return ← `((← $(mkIdent memoWorker):term $argCodes*))
         match funcJson.getObjValAs? String "node_type", funcJson.getObjValAs? String "id" with
         | .ok "Name", .ok "print" => do
             let supportedKeywords := ["sep", "end"]
@@ -715,8 +715,8 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
             | 0 => `("")
             | 1 => do
                 let pyStrIdent := mkIdent ``pyStr
-                let argsCodes ← derefBuiltinArgCodes argsArray argsCodes
-                buildIOPureApplicationFromArgs argsArray argsCodes fun resolvedArgs => do
+                let strArgsCodes ← derefBuiltinArgCodes argsArray argsCodes
+                buildIOPureApplicationFromArgs argsArray strArgsCodes fun resolvedArgs => do
                   let arg0 := resolvedArgs[0]!
                   `($pyStrIdent $arg0)
             | _ =>
@@ -845,7 +845,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
                 for (kwName, kwValueJson) in keyWordsMap.toList do
                   let kwValueCode ← inlineEffectfulTerm kwValueJson
                   t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-                return ← `((← $t))
+                return ← `((← $t:term))
               funcIdent := ctorId
             | none =>
             -- Variadic builtins that fold a binary runtime function over their args (e.g. `zip`)
@@ -931,7 +931,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
           then `(PastaLean.runPure $applied) else pure applied
       | _ => pure applied
     -- A call to a heap-effectful user function returns a `HeapM` action; await it inline.
-    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied))
+    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied:term))
     return applied
 
 def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
@@ -1428,7 +1428,7 @@ def attributeSyntax : (kind : SyntaxNodeKind) → Json →
             let cls? ← heapVarClassOf? vid.toName
             let isHeapRecv := if vid == "self" then selfRef else cls?.isSome
             if isHeapRecv then
-              return ← `((← $(mkIdent vid.toName) ~> $attrId))
+              return ← `((← $(mkIdent vid.toName):term ~> $attrId))
         let valueCode ← getCode valueJson `term
         -- `_unwrap_opt` (TypeInfer): the receiver is `Option _`, so unwrap before projecting the field
         if json.getObjValAs? Bool "_unwrap_opt" == .ok true then

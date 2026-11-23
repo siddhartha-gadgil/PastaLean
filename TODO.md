@@ -67,6 +67,10 @@ witness violates (`tasteProves`, also in `refute?`/`#refute`). Next:
 - **Stdin mode input generation** is still Python-side (`src/refute/stdin.py`); move it to Lean.
 - **`taste?` pre-check cost**: PALC went ~89 s → ~120 s with the grind pre-check (now ~117 s, with
   Plausible off in the pre-check); tune its budget.
+- **Size ramp under a large `--tests`**: the random phase's size is `maxSize * (i mod numInst) / numInst`,
+  so with the CLI/benchmarks' `--tests 1000000000` every draw is at size 1 (2.6M size-1 strings on
+  `LongestSubstring…`). Ramp over a fixed period or over elapsed time instead; re-benchmark, since it
+  changes every seeded search.
 - **Guard-directed generation** beyond lengths: string/list lengths are drawn from pool integers
   (`len(v) == 3`), but other guard shapes (`sorted`, ranges `a < x < b`, non-empty, membership) are
   still left to chance; read them off the guard and generate inside them.

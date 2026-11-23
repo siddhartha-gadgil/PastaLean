@@ -711,7 +711,8 @@ def classStructCommand (json : Json) : PygenM (TSyntax `command) := do
     match (json.getObjValAs? String "docstring").toOption with
     | some text =>
         let body := (text.trimAscii).toString.replace "-/" "- /"
-        some ⟨mkNode ``Lean.Parser.Command.docComment #[mkAtom "/--", mkAtom (body ++ " -/")]⟩
+        some ⟨mkNode ``Lean.Parser.Command.docComment
+          #[mkAtom "/--", mkNode `Lean.Parser.Command.commentBody #[mkAtom body, mkAtom "-/"]]⟩
     | none => none
   match docStx?, baseIds.isEmpty with
   | some doc, false =>

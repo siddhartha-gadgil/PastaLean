@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -21,7 +20,7 @@ def drain_last := fun (buckets : Std.HashMap Int (List Int)) ↦
     (do
       let mut buckets := buckets
       let mut p'_comp_1 : List Int := []
-      for k in (PastaLean.pyIter [(1 : Int), (2 : Int), (1 : Int)])do
+      for k in (PastaLean.pyIter [(1 : Int), (2 : Int), (1 : Int)]) do
         let mut p'_popv_4 := PastaLean.pyPopValue (PastaLean.pyGetItem buckets k)
         buckets := PastaLean.pySetItem buckets k (PastaLean.pyPopRest (PastaLean.pyGetItem buckets k))
         p'_comp_1 := PastaLean.pyAppend p'_comp_1 p'_popv_4
@@ -34,7 +33,7 @@ def drain_last'rn := fun (buckets : Std.HashMap Int (List Int)) ↦
     (do
       let mut buckets := buckets
       let mut p'_comp_1 : List Int := []
-      for k in (PastaLean.pyIter [(1 : Int), (2 : Int), (1 : Int)])do
+      for k in (PastaLean.pyIter [(1 : Int), (2 : Int), (1 : Int)]) do
         let mut p'_popv_4 := PastaLean.pyPopValue (PastaLean.pyGetItem buckets k)
         buckets := PastaLean.pySetItem buckets k (PastaLean.pyPopRest (PastaLean.pyGetItem buckets k))
         p'_comp_1 := PastaLean.pyAppend p'_comp_1 p'_popv_4
@@ -46,7 +45,7 @@ def drain_if := fun (buckets : Std.HashMap Int (List Int)) ↦ fun (ks : List In
     (do
       let mut buckets := buckets
       let mut p'_comp_2 : List Int := []
-      for k in (PastaLean.pyIter ks)do
+      for k in (PastaLean.pyIter ks) do
         if h_1 : PastaLean.pyTruthy buckets⦋k⦌ then 
           let mut p'_popv_5 := PastaLean.pyPopValue (PastaLean.pyGetItem buckets k)
           buckets := PastaLean.pySetItem buckets k (PastaLean.pyPopRest (PastaLean.pyGetItem buckets k))
@@ -60,7 +59,7 @@ def drain_if'rn := fun (buckets : Std.HashMap Int (List Int)) ↦ fun (ks : List
     (do
       let mut buckets := buckets
       let mut p'_comp_2 : List Int := []
-      for k in (PastaLean.pyIter ks)do
+      for k in (PastaLean.pyIter ks) do
         if h_1 : PastaLean.pyTruthy buckets⦋k⦌ then 
           let mut p'_popv_5 := PastaLean.pyPopValue (PastaLean.pyGetItem buckets k)
           buckets := PastaLean.pySetItem buckets k (PastaLean.pyPopRest (PastaLean.pyGetItem buckets k))
@@ -72,7 +71,7 @@ def join_pops := fun (groups : Std.HashMap Int (List String)) ↦
     (do
       let mut groups := groups
       let mut p'_comp_3 : List String := []
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         let mut p'_popv_6 := PastaLean.pyPopValue (PastaLean.pyGetItem groups i)
         groups := PastaLean.pySetItem groups i (PastaLean.pyPopRest (PastaLean.pyGetItem groups i))
         p'_comp_3 := PastaLean.pyAppend p'_comp_3 p'_popv_6
@@ -86,7 +85,7 @@ def join_pops'rn := fun (groups : Std.HashMap Int (List String)) ↦
     (do
       let mut groups := groups
       let mut p'_comp_3 : List String := []
-      for i in (PastaLean.pyRange (3 : Int))do
+      for i in (PastaLean.pyRange (3 : Int)) do
         let mut p'_popv_6 := PastaLean.pyPopValue (PastaLean.pyGetItem groups i)
         groups := PastaLean.pySetItem groups i (PastaLean.pyPopRest (PastaLean.pyGetItem groups i))
         p'_comp_3 := PastaLean.pyAppend p'_comp_3 p'_popv_6

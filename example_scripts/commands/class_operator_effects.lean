@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -230,7 +229,7 @@ instance : PastaLean.PyPrintable Money'rn
 
 def total (prices : List Money) (discount : Option Int := Option.none) : PastaLean.ProofMode.PyProofM Money := do
   let mut acc := (← Money.new (0 : Int))
-  for p in (PastaLean.pyIter prices)do
+  for p in (PastaLean.pyIter prices) do
     acc := (← acc +ₚ p)
   if let some discount := discount then 
     acc := (← acc -ₚ discount)
@@ -240,7 +239,7 @@ attribute [simp] total
 
 def total'rn (prices : List Money'rn) (discount : Option Int := Option.none) : PastaLean.PyExcept Money'rn := do
   let mut acc := (← Money'rn.new (0 : Int))
-  for p in (PastaLean.pyIter prices)do
+  for p in (PastaLean.pyIter prices) do
     acc := (← acc +ₚ p)
   if let some discount := discount then 
     acc := (← acc -ₚ discount)
@@ -343,7 +342,7 @@ def main'rn : IO Unit := do
                     [pyPrintArg
                         (←
                           PastaLean.PyExcept.captureIOErrors
-                            (a +ₚ (← PastaLean.PyExcept.captureIOErrors (Money'rn.new (1 : Int) "USD"))))]
+                              (a +ₚ (← PastaLean.PyExcept.captureIOErrors (Money'rn.new (1 : Int) "USD"))))]
             catch caught =>
               if PastaLean.pyExcIsA caught "ValueError" then 
                 let e := caught

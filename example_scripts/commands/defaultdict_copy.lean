@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -17,16 +16,16 @@ def count_pairs := fun (coordinates : List (List Int)) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut mp : Libraries.collections.PyDefaultDict (Int × Int) Int := Libraries.collections.pyDefaultDictInt
-      for p'_pair_1 in (PastaLean.pyIter coordinates)do
+      for p'_pair_1 in (PastaLean.pyIter coordinates) do
         let x := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let y := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         mp := PastaLean.pySetItem mp (x, y) (mp⦋(x, y)⦌ +ₚ (1 : Int))
       let mut res : Int := (0 : Int)
-      for i in (PastaLean.pyRange (k +ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (k +ₚ (1 : Int))) do
         let mut a : Int := i
         let mut b : Int := k -ₚ i
         let mut tmp := PastaLean.pyCopy mp
-        for p'_pair_1 in (PastaLean.pyIter coordinates)do
+        for p'_pair_1 in (PastaLean.pyIter coordinates) do
           let x := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
           let y := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
           tmp := PastaLean.pySetItem tmp (x, y) (tmp⦋(x, y)⦌ -ₚ (1 : Int))
@@ -40,16 +39,16 @@ def count_pairs'rn := fun (coordinates : List (List Int)) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut mp : Libraries.collections.PyDefaultDict (Int × Int) Int := Libraries.collections.pyDefaultDictInt
-      for p'_pair_1 in (PastaLean.pyIter coordinates)do
+      for p'_pair_1 in (PastaLean.pyIter coordinates) do
         let x := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let y := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         mp := PastaLean.pySetItem mp (x, y) (mp⦋(x, y)⦌ +ₚ (1 : Int))
       let mut res : Int := (0 : Int)
-      for i in (PastaLean.pyRange (k +ₚ (1 : Int)))do
+      for i in (PastaLean.pyRange (k +ₚ (1 : Int))) do
         let mut a : Int := i
         let mut b : Int := k -ₚ i
         let mut tmp := PastaLean.pyCopy mp
-        for p'_pair_1 in (PastaLean.pyIter coordinates)do
+        for p'_pair_1 in (PastaLean.pyIter coordinates) do
           let x := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
           let y := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
           tmp := PastaLean.pySetItem tmp (x, y) (tmp⦋(x, y)⦌ -ₚ (1 : Int))

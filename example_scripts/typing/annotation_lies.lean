@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -89,7 +88,7 @@ def inf_dp := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp : List Int := PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int))
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌])
       let p'_ret_1 := dp⦋n⦌
       return p'_ret_1)
@@ -103,7 +102,7 @@ def inf_dp'rn := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp : Array Int := PastaLean.pyArrayRepeat #[inf] (n +ₚ (1 : Int))
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌])
       let p'_ret_1 := dp⦋n⦌
       return p'_ret_1)
@@ -118,11 +117,11 @@ def grid_inf_dp := fun (houses : List Int) ↦
       let mut n : Int := PastaLean.pyLen houses
       let mut f : List (List Int) :=
         (PastaLean.pyRange n).map fun (_ : Int) => PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int))
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         let p'_setval_1 := PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         f := PastaLean.pyModifyItem f i (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (1 : Int) p'_setval_1)
-        for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int))do
-          for p in (PastaLean.pyRange i)do
+        for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int)) do
+          for p in (PastaLean.pyRange i) do
             let p'_setval_2 :=
               PastaLean.pyMin
                 [f⦋i⦌⦋j⦌,
@@ -144,11 +143,11 @@ def grid_inf_dp'rn := fun (houses : List Int) ↦
       let mut n : Int := PastaLean.pyLen houses
       let mut f : Array (Array Int) :=
         ((PastaLean.pyRange n).map fun (_ : Int) => PastaLean.pyArrayRepeat #[inf] (n +ₚ (1 : Int))) |>.toArray
-      for hb'i : i in (PastaLean.pyRange n)do
+      for hb'i : i in (PastaLean.pyRange n) do
         let p'_setval_1 := PastaLean.pyListGetProof houses i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         f := PastaLean.pyModifyItem f i (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (1 : Int) p'_setval_1)
-        for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int))do
-          for p in (PastaLean.pyRange i)do
+        for j in (PastaLean.pyRange (i +ₚ (2 : Int)) (2 : Int)) do
+          for p in (PastaLean.pyRange i) do
             let p'_setval_2 :=
               PastaLean.pyMin
                 [f⦋i⦌⦋j⦌,
@@ -167,7 +166,7 @@ def dp_sentinel_return := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp : List Int := PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int))
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌])
       let p'_ret_1 := if dp⦋n⦌ ≥ inf then -(1 : Int) else dp⦋n⦌
       return p'_ret_1)
@@ -183,7 +182,7 @@ def dp_sentinel_return'rn := fun (cost : List Int) ↦
       let mut n : Int := PastaLean.pyLen cost
       let mut dp : Array Int := PastaLean.pyArrayRepeat #[inf] (n +ₚ (1 : Int))
       dp := PastaLean.pySetItem dp (0 : Int) (0 : Int)
-      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int))do
+      for i in (PastaLean.pyRange (n +ₚ (1 : Int)) (1 : Int)) do
         dp := PastaLean.pySetItem dp i (PastaLean.pyMin [dp⦋i -ₚ (1 : Int)⦌ +ₚ cost⦋i -ₚ (1 : Int)⦌, dp⦋i⦌])
       let p'_ret_1 := if dp⦋n⦌ ≥ inf then -(1 : Int) else dp⦋n⦌
       return p'_ret_1)
@@ -198,10 +197,10 @@ def coin_change := fun (coins : List Int) ↦ fun (amount : Int) ↦
         (PastaLean.pyRange (m +ₚ (1 : Int))).map fun (_ : Int) => PastaLean.pyListRepeat [inf] (n +ₚ (1 : Int))
       let p'_setval_1 := (0 : Int)
       f := PastaLean.pyModifyItem f (0 : Int) (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (0 : Int) p'_setval_1)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate coins (1 : Int)))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate coins (1 : Int))) do
         let i := Prod.fst p'_pair_1
         let x := Prod.snd p'_pair_1
-        for j in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+        for j in (PastaLean.pyRange (n +ₚ (1 : Int))) do
           let p'_setval_2 := f⦋i -ₚ (1 : Int)⦌⦋j⦌
           f := PastaLean.pyModifyItem f i (fun p'_row_2 => PastaLean.pySetItem p'_row_2 j p'_setval_2)
           if h_1 : j ≥ x then 
@@ -223,10 +222,10 @@ def coin_change'rn := fun (coins : List Int) ↦ fun (amount : Int) ↦
             PastaLean.pyArrayRepeat #[inf] (n +ₚ (1 : Int))) |>.toArray
       let p'_setval_1 := (0 : Int)
       f := PastaLean.pyModifyItem f (0 : Int) (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (0 : Int) p'_setval_1)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate coins (1 : Int)))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate coins (1 : Int))) do
         let i := Prod.fst p'_pair_1
         let x := Prod.snd p'_pair_1
-        for j in (PastaLean.pyRange (n +ₚ (1 : Int)))do
+        for j in (PastaLean.pyRange (n +ₚ (1 : Int))) do
           let p'_setval_2 := f⦋i -ₚ (1 : Int)⦌⦋j⦌
           f := PastaLean.pyModifyItem f i (fun p'_row_2 => PastaLean.pySetItem p'_row_2 j p'_setval_2)
           if h_1 : j ≥ x then 

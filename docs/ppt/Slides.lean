@@ -7,7 +7,6 @@ import Std.Tactic.Do
 
 set_option verso.code.warnLineLength 500
 set_option verso.slides.panel false
-set_option mvcgen.warning false
 set_option linter.unusedVariables false
 set_option verso.slides.warnOnImage false
 
@@ -19,7 +18,6 @@ e.g. "21 July 2026" — invoke as `{timeDay}`·``. It re-runs whenever this file
 fresh `lake build` / `lake exe slides` refreshes it. -/
 open Verso Doc Elab ArgParse in
 open Lean Elab Widget in
-open Lean.Doc.Syntax in
 @[role]
 meta def timeDay : RoleExpanderOf Unit
   | (), _ => do
@@ -224,7 +222,7 @@ It reads Python's *AST* and emits Lean you can _prove_:
 :::::hstack
 ::::vstack
 :::class "gbox" "py" "fragment"
-```code python
+```VersoSlides.code python
 def sum_to_n(n: int) -> int:
     Requires(n >= 0)
     total = 0
@@ -354,7 +352,7 @@ One Python function forks into two Lean definitions:
 
 ::::::vstack
 :::class "pytop" "fragment"
-```code python
+```VersoSlides.code python
 def euclidean_distance(p1, p2):
     if len(p1) != len(p2):
         raise ValueError("Points must have the same number of dimensions")
@@ -480,7 +478,7 @@ state := "cflow"
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def fibonacci(n: int):
     if n <= 0:
         return 0
@@ -509,7 +507,7 @@ partial def fibonacci : Int → Int := fun (n : Int) ↦
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def classify(nums: list[int]):
     total = 0
     for n in nums:
@@ -557,7 +555,7 @@ state := "datastruct"
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 squares = [x*x for x in range(10)
                if x % 2 == 0]
 
@@ -594,7 +592,7 @@ def evens :=
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 nums = [3, 1, 2, 4]
 head = nums[0]         # index
 tail = nums[1:]        # slice
@@ -638,7 +636,7 @@ state := "exc"
 
 ::::::vstack
 :::class "pymid" "fragment"
-```code python
+```VersoSlides.code python
 def divide_add(a, b, c):
     try:
         result = a / b
@@ -723,7 +721,7 @@ A Python `class` becomes a Lean `structure` plus namespaced method definitions. 
 is the structure value, and mutation is value-semantics (`C.new` builds one):
 
 :::hstack
-```code python
+```VersoSlides.code python
 class Point:
     def __init__(self, x, y):
         self.x = x
@@ -855,7 +853,7 @@ answer on *every* test case of that problem
 
 # The 13 HumanEval misses are ambiguities, not bugs
 
-```code python
+```VersoSlides.code python
 def split_words(txt):
     if any(c in txt for c in ' \n\r\t'): return txt.split()   # list[str]
     if ',' in txt: return txt.split(',')                       # list[str]
@@ -973,7 +971,7 @@ _Vector algebra where the Python `assert`s — conserved momentum, a central spr
 
 ::::hstack
 :::class "showpy" "fragment"
-```code python
+```VersoSlides.code python
 
 def cross_x(ax: float, ay: float, az: float, bx: float, by: float, bz: float) -> float:
     """x-component of a x b."""
@@ -1049,7 +1047,7 @@ _A from-scratch convolution — nested loops, `self.kernel`, value-semantics mut
 
 ::::hstack
 :::class "showpy" "fragment"
-```code python
+```VersoSlides.code python
 class CNN:
     def conv(self, img):
         # valid 2x2 conv: 8x8 → 7x7
@@ -1106,7 +1104,7 @@ _`np.mean` and `matmul` inside `try`/`except` — a library call, real control f
 
 ::::vstack
 :::class "showpy" "fragment"
-```code python
+```VersoSlides.code python
 def process_data(data, weights):
     try:
         m = np.mean(data)
@@ -1175,7 +1173,7 @@ Not all of Python is supported, however, efforts into supporting the _provable_ 
 :::
 
 :::class "dcode" "fragment"
-```code python
+```VersoSlides.code python
 # in scope — a static, provable core
 xs: list[int] = [1, 2, 3]
 total = sum(x * x for x in xs)
@@ -1346,7 +1344,7 @@ state := "dynprob"
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 # one function, many types
 def add(a, b):
     return a + b
@@ -1388,7 +1386,7 @@ x = "hello"        # now str
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 # one function, many types
 def add(a: int, b: int) -> int:
     return a + b
@@ -1425,7 +1423,7 @@ state := "typeinfer"
 * Ships as its own Mathlib-free binary — *30 ms* to start, and it runs over a whole repository, types flowing across imports.
 :::
 
-```code bash
+```VersoSlides.code bash
 pastalean typeinfer script.py            # the source back, with annotations
 pastalean typeinfer myrepo/ --check      # type errors, Lean-style; exit 1 if any
 ```
@@ -1498,7 +1496,7 @@ types yet, so `int ⊔ str` boxes instead of typing `int | str`.
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def mangle(items):
     buf = items[0]
     k = buf.isalpha()   # buf must be a str
@@ -1511,7 +1509,7 @@ def mangle(items):
 :::
 
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 real_conflict.py:2:5: error:
   unsatisfiable constraints — mangle.buf
 one use requires  String   (python: str)
@@ -1611,7 +1609,7 @@ vertical := some true
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 # no types given → one def, every type
 def add(a, b):
     return a + b
@@ -1649,7 +1647,7 @@ If two branches of a function return different types, the function is boxed to {
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 # branches disagree → PyAny
 def classify(n):
     if n > 0:
@@ -1677,7 +1675,7 @@ If a variable is reassigned types, then it can be inferred to be of type {lean}`
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def reassigned():
     x = 1
     x = x + 5          # int arithmetic
@@ -1848,7 +1846,7 @@ How do we even say what we want to prove?
 :::
 
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def factorial(n: int) -> int:
     Requires(n >= 0)
     Ensures(Result() >= 1)
@@ -1905,7 +1903,7 @@ A Python `assert` on a pure function becomes `theorem … := by taste?` — the 
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 # showcase/linalg/matrix_model.py
 def det(a, b, c, d):
     return a*d - b*c
@@ -1962,7 +1960,7 @@ state := "provemvcgen"
 
 ::::hstack
 :::class "excode" "fragment"
-```code python
+```VersoSlides.code python
 def sum_upto_n(n: int) -> int:
     Requires(n >= 0)
     total = 0
@@ -2028,7 +2026,7 @@ example (a b : PyAny) :
 
 :::class "excode" "fragment"
 
-```code python
+```VersoSlides.code python
 10 goals
 case int.int
 a b : ℤ

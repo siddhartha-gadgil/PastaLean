@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -17,7 +16,7 @@ def fail_for_else :=
   (show Unit from
     Id.run do
       let mut p'_broke_1 := false
-      for i in (PastaLean.pyRange (10 : Int))do
+      for i in (PastaLean.pyRange (10 : Int)) do
         let _ := ()
       if (!p'_broke_1) then 
         let _ := ()
@@ -30,7 +29,7 @@ def fail_for_else'rn :=
   (show Unit from
     Id.run do
       let mut p'_broke_1 := false
-      for i in (PastaLean.pyRange (10 : Int))do
+      for i in (PastaLean.pyRange (10 : Int)) do
         let _ := ()
       if (!p'_broke_1) then 
         let _ := ()

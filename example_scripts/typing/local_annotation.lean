@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -20,7 +19,7 @@ def collect := fun (xs : List Int) ↦
   Id.run
     (do
       let mut acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         acc := PastaLean.pyAppend acc (x *ₚ (2 : Int))
       return acc)
 
@@ -30,7 +29,7 @@ def collect'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         acc := PastaLean.pyAppend acc (x *ₚ (2 : Int))
       return acc)
 
@@ -38,7 +37,7 @@ def counts := fun (words : List String) ↦
   Id.run
     (do
       let mut d : Std.HashMap String Int := Std.HashMap.ofList []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         d := PastaLean.pySetItem d w (PastaLean.pyGetD d w (0 : Int) +ₚ (1 : Int))
       return d)
 
@@ -48,7 +47,7 @@ def counts'rn := fun (words : List String) ↦
   Id.run
     (do
       let mut d : Std.HashMap String Int := Std.HashMap.ofList []
-      for w in (PastaLean.pyIter words)do
+      for w in (PastaLean.pyIter words) do
         d := PastaLean.pySetItem d w (PastaLean.pyGetD d w (0 : Int) +ₚ (1 : Int))
       return d)
 

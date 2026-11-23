@@ -242,6 +242,21 @@ unsafe def swapLastDrawImpl (g : StdGen) : Option StdGen := unsafeBaseIO (lastDr
 @[never_extract, implemented_by swapLastDrawImpl]
 opaque swapLastDraw (g : StdGen) : Option StdGen
 
+/-- Plausible's latest draws (one value per binder, last binder last) and when the latest was made: a
+chunk that stops drawing for longer than the per-case deadline is stuck evaluating those values. -/
+initialize plausibleDraws : IO.Ref (Array PyLit × Nat) ← IO.mkRef (#[], 0)
+
+@[never_extract, noinline]
+unsafe def noteDrawImpl {α : Type} [ToPyLit α] (v : α) : α :=
+  unsafeBaseIO do
+    let now ← IO.monoMsNow
+    plausibleDraws.modify fun (ds, _) => ((if ds.size ≥ 64 then ds.extract 32 ds.size else ds).push (ToPyLit.toLit v), now)
+    pure v
+
+/-- `v`, noted as Plausible's latest draw (see `plausibleDraws`). -/
+@[never_extract, implemented_by noteDrawImpl]
+def noteDraw {α : Type} [ToPyLit α] (v : α) : α := v
+
 /-- A fifth of the time a binder is drawn from the previous binder's random state: for two binders of
 one type that is the same value (`compare_version_strings(v, v)`), otherwise just another draw. -/
 instance {α : Type} [PyArb α] : Plausible.Arbitrary (Lit α) where
@@ -249,7 +264,7 @@ instance {α : Type} [PyArb α] : Plausible.Arbitrary (Lit α) where
     let replay := (← Plausible.Gen.choose Nat 0 4 (by omega)).val == 0
     let prev := swapLastDraw (← get).down
     if replay then if let some p := prev then set (ULift.up p)
-    return Lit.mk (← PyArb.arb)
+    return Lit.mk (noteDraw (← PyArb.arb))
 instance {α : Type} [PyArb α] : Plausible.SampleableExt (Lit α) := { proxy := Lit α, interp := id }
 
 /-- Plausible's verdict, with the proposition erased so it can leave compiled code. -/
@@ -344,10 +359,21 @@ unsafe def runPlausible (ob : Obligation) (names : Array Name) (cfg : RefuteConf
   let mut discarded := 0
   let mut round := 0
   while tested < cfg.numInst && (← IO.monoMsNow) < deadline do
+    plausibleDraws.set (#[], ← IO.monoMsNow)
     let task ← IO.asTask (io (cfg.seed + round * 7919))
     round := round + 1
-    while !(← IO.hasFinished task) && (← IO.monoMsNow) < deadline do IO.sleep 2
+    let mut stuck : Option (List PyLit) := none
+    while !(← IO.hasFinished task) && (← IO.monoMsNow) < deadline do
+      let (ds, lastMs) ← plausibleDraws.get
+      -- no draw for a per-case deadline: the property is stuck on the latest draws
+      if (← IO.monoMsNow) - lastMs > cfg.perCaseMs && ds.size ≥ names.size then
+        stuck := some (ds.extract (ds.size - names.size) ds.size).toList
+        break
+      IO.sleep 2
     let ms := (← IO.monoMsNow) - started
+    if let some ws := stuck then
+      return some { status := .refuted, witness? := some ws, hang := true, tested, discarded, ms,
+                    seed := cfg.seed, engine := "plausible" }
     -- An unfinished run keeps its thread busy: flag it so the driver restarts the backend.
     if !(← IO.hasFinished task) then
       return some { status := .timeout, tested, discarded, ms, seed := cfg.seed, engine := "plausible", hang := true }

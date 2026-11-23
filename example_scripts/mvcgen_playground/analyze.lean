@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -19,13 +18,13 @@ noncomputable def analyze := fun (xs : List Int) ↦ fun (threshold : Int) ↦
   (do
     let mut total : Int := (0 : Int)
     let mut count : Int := (0 : Int)
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       let _ := Libraries.passta.pyPassInvariant (decide (count ≥ (0 : Int)))
       total := total +ₚ x
       if h_1 : x > threshold then 
         count := count +ₚ (1 : Int)
     let mut ss : Int := (0 : Int)
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       let _ := Libraries.passta.pyPassInvariant (decide (ss ≥ (0 : Int)))
       ss := ss +ₚ x ^ₚ (2 : Int)
     let mut avg := default
@@ -53,7 +52,7 @@ theorem analyze_spec : ⦃⌜PastaLean.pyLen xs > (0 : Int)⌝⦄ analyze xs thr
     mvcgen [analyze, PastaLean.pyRange_forIn, PastaLean.pyRange_forIn_start] invariants
     · ⇓⟨cur, total, count⟩ => ⌜count ≥ (0 : Int)⌝
     · ⇓⟨cur, ss⟩ => ⌜ss ≥ (0 : Int)⌝
-  simp_all (config := { zetaDelta := true }) [taste_ingr]; all_goals sorry
+  simp_all (config := { zetaDelta := true }) [taste_ingr]; simp_all (config := { zetaDelta := true }) [taste_ingr]; positivity; sorry; sorry
   all_goals sorry
 
 def analyze'rn : List Int → Int → PastaLean.PyExcept Float := fun (xs : List Int) ↦ fun (threshold : Int) ↦ do
@@ -61,14 +60,14 @@ def analyze'rn : List Int → Int → PastaLean.PyExcept Float := fun (xs : List
   -- Loop 1: running total + count of entries above the threshold.
   let mut total : Int := (0 : Int)
   let mut count : Int := (0 : Int)
-  for x in (PastaLean.pyIter xs)do
+  for x in (PastaLean.pyIter xs) do
     let _ := Libraries.passta.pyPassInvariant (decide (count ≥ (0 : Int)))
     total := total +ₚ x
     if h_1 : x > threshold then 
       count := count +ₚ (1 : Int)
   -- Loop 2: sum of squares (uses exponentiation).
   let mut ss : Int := (0 : Int)
-  for x in (PastaLean.pyIter xs)do
+  for x in (PastaLean.pyIter xs) do
     let _ := Libraries.passta.pyPassInvariant (decide (ss ≥ (0 : Int)))
     ss := ss +ₚ x ^ₚ (2 : Int)
   -- if/else + math library + exception handling.

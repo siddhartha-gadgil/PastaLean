@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -25,7 +24,7 @@ def check_code'rn := fun (code : String) ↦ (show Unit from ())
 def check_codes : List String → PastaLean.ProofMode.PyProofM Unit := fun (codes : List String) ↦ do
   if h_1 : PastaLean.pyLen codes = (0 : Int) then 
     throw (PastaLean.PyException.Raise "ValueError" (ToString.toString "no codes"))
-  for c in (PastaLean.pyIter codes)do
+  for c in (PastaLean.pyIter codes) do
     let _ := check_code c
 
 attribute [simp] check_codes
@@ -33,7 +32,7 @@ attribute [simp] check_codes
 def check_codes'rn : List String → PastaLean.PyExcept Unit := fun (codes : List String) ↦ do
   if h_1 : PastaLean.pyLen codes == (0 : Int) then 
     throw (PastaLean.PyException.Raise "ValueError" (ToString.toString "no codes"))
-  for c in (PastaLean.pyIter codes)do
+  for c in (PastaLean.pyIter codes) do
     let _ := check_code'rn c
 
 def describe : List String → Option String → PastaLean.ProofMode.PyProofM String := fun (codes : List String) ↦
@@ -66,7 +65,7 @@ def is_short'rn := fun (code : String) ↦ (show Unit from ())
 def all_short := fun (codes : List String) ↦
   Id.run
     (do
-      for c in (PastaLean.pyIter codes)do
+      for c in (PastaLean.pyIter codes) do
         let _ := is_short c
       return Bool.true)
 
@@ -75,7 +74,7 @@ attribute [simp, taste_ingr] all_short
 def all_short'rn := fun (codes : List String) ↦
   Id.run
     (do
-      for c in (PastaLean.pyIter codes)do
+      for c in (PastaLean.pyIter codes) do
         let _ := is_short'rn c
       return Bool.true)
 

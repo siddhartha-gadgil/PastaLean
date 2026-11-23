@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -22,7 +21,7 @@ def beautiful := fun (s : String) ↦ fun (k : Int) ↦
         cc := PastaLean.pyModifyItem cc (0 : Int) (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (0 : Int) p'_setval_1)
         let mut ans : PyAny := (0 : Int)
         let mut cur : Int := (0 : Int)
-        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s (1 : Int)))do
+        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s (1 : Int))) do
           let i := Prod.fst p'_pair_1
           let x := Prod.snd p'_pair_1
           cur := cur +ₚ if PastaLean.pyContains "aeiou" x then (1 : Int) else -(1 : Int)
@@ -42,7 +41,7 @@ def beautiful'rn := fun (s : String) ↦ fun (k : Int) ↦
         cc := PastaLean.pyModifyItem cc (0 : Int) (fun p'_row_1 => PastaLean.pySetItem p'_row_1 (0 : Int) p'_setval_1)
         let mut ans : PyAny := (0 : Int)
         let mut cur : Int := (0 : Int)
-        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s (1 : Int)))do
+        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s (1 : Int))) do
           let i := Prod.fst p'_pair_1
           let x := Prod.snd p'_pair_1
           cur := cur +ₚ if PastaLean.pyContains "aeiou" x then (1 : Int) else -(1 : Int)
@@ -57,10 +56,10 @@ def arithmetic := fun (nums : List Int) ↦
       (do
         let mut f := (PastaLean.pyIter nums).map fun (_ : Int) => Libraries.collections.pyDefaultDictInt
         let mut ans : PyAny := (0 : Int)
-        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
           let i := Prod.fst p'_pair_1
           let x := Prod.snd p'_pair_1
-          for j in (PastaLean.pyRange i)do
+          for j in (PastaLean.pyRange i) do
             let mut d : Int := x -ₚ nums⦋j⦌
             ans := ans +ₚ f⦋j⦌⦋d⦌
             let p'_setval_1 := f⦋i⦌⦋d⦌ +ₚ (f⦋j⦌⦋d⦌ +ₚ (1 : Int))
@@ -75,10 +74,10 @@ def arithmetic'rn := fun (nums : List Int) ↦
       (do
         let mut f := (PastaLean.pyIter nums).map fun (_ : Int) => Libraries.collections.pyDefaultDictInt
         let mut ans : PyAny := (0 : Int)
-        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums))do
+        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate nums)) do
           let i := Prod.fst p'_pair_1
           let x := Prod.snd p'_pair_1
-          for j in (PastaLean.pyRange i)do
+          for j in (PastaLean.pyRange i) do
             let mut d : Int := x -ₚ nums⦋j⦌
             ans := ans +ₚ f⦋j⦌⦋d⦌
             let p'_setval_1 := f⦋i⦌⦋d⦌ +ₚ (f⦋j⦌⦋d⦌ +ₚ (1 : Int))

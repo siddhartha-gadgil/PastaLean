@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -95,7 +94,7 @@ def lmbda_with_side_effects :=
   Id.run
     (do
       let mut result : List Int := []
-      for x in (PastaLean.pyRange (5 : Int))do
+      for x in (PastaLean.pyRange (5 : Int)) do
         result := PastaLean.pyAppend result (x *ₚ x)
       let p'_ret_1 := fun (y : Unit) ↦ result
       return p'_ret_1)
@@ -106,7 +105,7 @@ def lmbda_with_side_effects'rn :=
   Id.run
     (do
       let mut result : Array Int := #[]
-      for x in (PastaLean.pyRange (5 : Int))do
+      for x in (PastaLean.pyRange (5 : Int)) do
         result := PastaLean.pyArrayAppend result (x *ₚ x)
       let p'_ret_1 := fun (y : Unit) ↦ result
       return p'_ret_1)
