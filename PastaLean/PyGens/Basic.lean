@@ -4,6 +4,7 @@ import PastaLean.Codegen
 import PastaLean.PyAPI
 import PastaLean.PyGens.Attributes
 import PastaLean.PyAPI.BuiltinRegistry
+import PastaLean.PyVerify.Twin.Table
 open Lean Meta Elab Term Qq Std
 
 namespace PastaLean
@@ -704,7 +705,7 @@ def binOpSyntax : (kind : SyntaxNodeKind) → Json →
     -- `Array` (`#[x]`) via its own `_seq` stamp, so `pyArrayRepeat` receives an `Array`.
     if op == "mul" then
       let arrayBacked := (json.getObjValAs? String "_seq" == .ok "array") && (← getNumericMode) == .approx
-      let repeatIdent := mkIdent (if arrayBacked then ``PastaLean.pyArrayRepeat else ``PastaLean.pyListRepeat)
+      let repeatIdent := mkIdent (if arrayBacked then Twin.runPrim ``PastaLean.pyListRepeat else ``PastaLean.pyListRepeat)
       -- The `[x]` operand is consumed by `pyListRepeat`, which wants a bare list — NOT a heap cell. Under
       -- `--heap` the ordinary List generator wraps a literal in `(← allocM …)`, which would hand
       -- `pyListRepeat` a `Ref`; regenerate the operand raw here (any heap-ness of the RESULT is applied at

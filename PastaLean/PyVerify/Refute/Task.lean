@@ -1,5 +1,6 @@
 import PastaLean.PyVerify.Refute.Tactic
 import PastaLean.PyVerify.Refute.Solve
+import PastaLean.PyVerify.Refute.Smt
 import PastaLean.PyAPI.RunPure
 
 /-!
@@ -49,7 +50,8 @@ def configOfJson (j : Json) (base : RefuteConfig) : RefuteConfig :=
               enumMax := n "enumMax" base.enumMax,
               plausible := (j.getObjValAs? Bool "plausible").toOption.getD base.plausible,
               solver := (j.getObjValAs? Bool "solver").toOption.getD base.solver,
-              intCap := n "intCap" base.intCap }
+              intCap := n "intCap" base.intCap,
+              smt := (j.getObjValAs? Bool "smt").toOption.getD base.smt }
 
 /-- A program constant with its universe parameters (if any) set to `0`, ready to evaluate. -/
 def constZ (n : Name) : MetaM Expr := do
@@ -226,7 +228,10 @@ def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : Te
   if let some (ty, _) := provTy?.filter (fun _ => cfg.solver) then
     try
       let ty ← instantiateMVars ty
-      match ← budgeted (solveObligation ty) with
+      let t0 ← IO.monoMsNow
+      let r ← budgeted (solveObligation ty)
+      fields := fields.push ("solverMs", toJson ((← IO.monoMsNow) - t0))
+      match r with
       | .proved => fields := fields.push ("solver", Json.mkObj [("status", toJson "proved")])
       | .model vals =>
         let names ← obligationBinders ty
@@ -240,6 +245,10 @@ def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : Te
         fields := fields.push ("solver", Json.mkObj [("status", toJson "unknown"), ("why", toJson (why.take 300))])
     catch e => fields := fields.push ("solver", Json.mkObj [("status", toJson "unknown"),
       ("why", toJson ((← e.toMessageData.toString).take 300))])
+  if let some (ty, _) := provTy?.filter (fun _ => cfg.smt) then
+    let (j, ws?) ← Smt.smtStep (← instantiateMVars ty) (min cfg.timeMs 5000)
+    fields := fields.push ("smt", j)
+    if let some ws := ws? then witnesses := witnesses.push ("smt", ws)
   -- Runnable world: the `'rn` checker over its own types (Float, Array).
   if let some chk := t.runChk? then
     try
@@ -257,6 +266,9 @@ def runTarget (t : Target) (cfg : RefuteConfig) (extra : List (List PyLit)) : Te
       for seed in seeds.eraseDups.take 3 do
         if let some ws ← (try budgeted (solvePlateau (← instantiateMVars ty) seed) catch _ => pure none) then
           if !witnesses.any (·.2 == ws) then witnesses := witnesses.push ("plateau", ws)
+        if cfg.smt then
+          if let some ws ← (try budgeted (Smt.smtPlateau (← instantiateMVars ty) seed 2000) catch _ => pure none) then
+            if !witnesses.any (·.2 == ws) then witnesses := witnesses.push ("smt-plateau", ws)
   for ws in extra do witnesses := witnesses.push ("given", ws)
   -- Cross-check every witness in both worlds; certify the first one (from any engine) that refutes the
   -- theorem in the provable twin.

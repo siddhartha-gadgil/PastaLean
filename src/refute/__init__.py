@@ -206,7 +206,7 @@ def _request_env(name: str, default: str) -> str:
 
 def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int | None = None,
                   per_case_ms: int = 1000, only: str | None = None, tests: int = 1000,
-                  equiv: list[tuple[str, str]] | None = None) -> RefuteReport:
+                  equiv: list[tuple[str, str]] | None = None, smt: bool = False) -> RefuteReport:
     """Search for counterexamples to every obligation in `source`, in Lean only, and classify each one
     across the worlds. Python supplies the program and its contracts; the search runs over the
     translated twins (the `refute?` machinery), and CPython only executes the witnesses Lean found, as
@@ -246,6 +246,7 @@ def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int 
         per_world = int(max(0, left_ms) / max(1, len(obs)) * 0.45)
         config = {"seed": seed, "timeMs": max(per_world, 300), "perCaseMs": per_case_ms, "numInst": tests,
                   # experiments: e.g. {"plausible": false, "solver": false} to measure one engine alone
+                  **({"smt": True} if smt else {}),
                   **json.loads(_request_env("PASTALEAN_REFUTE_CONFIG", "{}"))}
         lean_out = sess.client.refute(code, targets, [], config) or {}
         if not lean_out.get("result") and not lean_out.get("error"):
@@ -263,7 +264,8 @@ def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int 
                            "; ".join(lean_out["instanceErrors"]))
         lean_by_id = {t["id"]: t for t in lean_out.get("targets", [])}
         # A non-terminating evaluation leaves its thread spinning in the backend; restart it.
-        if any((t.get(w) or {}).get("hang") for t in lean_out.get("targets", []) for w in ("prov", "run")) \
+        if any((t.get(w) or {}).get(k) for t in lean_out.get("targets", []) for w in ("prov", "run")
+               for k in ("hang", "busy")) \
                 or any(t.get("judgeHang") for t in lean_out.get("targets", [])):
             sess.client.close()
 
@@ -317,7 +319,8 @@ def refute_source(source: str, *, session=None, seed: int = 24301, time_ms: int 
             reports.append(ObligationReport(
                 o.name, o.kind, o.theorem if "theorem" in next((t for t in targets if t["id"] == o.name), {}) else None,
                 [n for n, _ in o.params], verdict, best, proof, ws,
-                {"prov": lt.get("prov") or {}, "run": lt.get("run") or {}, "solver": solver},
+                {"prov": lt.get("prov") or {}, "run": lt.get("run") or {}, "solver": solver,
+                 **{k: lt[k] for k in ("smt", "solverMs") if k in lt}},
                 lt.get("error") or judged.get("error")))
         return RefuteReport(reports, lean_code=code)
     finally:

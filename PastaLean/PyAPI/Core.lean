@@ -180,11 +180,11 @@ def pyListSlice {α : Type} (xs : List α) (start : Option Int) (stop : Option I
 reverses; `xs[::2]` takes every other element). Implements CPython's index clamping: with a
 positive step the bounds clamp into `[0, len]`, with a negative step into `[-1, len-1]`, then it
 walks `start, start+step, …` while still on the correct side of `stop`. A `step` of `0` (a Python
-`ValueError`) yields `[]`. -/
+`ValueError`) is a `pyPanic`, logically `[]`. -/
 def pyListSliceStep {α : Type} (xs : List α) (start stop step : Option Int) : List α :=
   let len : Int := xs.length
   let s : Int := step.getD 1
-  if s == 0 then []
+  if s == 0 then pyPanic "ValueError: slice step cannot be zero"
   else
     let arr := xs.toArray
     let clampPos (i : Int) : Int := if i < 0 then max 0 (len + i) else min i len

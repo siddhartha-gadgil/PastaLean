@@ -1,5 +1,6 @@
 import PastaLean.PyVerify.Refute.Obligation
 import PastaLean.PyVerify.Refute.Solve
+import PastaLean.PyVerify.Refute.Smt
 import PastaLean.PyAPI.TasteIngr
 import Mathlib.Tactic.Linter.UnusedTactic
 
@@ -60,7 +61,7 @@ def certify (ty : Expr) (names : Array (Name × Expr)) (ws : List PyLit) : TermE
     let remaining ← Term.withoutErrToSorry <| Tactic.run mvar.mvarId! (evalTactic stx)
     if !remaining.isEmpty then saved.restore; return none
     let pf ← instantiateMVars mvar
-    if pf.hasSorry || pf.hasSyntheticSorry then saved.restore; return none
+    if ← restsOnSorry pf then saved.restore; return none
     saved.restore
     return some line
   catch _ =>
@@ -94,16 +95,24 @@ inductive SolverVerdict where
   | proved
   | none
 
-def trySolver (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM SolverVerdict := do
+def trySolver (ty : Expr) (maxHeartbeats : Nat := 400000) (smt := false) : TermElabM SolverVerdict := do
+  let refuted (names : Array (Name × Expr)) (ws : List PyLit) : TermElabM (Option SolverVerdict) := do
+    -- The model may lean on functions the solver left uninterpreted: only a kernel-checked refutation counts.
+    let some cert ← certify ty names ws | return none
+    return some (.refuted { status := .refuted, witness? := some ws, tested := 1 } names cert)
   match ← solveObligation ty maxHeartbeats with
   | .proved => return .proved
   | .model vals =>
     let names ← obligationBinders ty
-    let some ws ← modelWitness names vals | return .none
-    -- The model may lean on functions `grind` left uninterpreted: only a kernel-checked refutation counts.
-    let some cert ← certify ty names ws | return .none
-    return .refuted { status := .refuted, witness? := some ws, tested := 1 } names cert
-  | .unknown _ => return .none
+    if let some ws ← modelWitness names vals then
+      if let some v ← refuted names ws then return v
+  | .unknown _ => pure ()
+  if smt then
+    if let .sat vals ← Smt.smtSolve ty then
+      let names ← obligationBinders ty
+      if let some ws ← Smt.smtWitness names vals then
+        if let some v ← refuted names ws then return v
+  return .none
 
 @[tactic refuteStx] def evalRefute : Tactic := fun stx => withMainContext do
   let cfg ← elabRefuteConfig stx[1]
@@ -119,7 +128,7 @@ def trySolver (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM SolverVerd
     let saved ← saveState
     try evalTactic tac; logInfo msg
     catch _ => saved.restore; logInfo msg
-  match ← trySolver ty with
+  match ← trySolver ty (smt := cfg.smt) with
   | .refuted o names cert => throwError (describe o names (some cert))
   | .proved =>
       closeWith (← `(tactic| grind)) "refute?: no counterexample exists — grind proves this goal for every input"
@@ -146,7 +155,7 @@ syntax (name := refuteCmd) "#refute " ident Lean.Parser.Tactic.optConfig : comma
   liftTermElabM do
   let declName ← realizeGlobalConstNoOverloadWithInfo stx[1]
   let ty ← instantiateMVars (← getConstInfo declName).type
-  match ← trySolver ty with
+  match ← trySolver ty (smt := cfg.smt) with
   | .refuted o names cert => logWarning (describe o names (some cert)); return
   | .proved => logInfo m!"#refute: no counterexample exists — grind proves {declName} for every input"; return
   | .none => pure ()

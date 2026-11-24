@@ -35,14 +35,32 @@ unsafe def bootEnv : IO Environment := do
 def stripImports (code : String) : String :=
   String.intercalate "\n" ((code.splitOn "\n").filter (fun l => ¬ l.trimAscii.startsWith "import "))
 
-/-- Elaborate a generated program in `env`; `none` on success, else the first error message. -/
+/-- Whether to run the twin-refinement check (`#twin_check`, `PastaLean/PyVerify/Twin/Check.lean`) on each
+program after it elaborates. Off with `--no-twin`. -/
+initialize twinCheckEnabled : IO.Ref Bool ← IO.mkRef true
+
+/-- Per-pair twin verdicts (`{f, decl, verdict, detail}`) of the last checked program. -/
+initialize lastTwinReport : IO.Ref (Array Json) ← IO.mkRef #[]
+
+/-- Elaborate a generated program in `env`; `none` on success, else the first error message. With
+the twin check on, `#twin_check` is appended IN MEMORY (never written to the generated file) and its
+verdicts are left in `lastTwinReport`. -/
 def checkProgram (env : Environment) (code : String) : IO (Option String) := do
-  let src := stripImports code
+  lastTwinReport.set #[]
+  let twin ← twinCheckEnabled.get
+  let src := stripImports code ++ (if twin then "\n\n#twin_check\n" else "")
   let inputCtx := Parser.mkInputContext src "<check>"
   let cmdState := Command.mkState env {} {}
   let frontendState ← Lean.Elab.IO.processCommands inputCtx {} cmdState
   let msgs := frontendState.commandState.messages
-  unless msgs.hasErrors do return none
+  unless msgs.hasErrors do
+    if twin then
+      for msg in msgs.toList do
+        let s ← msg.data.toString
+        if let some j := s.dropPrefix? "twin-report: " then
+          if let .ok r := Json.parse j.toString then
+            lastTwinReport.set ((r.getObjValAs? (Array Json) "pairs").toOption.getD #[])
+    return none
   for msg in msgs.toList do
     if msg.severity == .error then
       let s := (← msg.data.toString).trimAscii.toString
@@ -164,6 +182,28 @@ unsafe def runEvalLoop : IO UInt32 := do
         stdout.putStr s!"===PACEVAL-BEGIN===\n{out}\n===PACEVAL-END===\n"; stdout.flush
   return 0
 
+/-- Twin coverage: one line per verdict category, and every pair's verdict in
+`/tmp/pastacheck_twins.json`. Informational — a twin that is not proved never fails the suite. -/
+def reportTwins (twins : Array (String × Json)) : IO Unit := do
+  let tag (j : Json) := (j.getObjValAs? String "verdict").toOption.getD "?"
+  let mut counts : Std.HashMap String Nat := {}
+  for (_, j) in twins do counts := counts.insert (tag j) (counts.getD (tag j) 0 + 1)
+  let n (k : String) := counts.getD k 0
+  let inScope := ["proved", "proved_mod_partial", "partial_step_equiv", "type", "proof"]
+  let outLabel := [("float", "float"), ("io_main", "IO entry point"), ("monad", "monad"), ("class", "class"),
+    ("memo", "memo"), ("while", "while over Array state"), ("partial", "partial"),
+    ("partial_callee", "partial callee")]
+  let others := (counts.toList.map (·.1)).filter fun k => !inScope.contains k && !(outLabel.map (·.1)).contains k
+  let outs := (outLabel.filter (n ·.1 > 0)).map (fun (k, l) => s!"{l} {n k}") ++ others.map (fun k => s!"{k} {n k}")
+  IO.println s!"=== twins: {twins.size} function pairs (f, f'rn); each checked in Lean for f'rn ≡ f on all inputs ==="
+  IO.println s!"    in scope ({inScope.foldl (fun a k => a + n k) 0} pairs, types related by TwinRel): proved {n "proved" + n "proved_mod_partial"} ({n "proved"} outright, {n "proved_mod_partial"} assuming partial callees), step-equivalent {n "partial_step_equiv"} (partial def), unproved {n "type" + n "proof"}"
+  IO.println s!"    out of scope (equality is not the relation): {", ".intercalate outs}"
+  for (f, j) in twins do
+    if tag j == "proof" || tag j == "type" then
+      IO.println s!"    unproved: {f} :: {(j.getObjValAs? String "f").toOption.getD "?"}"
+  let arr := twins.map fun (f, j) => Json.mkObj [("file", toJson f), ("pair", j)]
+  IO.FS.writeFile "/tmp/pastacheck_twins.json" (Json.arr arr).pretty
+
 /-- Sort records by file path, for stable output. -/
 def byFile (recs : Array Json) : Array Json :=
   recs.qsort (fun a b => (a.getObjValAs? String "file").toOption.getD "" < (b.getObjValAs? String "file").toOption.getD "")
@@ -171,6 +211,8 @@ def byFile (recs : Array Json) : Array Json :=
 unsafe def main (args : List String) : IO UInt32 := do
   -- `palc eval`: warm evaluation backend for cp_harness (stdin-driven). Otherwise: example checks.
   if args.head? == some "eval" then return (← runEvalLoop)
+  if args.contains "--no-twin" then twinCheckEnabled.set false
+  let args := args.filter (!·.startsWith "--")
   let base : System.FilePath := "example_scripts"
   let g := args.head?                                   -- optional subdirectory (`lake exe palc typing`)
   let dir := match g with | some d => base / d | none => base
@@ -179,22 +221,31 @@ unsafe def main (args : List String) : IO UInt32 := do
   let env ← bootEnv
   -- Collect (file, verdict) across both passes, then tally once.
   let mut results : Array (String × Verdict) := #[]
+  let mut twins : Array (String × Json) := #[]
   -- Value-semantics sweep (skips heap/, imports/, terms/). Skipped when targeting heap only.
   unless g == some "heap" do
     IO.println "Translating every example (value semantics, one warm backend)…"
     for rec in byFile (← translateAll pyBin dir) do
       if let some v ← checkRecord env rec then
-        results := results.push ((rec.getObjValAs? String "file").toOption.getD "", v)
+        let file := (rec.getObjValAs? String "file").toOption.getD ""
+        results := results.push (file, v)
+        twins := twins ++ (← lastTwinReport.get).map (file, ·)
   -- Reference-semantics sweep: `heap/` under `--heap --mode both` (exact + runnable twins in ONE
   -- program). Runs on the full suite or when targeting heap; the value sweep can't check these.
   if g == none || g == some "heap" then
     let heapDir := base / "heap"
     if (← heapDir.pathExists) then
       IO.println "Translating heap examples (--heap --mode both)…"
+      -- the heap model's twins share one `Val` universe; the twin relation does not cover it yet
+      let twin ← twinCheckEnabled.get
+      twinCheckEnabled.set false
       let hrecords ← translateAll pyBin heapDir #["--heap"] "/tmp/pastacheck_heap_summary.json"
       for rec in byFile hrecords do
         if let some v ← checkRecord env rec (bypassSkip := true) then
-          results := results.push ((rec.getObjValAs? String "file").toOption.getD "", v)
+          let file := (rec.getObjValAs? String "file").toOption.getD ""
+          results := results.push (file, v)
+          twins := twins ++ (← lastTwinReport.get).map (file, ·)
+      twinCheckEnabled.set twin
   let mut ok := 0
   let mut fails := 0
   for (rel, v) in results do
@@ -202,4 +253,5 @@ unsafe def main (args : List String) : IO UInt32 := do
     | .ok => ok := ok + 1; IO.println s!"  OK            {rel}"
     | _ => fails := fails + 1; IO.println s!"  {v.tag}  {rel}: {v.detail}"
   IO.println s!"\n=== {ok} OK, {fails} FAILED ==="
+  if ← twinCheckEnabled.get then reportTwins twins
   return if fails == 0 then 0 else 1

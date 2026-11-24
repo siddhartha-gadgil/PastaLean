@@ -1066,14 +1066,7 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
               else if attr == "pop" && argsArray.size == 1 && (← jsonIsDictExpr valueJson) then
                 pure ``PastaLean.pyDictKeyPopRest
               else if (json.getObjValAs? String "_seq" == .ok "array") && (← getNumericMode) == .approx then
-                pure (match attr with
-                  | "append" => ``PastaLean.pyArrayAppend
-                  | "extend" => ``PastaLean.pyArrayExtend
-                  | "reverse" => ``PastaLean.pyArrayReverse
-                  | "insert" => ``PastaLean.pyArrayInsert
-                  | "pop" => ``PastaLean.pyArrayPopRest
-                  | "popleft" => ``PastaLean.pyArrayPopLeftRest
-                  | _ => rebuildFn)
+                pure (Twin.runPrim rebuildFn)
               else pure rebuildFn
             let fnIdent := mkIdent rebuildFn
             return ← mutatingMethodDoElem valueJson fun recv => `($fnIdent $recv $argCodes*)

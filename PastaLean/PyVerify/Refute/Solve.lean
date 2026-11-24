@@ -63,6 +63,24 @@ def operatorUnfolds : List Name :=
 /-- Runtime definitions `grind` may instantiate by their equations (Python `%` and `//` on ints). -/
 def solverEquations : List Name := [``PastaLean.pyMod, ``PastaLean.pyRaiseOr]
 
+/-- Does `pf` rest on `sorry`, directly or through a constant it uses? In a refute module every
+theorem is admitted, so `grind +suggestions` can otherwise "prove" a false goal from its own spec. Only
+the program's own constants are followed: the libraries it is checked against are built sorry-free. -/
+partial def restsOnSorry (pf : Expr) : CoreM Bool := do
+  if pf.hasSorry || pf.hasSyntheticSorry then return true
+  let env ← getEnv
+  let mut seen : NameSet := {}
+  let mut todo := pf.getUsedConstants.toList.filter (isProgramConst ·)
+  while !todo.isEmpty do
+    let c := todo.head!
+    todo := todo.tail!
+    if seen.contains c then continue
+    seen := seen.insert c
+    let some v := (env.find? c).bind (·.value?) | continue
+    if v.hasSorry || v.hasSyntheticSorry then return true
+    todo := (v.getUsedConstants.toList.filter (isProgramConst ·)) ++ todo
+  return false
+
 /-- Solve `∀ data, guards → body` (see the module doc), within `maxHeartbeats` (thousands). -/
 def solveObligation (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM SolveResult :=
   withTheReader Core.Context (fun ctx => { ctx with maxHeartbeats := maxHeartbeats * 1000 }) do
@@ -77,7 +95,10 @@ def solveObligation (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM Solv
         let simpStx ← `(tactic| simp only [$ids,*] at *)
         let goals ← try Term.TermElabM.run' (Tactic.run goal.mvarId! (evalTactic simpStx))
           catch _ => pure [goal.mvarId!]
-        let some g := goals.head? | return .proved
+        let proved : MetaM SolveResult := do
+          if ← restsOnSorry (← instantiateMVars goal) then return .unknown "the proof rests on sorry"
+          return .proved
+        let some g := goals.head? | proved
         let mut params ← Grind.mkDefaultParams {}
         for n in solverEquations do
           if (← getEnv).contains n then
@@ -85,7 +106,7 @@ def solveObligation (ty : Expr) (maxHeartbeats : Nat := 400000) : TermElabM Solv
               catch _ => pure params
         let r ← Grind.main g params
         match r.failure? with
-        | none => return .proved
+        | none => proved
         | some stuck =>
           let model ← Grind.Arith.Cutsat.mkModel stuck
           let lctx := (← stuck.mvarId.getDecl).lctx
@@ -166,7 +187,7 @@ def tasteProves (ty : Expr) (maxHeartbeats : Nat := 4000) : TermElabM Bool := do
         let goal ← mkFreshExprMVar ty
         let gs ← Term.TermElabM.run' (Tactic.run goal.mvarId! (evalTactic stx))
         let pf ← instantiateMVars goal
-        return gs.isEmpty && !pf.hasSorry && !pf.hasSyntheticSorry)
+        return gs.isEmpty && !(← restsOnSorry pf))
       (fun _ => return false)
 
 /-- A model's values as a witness for the data binders `names`: integers from the model, and the

@@ -63,12 +63,22 @@ pool to their `--jobs`, so they run warm.
    far it was from flipping (`|a − b|`, edit distance), and the values it compared. Inputs that reach new
    branches are kept and mutated; the input closest to an unreached branch is climbed toward it; compared
    values are spliced into inputs; two inputs are crossed for conjunctions; branches in loops also get
-   "every iteration" goals.
+   "every iteration" goals. Input-to-state (as in RedQueen): each comparison's operands are filed under
+   its branch, and an input that reaches new coverage, or comes closest yet to an unreached branch, queues
+   splices that put the other operand where the input holds one (`"0e0"`, compared at `s[2] == "-"`,
+   becomes `"0e-0"`); the queue fills every other draw.
+   Each evaluation runs under a per-case deadline in both engines (a watchdog over Plausible's latest
+   draws, and over the search's case in flight): an input the program loops on is reported as
+   `NONTERMINATION` with that input. A stuck evaluation cannot be cancelled, so the backend is restarted
+   after such a run.
 3. **`grind`** on the obligation (a proof, or a model to try), and at a plateau on the closest inputs'
    integer leaves; **`taste?`** proves what no input breaks.
+4. With `--smt` (off by default): the same query to z3/cvc5 (`Refute/Smt.lean`); its model is one more
+   witness, judged and certified like the others, and its `unsat` proves nothing. Nonlinear integer and
+   string constraints (`a*a + b*b == c*c`) are where it adds over `grind`; see `docs/smt.md`.
 
 Configuration (`refute? (config := { … })`, or the CLI's `--time`/`--tests`/`--seed`): `timeMs`
-(budget, default 1000), `numInst` (test cap), `seed`, `plausible`, `instrument`, `solver`, `intCap`. For
+(budget, default 1000), `numInst` (test cap), `seed`, `plausible`, `instrument`, `solver`, `smt`, `intCap`. For
 engine experiments from the shell: `PASTALEAN_REFUTE_CONFIG='{"plausible": false, "solver": false}'`.
 
 ## Benchmarks
@@ -82,7 +92,8 @@ uv run python mutants.py --limit 80 --per 2 --timeout 30      # mutation benchma
 uv run python contract_gaps.py                                # refute every contracted solution
 ```
 
-Current results: 30/32 on CrossHair's benchmark (CrossHair 29–30); 9 bugs and 0 false alarms on CrossHair's
-own examples (CrossHair 13 and 2); 56/58 contract-detectable mutants killed (median 3.8 s), 0 false alarms
-on the unmutated solutions; 33 of 464 corpus contracts refuted, each a missing precondition or a wrong
-contract (`results/contract_gaps.json`).
+Current results (60 s / 20 s / 30 s budgets, default seed; timings vary with machine load): 32/32 on
+CrossHair's benchmark (CrossHair 29–30); 9 bugs and 0 false alarms on CrossHair's own examples (CrossHair
+13 and 2); 58/58 contract-detectable mutants killed (median 0.9 s); the unmutated solutions refuted are all
+known contract gaps (5/80 sampled); 33 of 464 corpus contracts refuted, each a missing precondition or a
+wrong contract (`results/contract_gaps.json`).

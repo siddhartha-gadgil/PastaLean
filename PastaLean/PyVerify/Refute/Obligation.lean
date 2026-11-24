@@ -372,11 +372,11 @@ unsafe def runPlausible (ob : Obligation) (names : Array Name) (cfg : RefuteConf
       IO.sleep 2
     let ms := (← IO.monoMsNow) - started
     if let some ws := stuck then
-      return some { status := .refuted, witness? := some ws, hang := true, tested, discarded, ms,
+      return some { status := .refuted, witness? := some ws, hang := true, busy := true, tested, discarded, ms,
                     seed := cfg.seed, engine := "plausible" }
     -- An unfinished run keeps its thread busy: flag it so the driver restarts the backend.
     if !(← IO.hasFinished task) then
-      return some { status := .timeout, tested, discarded, ms, seed := cfg.seed, engine := "plausible", hang := true }
+      return some { status := .timeout, tested, discarded, ms, seed := cfg.seed, engine := "plausible", busy := true }
     match task.get with
     | .error _ => return none
     | .ok .passed => tested := tested + chunk
@@ -418,7 +418,7 @@ unsafe def refuteTypeUnsafe (ty : Expr) (cfg : RefuteConfig) :
       else withPools pools cfg do try runPlausible ob (names.map (·.1)) cfg catch _ => pure none
     if let some o := viaPlausible then
       if o.status == .refuted then return (o, names)
-    let plausibleHung := viaPlausible.any (·.hang)
+    let plausibleBusy := viaPlausible.any (·.busy)
     let build (cfg : RefuteConfig) : MetaM (Except String (IO SearchOutcome)) := do
       match ← searchExpr ob cfg with
       | .error why => return .error why
@@ -433,7 +433,7 @@ unsafe def refuteTypeUnsafe (ty : Expr) (cfg : RefuteConfig) :
     | .error why => return ({ status := .untestable why, seed := cfg.seed }, names)
     | .ok act =>
         let out ← withPools pools cfg act
-        return ({ out with hang := out.hang || plausibleHung }, names)
+        return ({ out with busy := out.busy || plausibleBusy }, names)
 
 @[implemented_by refuteTypeUnsafe]
 opaque refuteType (ty : Expr) (cfg : RefuteConfig) : MetaM (SearchOutcome × Array (Name × Expr))

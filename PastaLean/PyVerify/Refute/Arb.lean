@@ -13,6 +13,13 @@ namespace PastaLean.Refute
 
 open Plausible
 
+/-- The two operands of one comparison the program evaluated (`s[k] == "-"`, `n == 8314`): usually one
+comes from the input and the other is what it must become to flip the branch. -/
+inductive CmpPair where
+  | str (a b : String)
+  | int (a b : Int)
+  deriving BEq, Hashable, Inhabited, Repr
+
 class PyArb (α : Type) extends ToPyLit α where
   arb : Gen α
   shrink : α → List α := fun _ => []
@@ -29,6 +36,9 @@ class PyArb (α : Type) extends ToPyLit α where
   /-- A move toward a goal `d` away (branch distance): steps scaled to `d`, so climbing `|n² − 1764|`
   takes a few dozen moves rather than a random walk. A mutation by default. -/
   climb : α → Nat → Gen α := fun x _ => mutate x
+  /-- Input-to-state (as in RedQueen): where the value holds one operand of a comparison that steers a
+  branch, put the other (`"0e0"` compared at `s[2] == "-"` → `"0e-0"`). A mutation by default. -/
+  splice : α → CmpPair → Gen α := fun x _ => mutate x
 
 /-- `PyArb.arb` / `PyArb.mutate` for the fields of a generated class instance: not inlined, or compiling
 a class of ten `Option (List C)` fields takes ~25 s. -/
@@ -191,6 +201,14 @@ def climbInt (n : Int) (d : Nat) : Gen Int := do
   let step ← pickFrom steps
   return capInt (if ← Gen.chooseAny Bool then n + step else n - step)
 
+/-- `n` shifted by the gap between two compared integers (exactly onto the other one when `n` is the
+first), or one off it, for the strict side of `<`. -/
+def spliceInt (n : Int) : CmpPair → Gen Int
+  | .int a b => do
+      let (a, b) := if n == b then (b, a) else (a, b)
+      return capInt (n + (b - a) + (← pickFrom [0, 0, 1, -1]))
+  | .str .. => mutateInt n
+
 instance : PyArb Int where
   arb := genInt
   shrink := shrinkInt
@@ -198,6 +216,7 @@ instance : PyArb Int where
   fromPool _ := (pool ()).2.toList
   mutate := mutateInt
   climb := climbInt
+  splice := spliceInt
 
 instance : ToPyLit Nat := ⟨fun n => .int n⟩
 instance : PyArb Nat where
@@ -206,6 +225,7 @@ instance : PyArb Nat where
   enum d lim := (List.range (d + 1)).take lim
   mutate n := do return (← mutateInt n).toNat
   climb n d := do return (← climbInt n d).toNat
+  splice n p := do return (← spliceInt n p).toNat
 
 instance : ToPyLit Bool := ⟨.bool⟩
 instance : PyArb Bool where
@@ -260,6 +280,31 @@ def mutateString (str : String) : Gen String := do
       | 1 => cs.set k c
       | _ => cs.take k ++ c :: cs.drop k
   return String.ofList cs
+
+/-- Where `w` occurs in `cs`, by start index. -/
+def occurrences (cs w : List Char) : List Nat :=
+  if w.isEmpty then [] else (List.range (cs.length + 1 - w.length)).filter fun i => (cs.drop i).take w.length == w
+
+/-- One operand of a comparison put where the other occurs in `str` — in its place, or just before or
+after it (`s[k] == "-"` read the `"0"` at `k`, and the sign belongs in front of it); anywhere when
+neither occurs. An integer comparison is read as one over the numeral (`int(s) == 42`). -/
+def spliceString (str : String) (p : CmpPair) : Gen String := do
+  let (a, b) := match p with
+    | .str a b => (a.toList, b.toList)
+    | .int a b => ((toString a).toList, (toString b).toList)
+  let cs := str.toList
+  let (a, b) := if (occurrences cs a).isEmpty && !(occurrences cs b).isEmpty then (b, a) else (a, b)
+  match occurrences cs a with
+  | [] =>
+      if b.isEmpty then mutateString str else
+      let k := (← Gen.choose Nat 0 cs.length (by omega)).val
+      return String.ofList (cs.take k ++ b ++ cs.drop k)
+  | occ =>
+      let i ← pickFrom occ
+      return String.ofList <| match (← Gen.choose Nat 0 2 (by omega)).val with
+        | 0 => cs.take i ++ b ++ cs.drop (i + a.length)
+        | 1 => cs.take i ++ b ++ cs.drop i
+        | _ => cs.take (i + a.length) ++ b ++ cs.drop (i + a.length)
 
 instance : PyArb String where
   arb := do
@@ -323,6 +368,7 @@ instance : PyArb String where
     ["", String.ofList (cs.take (cs.length / 2)), String.ofList cs.tail, String.ofList cs.dropLast].eraseDups.filter (· != s)
   fromPool _ := (pool ()).1.toList
   mutate := mutateString
+  splice := spliceString
   crossover a b := do
     let k := (← Gen.choose Nat 0 a.length (by omega)).val
     if ← Gen.chooseAny Bool then return String.ofList (a.toList.take k ++ b.toList ++ a.toList.drop k)
@@ -413,6 +459,11 @@ instance [PyArb α] : PyArb (List α) where
     match xs[k]? with
     | some x => return xs.set k (← PyArb.climb x d)
     | none => pure xs
+  splice xs p := do
+    let k := (← Gen.choose Nat 0 (xs.length - 1) (by omega)).val
+    match xs[k]? with
+    | some x => return xs.set k (← PyArb.splice x p)
+    | none => return [← PyArb.arb]
 
 instance [ToPyLit α] : ToPyLit (Array α) := ⟨fun xs => .list (xs.toList.map ToPyLit.toLit)⟩
 instance [PyArb α] : PyArb (Array α) where
@@ -420,6 +471,7 @@ instance [PyArb α] : PyArb (Array α) where
   shrink xs := (PyArb.shrink xs.toList).map List.toArray
   mutate xs := do pure (← PyArb.mutate xs.toList).toArray
   climb xs d := do pure (← PyArb.climb xs.toList d).toArray
+  splice xs p := do pure (← PyArb.splice xs.toList p).toArray
   enum d lim := (PyArb.enum d lim : List (List α)).map List.toArray
 
 instance [ToPyLit α] : ToPyLit (Option α) := ⟨fun | some a => ToPyLit.toLit a | Option.none => .none⟩
@@ -435,6 +487,9 @@ instance [PyArb α] : PyArb (Option α) where
     | Option.none => do pure (some (← PyArb.arb))
   climb
     | some a, d => do pure (some (← PyArb.climb a d))
+    | Option.none, _ => do pure (some (← PyArb.arb))
+  splice
+    | some a, p => do pure (some (← PyArb.splice a p))
     | Option.none, _ => do pure (some (← PyArb.arb))
   enum d lim := (Option.none :: (PyArb.enum d lim).map some).take lim
 
@@ -459,6 +514,8 @@ instance [PyArb α] [PyArb β] : PyArb (α × β) where
     | _ => pure (← PyArb.crossover p.1 q.1, ← PyArb.crossover p.2 q.2)
   climb p d := do
     if ← Gen.chooseAny Bool then pure (← PyArb.climb p.1 d, p.2) else pure (p.1, ← PyArb.climb p.2 d)
+  splice p c := do
+    if ← Gen.chooseAny Bool then pure (← PyArb.splice p.1 c, p.2) else pure (p.1, ← PyArb.splice p.2 c)
   enum d lim := diagonal (PyArb.enum d lim) (PyArb.enum d lim) lim
 
 /-- A Python callable the search can print and CPython can rebuild: a finite table and a default.

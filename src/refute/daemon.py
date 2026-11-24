@@ -11,6 +11,7 @@ benchmark jobs stay warm too. One daemon per backend binary (a rebuild starts a 
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -35,9 +36,11 @@ def socket_path() -> Path | None:
         stamp = int(BACKEND_BINARY.stat().st_mtime)
     except OSError:
         return None
+    # the binary's path too: checkouts with copied build trees share mtimes
+    where = hashlib.sha1(str(BACKEND_BINARY.resolve()).encode()).hexdigest()[:8]
     d = Path(os.environ.get("XDG_RUNTIME_DIR") or Path.home() / ".cache") / "pastalean"
     d.mkdir(parents=True, exist_ok=True)
-    return d / f"refute-{stamp}.sock"
+    return d / f"refute-{where}-{stamp}.sock"
 
 
 def pool_size() -> int:

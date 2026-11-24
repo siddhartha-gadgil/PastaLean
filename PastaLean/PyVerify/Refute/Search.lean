@@ -50,6 +50,8 @@ structure RefuteConfig where
   /-- Magnitude bound on generated integers (`0`: none): set on the retry after the backend ran out of
   memory (a pool constant such as `10**9 + 7` drawn as a table size). -/
   intCap : Nat := 0
+  /-- Also ask an external SMT solver (`Refute/Smt.lean`) for a model; off by default. -/
+  smt : Bool := false
   deriving Repr, Inhabited, Lean.ToExpr
 
 inductive SearchStatus where
@@ -76,6 +78,9 @@ structure SearchOutcome where
   witness? : Option (List PyLit) := none
   /-- The witness made the property loop past `perCaseMs` instead of answering. -/
   hang : Bool := false
+  /-- An evaluation of this search is still running on a thread that cannot be cancelled (a hang, or a
+  run cut off at the deadline): the driver should restart the backend. Says nothing about the witness. -/
+  busy : Bool := false
   seed : Nat := 0
   /-- Which engine produced the outcome: `plausible` (primary) or `search` (enumeration/random fallback). -/
   engine : String := "search"
@@ -111,20 +116,33 @@ def errAllowed (allowed : List String) (kind : String) : Bool := allowed.any (Pa
 that way (a branch in a loop: `all(5 <= t <= 17 for t in times)` needs each iteration in range). -/
 abbrev Goal := Nat × Bool × Bool
 
-/-- Inputs that came closest to each goal not reached yet: distance and input. -/
-abbrev Targets (α : Type) := Std.HashMap Goal (Nat × α)
+/-- Inputs that came closest to each goal not reached yet: distance, input, and the operands the
+goal's branch compared on that input. -/
+abbrev Targets (α : Type) := Std.HashMap Goal (Nat × α × Array CmpPair)
+
+/-- What the coverage-guided search has learnt: inputs that reached a new branch direction, the
+directions reached, and for each direction not reached yet the input that came closest. -/
+structure CovState (α : Type) where
+  corpus : Array α := #[]
+  seen : Std.HashSet Goal := {}
+  targets : Targets α := {}
+  /-- Splices queued for the next draws: an input that came closest to a goal, and an operand pair its
+  branch compared (input-to-state, tried right away instead of waiting for the goal to be picked). -/
+  pending : Array (α × CmpPair) := #[]
 
 /-- How the search picks its next input and learns from an evaluation: coverage-guided over an
 instrumented program, or plain (fresh draws, nothing learnt). Passed in, so a plain search does not
 compile the coverage machinery when `evalExpr` specialises it to the input type. -/
 structure Strategy (α : Type) where
-  next : Array α → Targets α → Gen α
-  observe : α → Array α → Std.HashSet Goal → Targets α → IO (Array α × Std.HashSet Goal × Targets α)
+  next : CovState α → Gen α
+  observe : α → CovState α → IO (CovState α)
 
 /-- The next input of the coverage-guided search: a few times in ten, climb toward a branch direction
-not reached yet (mutate the input that came closest); otherwise mutate an input that reached new
-coverage, cross two of them, or draw a fresh one. -/
-def nextInput {α : Type} [PyArb α] (corpus : Array α) (targets : Targets α) : Gen α := do
+not reached yet (mutate the input that came closest, or put there the operand its branch compared
+against); otherwise mutate an input that reached new coverage, cross two of them, or draw a fresh one. -/
+def nextInput {α : Type} [PyArb α] (st : CovState α) : Gen α := do
+  let corpus := st.corpus
+  let targets := st.targets
   let k := (← Gen.choose Nat 0 9 (by omega)).val
   let mutateN (x : α) : Gen α := do
     let mut y := x
@@ -134,8 +152,10 @@ def nextInput {α : Type} [PyArb α] (corpus : Array α) (targets : Targets α) 
     -- among the closest few, so one unreachable branch does not absorb every step
     let best := (targets.toArray.qsort (fun a b => a.2.1 < b.2.1)).extract 0 8
     let i ← Gen.choose Nat 0 (best.size - 1) (by omega)
-    -- climb by steps scaled to the distance left, now and then a plain mutation
-    if let some (_, (d, x)) := best[i.val]? then
+    -- climb by steps scaled to the distance left, splice in a compared operand, or a plain mutation
+    if let some (_, (d, x, ps)) := best[i.val]? then
+      if !ps.isEmpty && (← Gen.chooseAny Bool) then
+        return ← PyArb.splice x ps[(← Gen.choose Nat 0 (ps.size - 1) (by omega)).val]!
       return ← if ← Gen.chooseAny Bool then PyArb.climb x d else mutateN x
   if k < 8 && !corpus.isEmpty then
     let i ← Gen.choose Nat 0 (corpus.size - 1) (by omega)
@@ -147,11 +167,14 @@ def nextInput {α : Type} [PyArb α] (corpus : Array α) (targets : Targets α) 
     if let (some x, some y) := (corpus[i.val]?, corpus[j.val]?) then return ← PyArb.crossover x y
   PyArb.arb
 
+/-- Splice attempts queued per operand pair, and the queue's bound (the oldest are dropped). -/
+def splicesPerPair : Nat := 3
+def pendingMax : Nat := 2048
+
 /-- Fold the coverage the last evaluation of `x` logged into the search state, and add the operands its
 comparisons logged to the literal pool (`x == 8314` makes `8314` drawable). -/
-def observeCoverage {α : Type} (x : α) (corpus : Array α) (seen : Std.HashSet Goal) (targets : Targets α) :
-    IO (Array α × Std.HashSet Goal × Targets α) := do
-  let (log, (ss, is)) ← takeCoverage
+def observeCoverage {α : Type} (x : α) (st : CovState α) : IO (CovState α) := do
+  let (log, (ss, is), pairs) ← takeCoverage
   -- each goal this evaluation reached, and for each goal it did not, how far it was
   let mut reached : Array Goal := #[]
   let mut near : Array (Goal × Nat) := #[]
@@ -166,31 +189,54 @@ def observeCoverage {α : Type} (x : α) (corpus : Array α) (seen : Std.HashSet
     if t + f ≥ 2 then
       if f == 0 then reached := reached.push (id, true, true) else near := near.push ((id, true, true), dt)
       if t == 0 then reached := reached.push (id, false, true) else near := near.push ((id, false, true), df)
-  let mut corpus := corpus
-  let mut seen := seen
-  let mut targets := targets
+  let mut st := st
   let mut fresh := false
   for g in reached do
-    if !seen.contains g then
-      seen := seen.insert g
-      targets := targets.erase g
+    if !st.seen.contains g then
+      st := { st with seen := st.seen.insert g, targets := st.targets.erase g }
       fresh := true
+  -- the operand pairs per branch, collected once
+  let mut byBranch : Std.HashMap Nat (Array CmpPair) := {}
+  for (id, p) in pairs do
+    let ps := byBranch.getD id #[]
+    if ps.size < 16 && !ps.contains p then byBranch := byBranch.insert id (ps.push p)
+  -- Splices to queue (input-to-state, as RedQueen does for each new input in its queue): the operands of
+  -- each goal this input came closest to yet, and, when it reached new coverage, of every comparison it
+  -- made, covered or not (a bug may need a branch taken already, on this input: a sign after `0e`).
+  let mut closerPairs : Array CmpPair := #[]
   for (g, d) in near do
-    if !seen.contains g && targets[g]?.all (d < ·.1) then targets := targets.insert g (d, x)
-  if fresh && corpus.size < 512 then corpus := corpus.push x
+    if !st.seen.contains g && st.targets[g]?.all (d < ·.1) then
+      let ps := byBranch.getD g.1 #[]
+      st := { st with targets := st.targets.insert g (d, x, ps) }
+      for p in ps do if closerPairs.size < 64 && !closerPairs.contains p then closerPairs := closerPairs.push p
+  let mut nearPairs : Array CmpPair := #[]
+  if fresh then
+    for (_, p) in pairs do
+      if nearPairs.size ≥ 64 then break
+      if !nearPairs.contains p && !closerPairs.contains p then nearPairs := nearPairs.push p
+  if !closerPairs.isEmpty || !nearPairs.isEmpty then
+    let mut pending := st.pending
+    -- the queue is taken from the back: the closer goals' operands first
+    for p in nearPairs ++ closerPairs do
+      for _ in [0:splicesPerPair] do pending := pending.push (x, p)
+    st := { st with pending := if pending.size > pendingMax then pending.extract (pending.size - pendingMax) pending.size else pending }
+  if fresh && st.corpus.size < 512 then st := { st with corpus := st.corpus.push x }
   if !ss.isEmpty || !is.isEmpty then
     cmpPool.modify fun (ps, pi) =>
       (ss.foldl (fun a w => if a.size < 400 && !a.contains w then a.push w else a) ps,
        is.foldl (fun a n => if a.size < 400 && !a.contains n then a.push n else a) pi)
-  return (corpus, seen, targets)
+  return st
 
 /-- The closest inputs to the `k` nearest unreached branch directions. -/
 def plateauSeeds {α : Type} (lits : α → List PyLit) (targets : Targets α) (k : Nat := 3) : List (List PyLit) :=
-  ((targets.toArray.qsort (fun a b => a.2.1 < b.2.1)).toList.map (lits ·.2.2)).eraseDups.take k
+  ((targets.toArray.qsort (fun a b => a.2.1 < b.2.1)).toList.map (lits ·.2.2.1)).eraseDups.take k
 
 def coverageStrategy {α : Type} [PyArb α] : Strategy α := ⟨nextInput, observeCoverage⟩
 
-def plainStrategy {α : Type} [PyArb α] : Strategy α := ⟨fun _ _ => PyArb.arb, fun _ c s t => pure (c, s, t)⟩
+def plainStrategy {α : Type} [PyArb α] : Strategy α := ⟨fun _ => PyArb.arb, fun _ st => pure st⟩
+
+/-- Draws over which the random phase's size ramps from 1 to `maxSize` before starting again. -/
+def sizeRampPeriod : Nat := 1000
 
 def searchLoop {α : Type} [PyArb α] (strategy : Strategy α) (lits : α → List PyLit) (guard body : α → Bool)
     (cfg : RefuteConfig) (inflight : IO.Ref (Option Inflight)) : IO SearchOutcome := do
@@ -215,9 +261,7 @@ def searchLoop {α : Type} [PyArb α] (strategy : Strategy α) (lits : α → Li
   let mut found : Option (α × Bool) := none
   -- Coverage feedback from the instrumented program: inputs that reached a new branch direction, and
   -- for each direction not reached yet the input that came closest (smallest branch distance).
-  let mut corpus : Array α := #[]
-  let mut seen : Std.HashSet Goal := {}
-  let mut targets : Targets α := {}
+  let mut cov : CovState α := {}
   discard takeCoverage
   -- Small-scope exhaustive phase: deterministic, finds the smallest counterexample there is up to the
   -- depth, and a sparse precondition cannot starve it the way it starves random draws.
@@ -228,7 +272,7 @@ def searchLoop {α : Type} [PyArb α] (strategy : Strategy α) (lits : α → Li
       if enumerated ≥ cfg.enumMax || (← elapsed) > cfg.timeMs / 2 then break
       enumerated := enumerated + 1
       let res ← check x
-      (corpus, seen, targets) ← strategy.observe x corpus seen targets
+      cov ← strategy.observe x cov
       match res with
       | .discard => discarded := discarded + 1
       | .pass => tested := tested + 1
@@ -238,28 +282,38 @@ def searchLoop {α : Type} [PyArb α] (strategy : Strategy α) (lits : α → Li
   let mut i := 0
   while tested < cfg.numInst + enumerated && found.isNone do
     let stopped (status : SearchStatus) : IO SearchOutcome := do
-      return { status, tested, discarded, ms := ← elapsed, seed := cfg.seed, covered := seen.size,
-               seeds := plateauSeeds lits targets }
+      return { status, tested, discarded, ms := ← elapsed, seed := cfg.seed, covered := cov.seen.size,
+               seeds := plateauSeeds lits cov.targets }
     if (← elapsed) > cfg.timeMs then return ← stopped .timeout
     if discarded - discardedBeforeRandom > cfg.maxDiscardRatio * cfg.numInst then return ← stopped .gaveUp
-    -- Sizes ramp up over the run, as in Plausible's own suite.
-    let size := (cfg.maxSize * (i % (cfg.numInst + 1))) / cfg.numInst + 1
+    -- Sizes ramp up over the run, as in Plausible's own suite; the ramp restarts every `sizeRampPeriod`
+    -- draws, so a test count past any reachable one (`--tests 10**9`) does not pin every draw at size 1.
+    let period := min cfg.numInst sizeRampPeriod
+    let size := (cfg.maxSize * (i % (period + 1))) / period + 1
     i := i + 1
-    match runGen (strategy.next corpus targets) size st with
+    -- every other draw, a queued splice while there are any
+    let gen ← match cov.pending.back? with
+      | some (x, p) =>
+          if i % 2 == 0 then
+            cov := { cov with pending := cov.pending.pop }
+            pure (PyArb.splice x p)
+          else pure (strategy.next cov)
+      | none => pure (strategy.next cov)
+    match runGen gen size st with
     | .error _ => discarded := discarded + 1
     | .ok (x, st') =>
       st := st'
       let res ← check x
-      (corpus, seen, targets) ← strategy.observe x corpus seen targets
+      cov ← strategy.observe x cov
       match res with
       | .discard => discarded := discarded + 1
       | .pass => tested := tested + 1
       | .fail => tested := tested + 1; found := some (x, false)
       | .hang => tested := tested + 1; found := some (x, true)
-  let covered := seen.size
+  let covered := cov.seen.size
   let some (x₀, hang) := found
     | return { status := .noCounterexample, tested, discarded, ms := ← elapsed, seed := cfg.seed, covered,
-               seeds := plateauSeeds lits targets }
+               seeds := plateauSeeds lits cov.targets }
   -- Greedy shrink: take the first smaller candidate that still passes the guards and still fails.
   let cost (y : α) : Nat := ((lits y).map (·.toPyString.length)).foldl (· + ·) 0
   -- Only strictly shorter candidates are taken, which also guarantees the loop ends.
@@ -309,10 +363,10 @@ def runSearch {α : Type} [PyArb α] (strategy : Strategy α) (lits : α → Lis
     let now ← IO.monoMsNow
     if let some c ← inflight.get then
       if now - c.startMs > cfg.perCaseMs then
-        return { status := .refuted, witness? := some c.lits, hang := true, ms := now - start,
+        return { status := .refuted, witness? := some c.lits, hang := true, busy := true, ms := now - start,
                  seed := cfg.seed }
     if now - start > budget then
-      return { status := .timeout, ms := now - start, seed := cfg.seed }
+      return { status := .timeout, ms := now - start, seed := cfg.seed, busy := true }
     IO.sleep 2
   match work.get with
   | .ok o => return o
@@ -322,7 +376,7 @@ def SearchOutcome.toJson (o : SearchOutcome) : Json :=
   Json.mkObj ([
     ("status", Lean.toJson o.status.toString),
     ("tested", Lean.toJson o.tested), ("discarded", Lean.toJson o.discarded), ("shrinks", Lean.toJson o.shrinks),
-    ("ms", Lean.toJson o.ms), ("seed", Lean.toJson o.seed), ("hang", Lean.toJson o.hang),
+    ("ms", Lean.toJson o.ms), ("seed", Lean.toJson o.seed), ("hang", Lean.toJson o.hang), ("busy", Lean.toJson o.busy),
     ("engine", Lean.toJson o.engine), ("covered", Lean.toJson o.covered)] ++
     (match o.status with | .untestable why => [("reason", Lean.toJson why)] | _ => []) ++
     (match o.witness? with | some ws => [("lits", Lean.toJson ws)] | none => []))

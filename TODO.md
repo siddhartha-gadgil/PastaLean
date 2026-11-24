@@ -9,8 +9,14 @@ Roadmap (from the CrossHair / search-based testing / hybrid fuzzing research). D
 search over an instrumented copy (`Coverage.lean`, `Instrument.lean`, `PyArb.mutate`, branch distance +
 operand splicing), `partial def`s instrumented as unsafe copies (one mutual block), distances for floats,
 list `==`, set `==` and list membership, plateau solving (`solvePlateau`: the closest inputs to unreached
-branches keep their shape, `grind` solves their integer leaves) and `taste?` proving obligations no
-witness violates (`tasteProves`, also in `refute?`/`#refute`). Next:
+branches keep their shape, `grind` solves their integer leaves), input-to-state splicing (operands filed
+per branch; new-coverage and closest-yet inputs queue splices, `CovState.pending`) and `taste?` proving
+obligations no witness violates (`tasteProves`, also in `refute?`/`#refute`). Next:
+- **SMT step (`--smt`, `Refute/Smt.lean`, `docs/smt.md`)**: off by default. Keep one solver process
+  alive per backend (`push`/`pop`) instead of a spawn per query (~80 ms of the ~90 ms median); translate
+  `List Int` binders as SMT sequences (cvc5 `Seq`) so list-shaped obligations get models too; `str(n)` /
+  `int(s)` (`str.from_int`/`str.to_int` with Python's sign rules). `unsat` is never used: a proof needs
+  lean-smt (prototype `PastaSmt/`, worktree only, not merged).
 - **Plateau solving mid-search.** Seeds are solved after the search ends; feeding solved seeds back
   into the running loop (corpus) would let it continue from them. Seeds with no integer leaf (strings,
   booleans) are skipped: solve string leaves too (length constraints first).
@@ -29,10 +35,9 @@ witness violates (`tasteProves`, also in `refute?`/`#refute`). Next:
   (`n * n ≠ 1764`: 70k tests → 78 once added, with distance-scaled `PyArb.climb` moves). Check the other
   decision shapes the same way: `Nat.ble`/`Int.decLe` forms, `%`, membership in a `Std.HashMap`/`PySet`.
 - **Mutation benchmark** (`PastaBench/pbt_bench/mutants.py`): the main measure from now on — kill rate
-  over mutants whose contract a test input violates (78% at 80 problems × 2), and originals refuted
-  (3/80, all real contract gaps: missing `Requires` such as "adjacent elements differ"). Misses:
-  - `ValidDate`'s slicing type errors (translation);
-  - `FaultyKeyboard`: a search miss at the full budget.
+  over mutants whose contract a test input violates (58/58 at 80 problems × 2), and originals refuted
+  (5/80, all listed in `contract_gaps.json`: missing `Requires` such as "adjacent elements differ").
+  Still open: `ValidDate`'s slicing type errors (translation).
 - **Crossover** (`PyArb.crossover`, used by the coverage search) solved a conjunction no single branch
   steers toward (`FileNameCheck`: three digits AND a valid name → `'b207.exe'`); structures other than
   strings, lists and tuples still use the default (keep the first value).
@@ -60,17 +65,17 @@ witness violates (`tasteProves`, also in `refute?`/`#refute`). Next:
   `Decidable`, no `PyArb` for a binder type) fall back to the enumeration/random search. Give every
   input type a `PyArb` (user classes get generated instances already; check `PyAny`, nested dicts,
   sets, tuples) so the fallback is only for per-case deadlines.
-- **Per-case deadlines in Plausible.** Plausible now runs in chunks of 200 tests until its half-budget
-  deadline, so it never outlives the deadline by more than one chunk; a single non-terminating case
-  still flags `hang` and leaves a spinning thread until the backend restarts. Run each case under a
-  deadline, or through a fuel-bounded twin.
+- **Cancelling a stuck evaluation.** Both engines have per-case deadlines (`runPlausible` watches
+  Plausible's latest draws, `runSearch` the case in flight) and report the input as non-terminating, but
+  the evaluation keeps its thread until the driver restarts the backend (`busy`; ~3 s per restart, and
+  a chunk cut off at Plausible's deadline counts too). A fuel-bounded twin would make runs cancellable.
 - **Stdin mode input generation** is still Python-side (`src/refute/stdin.py`); move it to Lean.
 - **`taste?` pre-check cost**: PALC went ~89 s → ~120 s with the grind pre-check (now ~117 s, with
   Plausible off in the pre-check); tune its budget.
-- **Size ramp under a large `--tests`**: the random phase's size is `maxSize * (i mod numInst) / numInst`,
-  so with the CLI/benchmarks' `--tests 1000000000` every draw is at size 1 (2.6M size-1 strings on
-  `LongestSubstring…`). Ramp over a fixed period or over elapsed time instead; re-benchmark, since it
-  changes every seeded search.
+- **Python errors the runtime turns into defaults.** A runtime function that returns a value where
+  Python raises hides the error from refute's runnable twin (`xs[::0]` returned `[]` until it became a
+  `pyPanic "ValueError: …"`, which is what let `FaultyKeyboard`'s mutant pass). Audit `PyAPI/` for the
+  rest (`yields`/`returns default` docstrings).
 - **Guard-directed generation** beyond lengths: string/list lengths are drawn from pool integers
   (`len(v) == 3`), but other guard shapes (`sorted`, ranges `a < x < b`, non-empty, membership) are
   still left to chance; read them off the guard and generate inside them.

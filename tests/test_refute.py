@@ -6,6 +6,8 @@ Run with `uv run python tests/test_refute.py` (it boots one Lean backend for all
 
 from __future__ import annotations
 
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -29,14 +31,20 @@ CASES = {
     # HashMap operations do not reduce in the kernel, so the refutation is evaluated, not certified.
     "dict_first_key.py": {"first_is_smallest": ("REFUTED", False)},
     "regex_near_miss.py": {"is_falsey": ("REFUTED", False)},
+    "exponent_sign.py": {"is_falsey": ("REFUTED", False)},
     "str_keyed_dict.py": {"bump": ("REFUTED", False)},
     "version_compare.py": {"compare_versions": ("REFUTED", False)},
     "local_postcondition.py": {"isqrt": ("REFUTED", False)},
     "assert_precondition.py": {"headline": ("REFUTED", False)},
 }
 
+# Run with `smt=True` (an SMT model, re-checked in Lean); skipped when no z3/cvc5 is installed.
+SMT_CASES = {
+    "nonlinear_smt.py": {"pythag": ("REFUTED", True), "mod_square": ("REFUTED", True)},
+}
+
 # Lean tests per search where the default (1000) is too few to reach the bug.
-TESTS = {"regex_near_miss.py": 20000, "version_compare.py": 200000}
+TESTS = {"regex_near_miss.py": 20000, "version_compare.py": 200000, "exponent_sign.py": 60000}
 
 STDIN_CASES = {
     # file: (reference or None, negative ints?, expected verdict, expected note substring)
@@ -66,6 +74,17 @@ def main() -> int:
                 failures += not ok
                 print(f"{'ok  ' if ok else 'FAIL'} {file}:{fn} expected {want}, got {got.get(fn)}"
                       + (f" ({report.error})" if report.error else ""))
+        has_solver = os.environ.get("PASTALEAN_SMT") or any(
+            shutil.which(e) or (Path.home() / ".local/bin" / e).exists() for e in ("z3", "cvc5"))
+        if not has_solver:
+            print("skip SMT cases (no z3/cvc5: see docs/smt.md)")
+        for file, expected in (SMT_CASES if has_solver else {}).items():
+            report = refute_file(ROOT / "example_scripts" / "refute" / file, session=session, smt=True)
+            got = {o.name: (o.verdict, bool(o.kernel_proof)) for o in report.obligations}
+            for fn, want in expected.items():
+                ok = got.get(fn) == want
+                failures += not ok
+                print(f"{'ok  ' if ok else 'FAIL'} {file}:{fn} (smt) expected {want}, got {got.get(fn)}")
         for file, (ref, negative, verdict, note) in STDIN_CASES.items():
             d = ROOT / "example_scripts" / "refute"
             report = refute_stdin((d / file).read_text(), session=session, negative=negative,
@@ -75,7 +94,7 @@ def main() -> int:
             failures += not ok
             print(f"{'ok  ' if ok else 'FAIL'} {file} expected {verdict}, got {got}"
                   + (f" ({report.error})" if report.error else ""))
-    total = sum(map(len, CASES.values())) + len(STDIN_CASES)
+    total = sum(map(len, CASES.values())) + len(STDIN_CASES) + (sum(map(len, SMT_CASES.values())) if has_solver else 0)
     print(f"{total - failures} passed, {failures} failed")
     return 1 if failures else 0
 

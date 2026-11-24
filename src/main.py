@@ -306,7 +306,7 @@ def cmd_refute(args) -> int:
     tests = args.tests or 1000
     try:
         report = refute_file(args.file, seed=args.seed, time_ms=args.time, only=args.only, tests=tests,
-                             equiv=equiv)
+                             equiv=equiv, smt=args.smt)
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -576,6 +576,8 @@ def build_parser() -> argparse.ArgumentParser:
                                "or generated stdin inputs (default 150).")
     p_refute.add_argument("--negative", action="store_true", help="Generated integers may be negative.")
     p_refute.add_argument("--heap", action="store_true", help="Translate with reference semantics (stdin mode).")
+    p_refute.add_argument("--smt", action="store_true",
+                          help="Also ask an SMT solver (z3/cvc5, $PASTALEAN_SMT) for a model; Lean re-checks it.")
     p_refute.set_defaults(func=cmd_refute)
 
     p_daemon = sub.add_parser("refute-daemon")   # internal: the warm backend `refute` calls reuse

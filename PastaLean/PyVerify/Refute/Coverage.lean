@@ -1,5 +1,6 @@
 import Lean
 import PastaLean.PyAPI.Sets
+import PastaLean.PyVerify.Refute.Arb
 
 /-!
 # Branch coverage and branch distance for the coverage-guided search
@@ -38,13 +39,21 @@ initialize covLog : IO.Ref (Array (Nat × Bool × Nat)) ← IO.mkRef #[]
 /-- Operands of the comparisons evaluated since the last read (strings, integers). -/
 initialize covOperands : IO.Ref (Array String × Array Int) ← IO.mkRef (#[], #[])
 
+/-- The same operands paired, by the branch whose distance compared them (`covProbe`). -/
+initialize covPairs : IO.Ref (Array (Nat × CmpPair)) ← IO.mkRef #[]
+
+/-- The branch whose distance is being computed. -/
+initialize covProbe : IO.Ref Nat ← IO.mkRef 0
+
 /-- Log a probe hit: branch `id` went `dir`, with distances `d ()`. -/
 @[noinline]
 def logProbe (id : Nat) (dir : Bool) (d : Unit → Dist) : BaseIO Unit := do
   -- the distance may evaluate what the program short-circuits (`b` in `a and b`): whatever runtime
   -- error that records is not the program's, so the error log is restored around it
   let saved ← PastaLean.pyErrorLog.get
+  let outer ← covProbe.swap id
   let dist ← match ← (IO.lazyPure d).toBaseIO with | .ok v => pure v | .error _ => pure ((1, 1) : Dist)
+  covProbe.set outer
   PastaLean.pyErrorLog.set saved
   covLog.modify (·.push (id, dir, if dir then dist.2 else dist.1))
 
@@ -68,6 +77,8 @@ def covBool (_id : Nat) (_d : Unit → Dist) (b : Bool) : Bool := b
 unsafe def withIntsImpl (a b : Int) (r : Dist) : Dist :=
   unsafeBaseIO do
     covOperands.modify fun (s, i) => (s, if i.size < 256 then i.push a |>.push b else i)
+    let id ← covProbe.get
+    covPairs.modify fun ps => if ps.size < 512 then ps.push (id, .int a b) else ps
     pure r
 
 /-- `r`, with `a` and `b` logged as compared operands. -/
@@ -79,6 +90,9 @@ unsafe def withStrsImpl (a b : String) (r : Dist) : Dist :=
   unsafeBaseIO do
     covOperands.modify fun (s, i) =>
       (if s.size < 256 && a.length ≤ 64 && b.length ≤ 64 then s.push a |>.push b else s, i)
+    if a.length ≤ 64 && b.length ≤ 64 then
+      let id ← covProbe.get
+      covPairs.modify fun ps => if ps.size < 512 then ps.push (id, .str a b) else ps
     pure r
 
 @[never_extract, implemented_by withStrsImpl]
@@ -148,8 +162,8 @@ def distAnd (p : Dist) (q : Unit → Dist) : Dist :=
 def distOr (p : Dist) (q : Unit → Dist) : Dist :=
   if p.1 == 0 then (0, p.2 + 1) else let q := q (); (min p.1 q.1, q.2)
 
-/-- Read and clear the coverage log and the logged operands. -/
-def takeCoverage : IO (Array (Nat × Bool × Nat) × (Array String × Array Int)) := do
-  return (← covLog.swap #[], ← covOperands.swap (#[], #[]))
+/-- Read and clear the coverage log, the logged operands, and the operand pairs by branch. -/
+def takeCoverage : IO (Array (Nat × Bool × Nat) × (Array String × Array Int) × Array (Nat × CmpPair)) := do
+  return (← covLog.swap #[], ← covOperands.swap (#[], #[]), ← covPairs.swap #[])
 
 end PastaLean.Refute

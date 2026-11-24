@@ -119,8 +119,9 @@ instance {α : Type} : PyTruthy (Array α) where
 instance {α : Type} : PyBool (Array α) where
   pyBool xs := xs.size != 0
 
+-- Delegates to the `List` instance: elements render with `repr` (`['a']`), as in the provable twin.
 instance {α : Type} [PyPrintable α] : PyPrintable (Array α) where
-  pyStringify xs := "[" ++ String.intercalate ", " (xs.toList.map pyStringify) ++ "]"
+  pyStringify xs := pyStringify xs.toList
 
 instance {α : Type} : PyClear (Array α) where
   pyClear _ := #[]
