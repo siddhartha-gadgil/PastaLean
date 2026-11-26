@@ -1,3 +1,4 @@
+import copy
 import json
 import ast
 import atexit
@@ -17,6 +18,7 @@ from .toplevel_state import (
 from .contract_passta import CONTRACT_FUNCS as PASSTA_STAR_MEMBERS
 from ..backend import LeanBackendClient
 from ..paths import LIBRARIES_DIR, REPO_ROOT
+from ..pysyntax import called_functions, strip_contract_decorators
 
 logger = logging.getLogger(__name__)
 
@@ -282,6 +284,8 @@ def _body_has_direct_exception_syntax(body):
         for node in _walk_json_nodes(stmt, skip_nested_function_bodies=True):
             if _node_type(node) in {"Try", "Raise"}:
                 return True
+            if _node_type(node) == "Call" and _is_raising_library_call(node.get("func")):
+                return True
     return False
 
 
@@ -292,10 +296,14 @@ def _body_has_direct_exception_syntax(body):
 #: worst case is a missed effect annotation, the same as before the query existed.
 _IO_EFFECTFUL_LIBRARIES: set[str] = set()
 
+#: Library members (`"json.loads"`) that can raise, from `Libraries.raisingLibraryMembers`: a call to
+#: one is an exception effect, like a `raise`.
+_RAISING_LIBRARY_MEMBERS: set[str] = set()
+
 
 def refresh_library_info(client):
     """Pull library facts from the Lean registry once per backend process."""
-    global _IO_EFFECTFUL_LIBRARIES
+    global _IO_EFFECTFUL_LIBRARIES, _RAISING_LIBRARY_MEMBERS
     try:
         info = client.library_info()
     except Exception:  # noqa: BLE001  (a missing enrichment must never break translation)
@@ -303,6 +311,17 @@ def refresh_library_info(client):
     names = info.get("ioEffectfulLibraries")
     if isinstance(names, list):
         _IO_EFFECTFUL_LIBRARIES = {n for n in names if isinstance(n, str)}
+    raising = info.get("raisingLibraryMembers")
+    if isinstance(raising, list):
+        _RAISING_LIBRARY_MEMBERS = {n for n in raising if isinstance(n, str)}
+
+
+def _is_raising_library_call(func):
+    """A `json.loads(...)`-style call to a library member that can raise."""
+    return (
+        isinstance(func, dict)
+        and f"{func.get('library_module')}.{func.get('library_member')}" in _RAISING_LIBRARY_MEMBERS
+    )
 
 
 def _is_io_effectful_library_call(func):
@@ -353,6 +372,8 @@ def _annotate_calls(node, effectful_names):
         if node.get("node_type") == "Call":
             func = node.get("func")
             if isinstance(func, dict) and func.get("node_type") == "Name" and func.get("id") in effectful_names:
+                node["effect_mode"] = "except"
+            elif _is_raising_library_call(func):
                 node["effect_mode"] = "except"
         node_type = node.get("node_type")
         for key, value in node.items():
@@ -444,6 +465,70 @@ def annotate_exception_effects(module_json):
 
     if isinstance(module_json, dict) and module_json.get("node_type") == "Module":
         annotate_scope(module_json.get("body", []))
+
+
+def annotate_class_exception_effects(module_json):
+    """Constructors and methods that raise, directly or through a call that does, are exception-effectful
+    exactly like functions: mark them `effect_mode: "except"`, and every call reaching one. Runs after
+    `_stamp_class_dispatch`, whose `_class_ctor`/`_receiver_class`/`_static_class` hints resolve calls."""
+    body = module_json.get("body", []) if isinstance(module_json, dict) else []
+    classes = [s for s in body if isinstance(s, dict) and s.get("node_type") == "ClassDef"]
+    if not classes:
+        return
+    methods = {(c["name"], m.get("name")): m for c in classes for m in c.get("methods", [])}
+    functions = {fn["name"]: fn for fn in _collect_scope_function_defs(body) if isinstance(fn.get("name"), str)}
+
+    def raises(fn):
+        return fn.get("effect_mode") == "except"
+
+    def does_io(fn):
+        return fn.get("effect_mode") == "io"
+
+    def callee(call):
+        func = call.get("func") or {}
+        ctor = call.get("_class_ctor")
+        if ctor is not None:
+            return methods.get((ctor, "__init__"))
+        cls = call.get("_receiver_class") or call.get("_static_class")
+        if cls is not None and func.get("node_type") == "Attribute":
+            return methods.get((cls, func.get("attr")))
+        if func.get("node_type") == "Name":
+            return functions.get(func.get("id"))
+        return None
+
+    def reaches_effect(call):
+        target = callee(call)
+        return target is not None and raises(target)
+
+    for m in methods.values():
+        if _body_has_direct_exception_syntax(m.get("body", [])):
+            m["effect_mode"] = "except"
+    changed = True
+    while changed:
+        changed = False
+        for node in _walk_json_nodes(body):
+            if _node_type(node) == "Call" and node.get("effect_mode") != "except" and reaches_effect(node):
+                node["effect_mode"] = "except"
+                changed = True
+            elif _node_type(node) == "Call" and node.get("effect_mode") is None:
+                target = callee(node)
+                if target is not None and does_io(target):
+                    node["effect_mode"] = "io"
+                    changed = True
+        # A method reaching IO (`date.today()` reads the clock) is IO-effectful, unless it raises.
+        for m in methods.values():
+            if m.get("effect_mode") is None and any(
+                    n.get("effect_mode") == "io" and _node_type(n) != "FunctionDef"
+                    for st in m.get("body", []) for n in _walk_json_nodes(st, skip_nested_function_bodies=True)):
+                m["effect_mode"] = "io"
+                changed = True
+        for fn in list(methods.values()) + list(functions.values()):
+            if raises(fn):
+                continue
+            if any(n.get("effect_mode") == "except" and _node_type(n) != "FunctionDef"
+                   for st in fn.get("body", []) for n in _walk_json_nodes(st, skip_nested_function_bodies=True)):
+                fn["effect_mode"] = "except"
+                changed = True
 
 
 def annotate_io_effects(module_json):
@@ -1399,6 +1484,146 @@ def rename_reserved_shadows(module_json):
         _rename_name_refs(body, old, new)
 
 
+def _erase_type_variables(ast_tree):
+    """Drop module-level `T = TypeVar("T")` and read `T` in annotations as `Any`: a generic function is
+    translated at the dynamic type, and TypeInfer narrows what its uses pin down."""
+    def is_typevar_call(v):
+        f = getattr(v, "func", None)
+        return isinstance(v, ast.Call) and (getattr(f, "id", None) == "TypeVar" or getattr(f, "attr", None) == "TypeVar")
+    tvars = set()
+    kept = []
+    for stmt in ast_tree.body:
+        if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name)
+                and is_typevar_call(stmt.value)):
+            tvars.add(stmt.targets[0].id)
+        else:
+            kept.append(stmt)
+    if not tvars:
+        return
+    ast_tree.body = kept or [ast.Pass()]
+
+    class _Erase(ast.NodeTransformer):
+        def visit_Name(self, node):
+            return ast.copy_location(ast.Name("Any", node.ctx), node) if node.id in tvars else node
+
+        def visit_Constant(self, node):   # a string forward reference `"T"`
+            return ast.copy_location(ast.Name("Any", ast.Load()), node) if node.value in tvars else node
+
+    erase = _Erase()
+    for n in ast.walk(ast_tree):
+        if isinstance(n, ast.arg) and n.annotation is not None:
+            n.annotation = erase.visit(n.annotation)
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.returns is not None:
+            n.returns = erase.visit(n.returns)
+        elif isinstance(n, ast.AnnAssign):
+            n.annotation = erase.visit(n.annotation)
+
+
+TYPING_HEADS = {"Union", "Optional", "Dict", "List", "Tuple", "Set", "FrozenSet", "Callable", "Sequence", "Mapping",
+                "Iterable", "Iterator", "Any", "dict", "list", "tuple", "set", "frozenset", "int", "float", "str", "bool"}
+
+
+def _inline_type_aliases(ast_tree):
+    """Module-level type aliases (`Columns = Union[List[int], List[str]]`, `Df = Dict[str, Columns]`) are
+    inlined into the annotations that name them and dropped: they are types, not values."""
+    def is_typing_expr(v, known):
+        if isinstance(v, ast.Name):
+            return v.id in TYPING_HEADS or v.id in known
+        if isinstance(v, ast.Attribute):          # `typing.List[...]`
+            return v.attr in TYPING_HEADS
+        if isinstance(v, ast.Subscript):
+            return is_typing_expr(v.value, known)
+        return False
+    aliases: dict[str, ast.expr] = {}
+    kept = []
+    for stmt in ast_tree.body:
+        if (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1 and isinstance(stmt.targets[0], ast.Name)
+                and isinstance(stmt.value, (ast.Subscript, ast.Attribute)) and is_typing_expr(stmt.value, aliases)):
+            aliases[stmt.targets[0].id] = stmt.value
+        else:
+            kept.append(stmt)
+    if not aliases:
+        return
+    ast_tree.body = kept or [ast.Pass()]
+
+    class _Inline(ast.NodeTransformer):
+        def visit_Name(self, node):
+            if node.id in aliases:
+                return self.visit(copy.deepcopy(aliases[node.id]))
+            return node
+
+        def visit_Constant(self, node):   # a string forward reference to an alias
+            if isinstance(node.value, str) and node.value in aliases:
+                return self.visit(copy.deepcopy(aliases[node.value]))
+            return node
+
+    inline = _Inline()
+    for n in ast.walk(ast_tree):
+        if isinstance(n, ast.arg) and n.annotation is not None:
+            n.annotation = inline.visit(n.annotation)
+        elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.returns is not None:
+            n.returns = inline.visit(n.returns)
+        elif isinstance(n, ast.AnnAssign):
+            n.annotation = inline.visit(n.annotation)
+
+
+def _rewrite_next_iter(ast_tree):
+    """`next(iter(e))` / `next(iter(e), d)`: the first element of `e` (`__pl_first`), the one iterator idiom
+    that needs no iterator state; other uses of `next`/`iter` are left as they are."""
+    class _First(ast.NodeTransformer):
+        def visit_Call(self, node):
+            self.generic_visit(node)
+            if (isinstance(node.func, ast.Name) and node.func.id == "next" and node.args
+                    and isinstance(node.args[0], ast.Call) and isinstance(node.args[0].func, ast.Name)
+                    and node.args[0].func.id == "iter" and len(node.args[0].args) == 1 and len(node.args) <= 2):
+                name = "__pl_first" if len(node.args) == 1 else "__pl_first_or"
+                return ast.copy_location(ast.Call(ast.Name(name, ast.Load()), [node.args[0].args[0], *node.args[1:]], []), node)
+            return node
+    _First().visit(ast_tree)
+
+
+def _own_nodes(fn):
+    """The nodes of `fn`'s body outside nested definitions."""
+    todo = list(fn.body)
+    while todo:
+        n = todo.pop()
+        yield n
+        if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            todo.extend(ast.iter_child_nodes(n))
+
+
+def _none_for_valueless_returns(ast_tree):
+    """`-> None` for a function no `return` gives a value: whatever its annotation says, it returns `None`
+    (an assertion helper `def check(x) -> bool: assert …`). Stubs (`pass`, `...`, a lone `raise`: abstract
+    methods keep their declared type), generators and `NoReturn`/`Never` are left alone."""
+    for fn in ast.walk(ast_tree):
+        if not isinstance(fn, ast.FunctionDef) or fn.returns is None:
+            continue
+        if isinstance(fn.returns, ast.Constant) and fn.returns.value is None:
+            continue
+        if any(isinstance(n, ast.Name) and n.id in ("NoReturn", "Never") or
+               isinstance(n, ast.Attribute) and n.attr in ("NoReturn", "Never") for n in ast.walk(fn.returns)):
+            continue
+        if all(isinstance(s, (ast.Pass, ast.Raise)) or isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant)
+               for s in fn.body):
+            continue
+        own = list(_own_nodes(fn))
+        if any(isinstance(n, (ast.Yield, ast.YieldFrom)) or
+               isinstance(n, ast.Return) and n.value is not None and
+               not (isinstance(n.value, ast.Constant) and n.value.value is None) for n in own):
+            continue
+        fn.returns = ast.copy_location(ast.Constant(None), fn.returns)
+
+
+def _mark_called_functions(ast_tree):
+    """Flag (`_pl_called`) each top-level function the rest of the module refers to (see
+    `pysyntax.called_functions`)."""
+    called = called_functions(ast_tree)
+    for fn in ast_tree.body:
+        if isinstance(fn, ast.FunctionDef):
+            fn._pl_called = fn.name in called
+
+
 def _sanitize_hole_identifiers(ast_tree):
     """Rename Python variables whose name is a single underscore when they are *read*.
 
@@ -1615,7 +1840,14 @@ def translate_to_json(source_code, filepath=None, best_effort=False, infer_only=
     if ast_tree is None:
         ast_tree = ast.parse(source_code)
     _sanitize_hole_identifiers(ast_tree)
-    logger.debug("Parsed Python AST:\n%s", ast.dump(ast_tree, indent=4))
+    _erase_type_variables(ast_tree)
+    _inline_type_aliases(ast_tree)
+    _rewrite_next_iter(ast_tree)
+    strip_contract_decorators(ast_tree)
+    _none_for_valueless_returns(ast_tree)
+    _mark_called_functions(ast_tree)
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Parsed Python AST:\n%s", ast.dump(ast_tree, indent=4))
     module_dir = str(Path(filepath).resolve().parent) if filepath else None
     translator = ASTToJsonLeanVisitor(
         source_code,
@@ -1762,6 +1994,34 @@ def _splice_taste_winners(code, winners):
         out.append(c)
         i += 1
     return "".join(out)
+
+_USER_NAMESPACE = "PastaLean.User.Root"
+
+
+def _append_counterexample_theorems(code, counterexamples):
+    """For each goal `taste?` refuted with a kernel-checked counterexample, add
+    `theorem <t>_counterexample : ¬ type_of% @<t> := by refute_at …` before the namespace closes, and
+    drop `@[taste_ingr]` from `<t>`: a false, sorry'd statement must not join the simp set later proofs
+    draw on. `type_of%` reads only the statement, so the new theorem does not depend on `<t>`'s sorry."""
+    blocks = []
+    for cex in counterexamples:
+        decl = cex.get("decl") or ""
+        short = decl[len(_USER_NAMESPACE) + 1:] if decl.startswith(_USER_NAMESPACE + ".") else decl
+        proof = cex.get("proof") or ""
+        if not short or not proof:
+            continue
+        names = [b.get("name", "?") for b in cex.get("binders") or []]
+        witness = ", ".join(f"{n} = {v}" for n, v in zip(names, cex.get("python") or []))
+        code = re.sub(rf"@\[taste_ingr\]\s*\n(\s*theorem\s+{re.escape(short)}\b)", r"\1", code)
+        blocks.append(f"-- `{short}` is false: counterexample {witness} (Python values).\n"
+                      f"theorem {short}_counterexample : ¬ type_of% @{short} := by\n  {proof}")
+    if not blocks:
+        return code
+    end = f"end {_USER_NAMESPACE}"
+    idx = code.rfind(end)
+    insert = "\n\n".join(blocks) + "\n\n"
+    return code[:idx] + insert + code[idx:] if idx >= 0 else code + "\n\n" + insert
+
 
 def _newline_before_mvcgen_with(code):
     """Put a contract spec's `mvcgen … invariants` closer on its own line: the pretty-printer glues
@@ -1949,8 +2209,13 @@ def _stamp_class_dispatch(ast_json):
         args = (funcdef.get("args") or {}).get("args", [])
         for a in args:
             ann = a.get("annotation")
-            if isinstance(ann, dict) and ann.get("node_type") == "Name" and ann.get("id") in table:
-                sc[a.get("arg")] = ann["id"]
+            if not isinstance(ann, dict):
+                continue
+            # `p: C` or the forward reference `p: "C"`.
+            cname = ann.get("id") if ann.get("node_type") == "Name" else (
+                ann.get("value") if ann.get("node_type") == "Constant" else None)
+            if cname in table:
+                sc[a.get("arg")] = cname
         return sc
 
     def walk_stmts(stmts, scope, current_class):
@@ -2080,6 +2345,86 @@ def _collect_container_annotations(node, acc=None, seen=None):
     return acc
 
 
+# --- Class libraries ------------------------------------------------------------------------------
+# A library implemented as Lean classes (`Libraries/datetime/DatetimeDef.lean`) declares them as JSON-IR
+# `ClassDef`s (`Libraries.classLibraryDecls?`, served by the `libraryInfo` task). A program importing it
+# gets those declarations injected, flagged `_library`, so class dispatch, effect analysis and type
+# inference treat `date(...)`/`d.year`/`d + td` exactly like user classes; codegen skips those nodes
+# and resolves the names through `open Libraries.<lib>`.
+
+_CLASS_LIBRARY_CACHE: dict = {}
+
+
+def _class_library(lib, client):
+    """`(classdefs, exported names)` of a class library, or None."""
+    if lib in _CLASS_LIBRARY_CACHE:
+        return _CLASS_LIBRARY_CACHE[lib]
+    try:
+        text = (client.library_info().get("classLibraries") or {}).get(lib)
+    except Exception:  # noqa: BLE001  (no backend: the import is left for the regular library path)
+        text = None
+    result = None
+    if text:
+        decls = json.loads(text)
+        classes = decls.get("classes", [])
+        for c in classes:
+            c["_library"] = lib
+        result = (classes, set(decls.get("exports", [])))
+    _CLASS_LIBRARY_CACHE[lib] = result
+    return result
+
+
+def inject_class_libraries(module_json, client):
+    """Resolve imports of class libraries: `import datetime` / `from datetime import date as d` become
+    the library's classes by their own names (`datetime.date`, `d` → `date`), and the classes are
+    injected. Returns the libraries injected (each needs `open Libraries.<lib>`)."""
+    if not isinstance(module_json, dict) or module_json.get("node_type") != "Module":
+        return []
+    body = module_json.get("body", [])
+    module_aliases, member_aliases, used = {}, {}, {}
+    kept = []
+    for stmt in body:
+        nt = stmt.get("node_type") if isinstance(stmt, dict) else None
+        if nt in ("Import", "ImportFrom"):
+            names = stmt.get("names", [])
+            mod = stmt.get("module") if nt == "ImportFrom" else None
+            libs = [mod] if nt == "ImportFrom" else [a.get("name") for a in names]
+            infos = {lib: _class_library(lib, client) for lib in libs if isinstance(lib, str)}
+            if infos and all(infos.values()):
+                for a in names:
+                    alias = a.get("asname") or a.get("name")
+                    if nt == "Import":
+                        module_aliases[alias] = a.get("name")
+                        used[a.get("name")] = infos[a.get("name")]
+                    else:
+                        member_aliases[alias] = a.get("name")
+                        used[mod] = infos[mod]
+                continue
+        kept.append(stmt)
+    if not used:
+        return []
+    exports = set().union(*(info[1] for info in used.values()))
+
+    def rewrite(node):
+        if isinstance(node, list):
+            return [rewrite(x) for x in node]
+        if not isinstance(node, dict):
+            return node
+        if (node.get("node_type") == "Attribute" and isinstance(node.get("value"), dict)
+                and node["value"].get("node_type") == "Name" and node["value"].get("id") in module_aliases
+                and node.get("attr") in exports):
+            return {"node_type": "Name", "id": node["attr"], "ctx": node.get("ctx")}
+        if node.get("node_type") == "Name" and node.get("id") in member_aliases:
+            node = {**node, "id": member_aliases[node["id"]]}
+        if node.get("library_module") in used:
+            node = {k: v for k, v in node.items() if k not in ("library_module", "library_member")}
+        return {k: rewrite(v) for k, v in node.items()}
+
+    injected = [copy.deepcopy(c) for info in used.values() for c in info[0]]
+    module_json["body"] = injected + rewrite(kept)
+    return sorted(used)
+
+
 def translate_to_lean(source_code, target="term", filepath = None, imports_add = True, best_effort=False, mode="both", prove_asserts=False, heap=False, client=None):
     """Translate Python source to Lean via JSON IR and the Lean backend executable.
 
@@ -2093,20 +2438,26 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
     _NUMERIC_MODE = "approx" if mode == "run" else "exact"
     _BEST_EFFORT = best_effort
     _RUN_SUFFIX, _USER_NAMES = "", []
+    client = client or _LEAN_BACKEND
+    # Library facts (raising / IO members) drive the effect passes inside `translate_to_json`.
+    refresh_library_info(client)
     json_ir = translate_to_json(source_code, filepath, best_effort=best_effort)
     ast_json = json.loads(json_ir)
     # Reference (`--heap`) semantics are opt-in only. `_module_needs_heap` is kept as a discovery tool
     # (a caller/harness can pass `heap=True` for the trie/linked-list problems it flags), but it never
     # flips the mode on its own: auto-enabling surprised value-semantics programs.
     _HEAP_MODE = heap
+    class_libraries = inject_class_libraries(ast_json, client)
     _stamp_class_dispatch(ast_json)
-    client = client or _LEAN_BACKEND
+    annotate_class_exception_effects(ast_json)
 
     # Whole-module type inference (best-effort): stamp `_ty` using interprocedural flow before the
     # per-statement translate loop, which cannot see across functions. Ferries JSON only — the
     # inference logic lives in Lean (`TypeInfer.inferModule`). On any failure the AST is unchanged.
     if ast_json.get("node_type") == "Module":
         ast_json = client.infer_types(ast_json)
+        # Inference stamps operators that dispatch to a raising dunder; propagate those effects.
+        annotate_class_exception_effects(ast_json)
         if heap:
             # Heap-effect propagation runs AFTER class dispatch (keys off `_class_ctor`/`_receiver_class`)
             # AND after inference, so a param inferred (`_ty`) — not just annotated — to be a container/
@@ -2141,7 +2492,8 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
                          "container_types": container_types,
                          "emit_twin": mode == "both"}] + body
                 ast_json["body"] = body
-        user_names = _collect_user_names(body)
+        user_names = sorted(set(_collect_user_names(body)) | {
+            f"{s['name']}!lib" for s in body if isinstance(s, dict) and s.get("_library")})
         code_key = f"lean_{target}"
         single = "approx" if mode == "run" else "exact"
 
@@ -2263,6 +2615,8 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
                 # A top-level Python `pass` is a true no-op, so there is no Lean command to emit.
                 if stmt.get("node_type") in {"Pass", "Import", "ImportFrom"}:
                     continue
+                if stmt.get("_library"):
+                    continue  # an injected class-library declaration, compiled in `Libraries/`
                 if stmt.get("node_type") in {"Comment", "DocString"}:
                     code_parts.append((True, _direct_comment_code(stmt)))
                     continue
@@ -2309,10 +2663,10 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
                     "",
                     "open PastaLean",
                     "open Libraries",
+                    *[f"open Libraries.{lib}" for lib in class_libraries],
                     "open Std.Do",
                     "",
                     "set_option linter.all false", # shut up warnings which annoyingly popup in output
-                    "set_option mvcgen.warning false",
                     "",
                     f"set_option maxHeartbeats {heartbeats}",
                     "",
@@ -2334,15 +2688,18 @@ def translate_to_lean(source_code, target="term", filepath = None, imports_add =
             # Prove-and-replace pass: elaborate the assembled file in the warm backend so `taste?`
             # searches each assert, then splice the concrete winning tactic (or `sorry`) over each
             # `taste?`. Non-destructive — on any failure we leave the `taste?` obligations in place.
+            counterexamples = []
             if prove_asserts and "taste?" in full_code:
                 resp = client.prove_file(full_code)
                 if resp and resp.get("result") and isinstance(resp.get("winners"), list):
                     full_code = _splice_taste_winners(full_code, resp["winners"])
+                    counterexamples = [c for c in resp.get("counterexamples") or [] if c.get("kernel")]
+                    full_code = _append_counterexample_theorems(full_code, counterexamples)
                     if resp.get("hasErrors"):
                         logger.warning("proveFile reported elaboration errors; some asserts may be left `sorry`.")
                 else:
                     logger.warning("proveFile pass unavailable/failed; leaving `taste?` obligations in place.")
-            return {"result": True, f"lean_{target}": full_code}
+            return {"result": True, f"lean_{target}": full_code, "counterexamples": counterexamples}
 
         if len(body) == 1:
             result = invoke_lean_backend(body[0], target, client=client)

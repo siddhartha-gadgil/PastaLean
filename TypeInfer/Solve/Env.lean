@@ -147,6 +147,11 @@ def functionSignatureType (fn : Json) : PyType :=
     | none => PyType.unknown
   PyType.fn argTypes ret
 
+/-- The container an index store `c[k] = v` into a not-yet-typed `c` reveals: a `str` key cannot index a
+list, so `dict[str, v]`; otherwise `list[v]`. -/
+def indexedStore (sigs : Sigs) (env : Env) (target : Json) (vt : PyType) : PyType :=
+  if (getField target "slice").elim PyType.unknown (typeOfExpr sigs env) == .str then .dict .str vt else .list vt
+
 /-- Update the environment with what one statement teaches us. Only ever `join`s facts in. -/
 def applyStmt (sigs : Sigs) (env : Env) (s : Json) : Env :=
   let learn (env : Env) (name : String) (t : PyType) : Env :=
@@ -159,7 +164,7 @@ def applyStmt (sigs : Sigs) (env : Env) (s : Json) : Env :=
       | _ => env
   | some "AnnAssign" =>
       match (getField s "target").bind nameId?, getField s "annotation" with
-      | some name, some ann => env.insert name (ofAnnotation ann)   -- an explicit annotation wins
+      | some name, some ann => env.insert name (ofAnnotation ann (anyDynamic := true))   -- an explicit annotation wins
       | _, _ => env
   | some "Assign" =>
       match getField s "target", getField s "value" with
@@ -181,7 +186,7 @@ def applyStmt (sigs : Sigs) (env : Env) (s : Json) : Env :=
                     let isSlice := (getField target "slice").any (nodeTypeOf · == some "Slice")
                     let learned := match env.get? cname |>.getD .unknown with
                       | .dict _ _ => .dict ((getField target "slice").elim .unknown (typeOfExpr sigs env)) vt
-                      | _ => if isSlice then vt else .list vt
+                      | _ => if isSlice then vt else indexedStore sigs env target vt
                     learn env cname learned
                 -- Nested `f[h][i][j] = v` teaches `f : list[list[list[<v>]]]` (grid/tensor DP).
                 | none => match subscriptBaseDepth target with
@@ -231,8 +236,9 @@ def applyStmt (sigs : Sigs) (env : Env) (s : Json) : Env :=
                     let vt := typeOfExpr sigs env value
                     let isSlice := (getField target "slice").any (nodeTypeOf · == some "Slice")
                     let learned := match env.get? cname |>.getD .unknown with
-                      | .dict _ v => .dict ((getField target "slice").elim .unknown (typeOfExpr sigs env)) (augCombine v vt)
-                      | _ => if isSlice then vt else .list vt
+                      | .dict _ v => .dict ((getField target "slice").elim .unknown (typeOfExpr sigs env))
+                          (if v == .unknown then vt else augCombine v vt)
+                      | _ => if isSlice then vt else indexedStore sigs env target vt
                     learn env cname learned
                 -- Nested `f[h][i][j] += v` widens the deep element (`join` at that depth).
                 | none => match subscriptBaseDepth target with

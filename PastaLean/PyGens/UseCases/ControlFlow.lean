@@ -857,18 +857,42 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
         -- `then` branch must not leak into the `else` branch's scope (which would make the `else`
         -- assignment a reassignment of a `let mut` it cannot see). Names that escape the whole
         -- `if` are handled by the hoist above; everything else stays branch-local.
+        -- `if x is not None:` on an `Option` (`_unwrap_some`): the branch sees the payload, as in Python.
+        -- A `let mut x` cannot be shadowed in `do`, so its payload gets a fresh name the branch reads.
+        let unwrap? ← match json.getObjValAs? String "_unwrap_some" with
+          | .ok x => do
+              let src ← getCode (Json.mkObj [("node_type", "Name"), ("id", x)]) `ident
+              if ← isMutVar src.getId then pure (some (src, mkIdent (← freshRenameName src.getId)))
+              else pure (some (src, src))
+          | .error _ => pure none
+        let savedRenames := (← get).renames
+        if let some (src, payload) := unwrap? then
+          if src.getId != payload.getId then
+            addRename ((json.getObjValAs? String "_unwrap_some").toOption.getD "").toName payload.getId
         let bodyStxArray ← withFixedVariables do
+          if let some (_, payload) := unwrap? then addVar payload.getId
           let mut arr : Array (TSyntax `doElem) := #[]
           for elem in bodyElems do
             arr := appendDoElems arr (← getStmtDoElem elem)
           pure arr
+        modify fun st => { st with renames := savedRenames }
         let orelseStxArray ← withFixedVariables do
           let mut arr : Array (TSyntax `doElem) := #[]
           for elem in orelseElems do
             arr := appendDoElems arr (← getStmtDoElem elem)
           pure arr
         let ifStx ←
-          if orelseStxArray.isEmpty then
+          if let some (src, payload) := unwrap? then
+            if orelseStxArray.isEmpty then
+              `(doElem| if let some $payload:ident := $src:ident then
+                  $[$bodyStxArray:doElem]*
+              )
+            else
+              `(doElem| if let some $payload:ident := $src:ident then
+                  $[$bodyStxArray:doElem]*
+                else
+                  $[$orelseStxArray:doElem]*)
+          else if orelseStxArray.isEmpty then
             -- No `else`: omit it entirely rather than a `let _ := ()` placeholder, which is an invalid
             -- do-sequence terminator (`if h : c then body` in `do` has an implicit `else pure ()`).
             `(doElem| if $hName : $testStx then
@@ -925,9 +949,7 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
           let mainBody ← if useProofMonad then
             `(do
               let inputText ← IO.getStdin >>= fun h => h.readToEnd
-              let inputLines := String.splitOn inputText "\n"
-              let inputStream : PastaLean.ProofMode.IOStream :=
-                ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+              let inputStream := PastaLean.ProofMode.IOStream.ofText inputText
               let initState : PastaLean.HeapIOState $valId :=
                 ⟨PastaLean.emptyHeap, { input := inputStream, output := [] }⟩
               let (result, finalState) := PastaLean.PyHeapProofM.runProgram (V := $valId) (do
@@ -959,21 +981,15 @@ def ifSyntax : (kind : SyntaxNodeKind) → Json →
           let proofMonadIdent := mkIdent ``PastaLean.ProofMode.PyProofM
           let ioStreamIdent := mkIdent ``PastaLean.ProofMode.IOStream
           let ioStateIdent := mkIdent ``PastaLean.ProofMode.IOState
-          let ioResultSuccessIdent := mkIdent ``PastaLean.ProofMode.IOResult.success
+          let ofTextIdent := mkIdent ``PastaLean.ProofMode.IOStream.ofText
           let ioUserErrorIdent := mkIdent ``IO.userError
           let outputLinesName := mkIdent `outputLines
           let lineName := mkIdent `line
           let mainBody ← `(do
             -- Read all input from stdin and convert to stream
             -- Note: The stream produces IOResult values (success/error), not plain strings.
-            -- This infinite-success pattern is suitable for competitive programming where
-            -- input() should never fail. For finite input with EOF:
-            --   let inputStream := ⟨0, fun i => if i < inputLines.length
-            --                                    then IOResult.success (inputLines.get! i)
-            --                                    else IOResult.error IOError.EndOfFile⟩
             let inputText ← IO.getStdin >>= fun h => h.readToEnd
-            let inputLines := String.splitOn inputText "\n"
-            let inputStream : $ioStreamIdent := ⟨0, fun i => $ioResultSuccessIdent (List.getD inputLines i "")⟩
+            let inputStream : $ioStreamIdent := $ofTextIdent inputText
             -- Structure syntax (not `⟨…⟩`) so defaulted fields (e.g. the PRNG seed) fill in and a
             -- later field addition never breaks this emitted initializer.
             let initState : $ioStateIdent := { input := inputStream, output := [] }

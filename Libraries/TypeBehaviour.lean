@@ -136,6 +136,19 @@ def hashlibBehaviour? (member : String) : Option Behaviour :=
 
 end Libraries.hashlib
 
+namespace Libraries.json
+open Libraries
+
+/-- `loads` yields a dynamic value (`PyAny`); `dumps` a `str`. -/
+def jsonBehaviour? (member : String) : Option Behaviour :=
+  open Behaviour in
+  match member with
+  | "loads" => some (const .any)
+  | "dumps" => some (const .str)
+  | _ => none
+
+end Libraries.json
+
 namespace Libraries.sortedcontainers
 open Libraries TypeInfer
 
@@ -179,6 +192,7 @@ def memberTypeBehaviour? (moduleName member : String) : Option Behaviour :=
   | "bisect"      => none  -- bisect members carry only codegen behaviour (mutator/keyedVariant)
   | "functools"   => functools.functoolsBehaviour? member
   | "hashlib"     => hashlib.hashlibBehaviour? member
+  | "json"        => json.jsonBehaviour? member
   | "math"        => math.mathBehaviour? member
   | "scipy"       => scipy.scipyBehaviour? member
   | "numpy"       => numpy.numpyBehaviour? member

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -42,7 +41,7 @@ def main''rn :=
         let mut x : Int := PastaLean.pyInt (← PastaLean.PyExcept.captureIOErrors (PastaLean.pyInputIO ""))
         let mut y := default
         try
-          y := PastaLean.pyFloat (10 : Int) /ₚ x
+          y := PastaLean.pyTrueDiv (10 : Int) x
         catch caught =>
           if Bool.true then 
             y := (0 : Float)

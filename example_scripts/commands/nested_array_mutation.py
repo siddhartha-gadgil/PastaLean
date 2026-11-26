@@ -26,24 +26,9 @@ def cube_fill(n: int) -> int:
     return total
 
 
-def coin_change(coins: list[int], amount: int) -> int:
-    inf = float('inf')
-    m, n = len(coins), amount
-    f = [[inf] * (n + 1) for _ in range(m + 1)]
-    f[0][0] = 0
-    for i, x in enumerate(coins, 1):
-        for j in range(n + 1):
-            f[i][j] = f[i - 1][j]
-            if j >= x:
-                f[i][j] = min(f[i][j], f[i][j - x] + 1)
-    return -1 if f[m][n] >= inf else f[m][n]
-
-
 def main():
     print(grid_dp(3, 3))                    # C(6,3) = 20 lattice paths
     print(cube_fill(3))                      # sum of i*100+j*10+k over 3x3x3
-    print(coin_change([1, 2, 5], 11))        # 3  (5+5+1)
-    print(coin_change([2], 3))               # -1
 
 
 if __name__ == "__main__":

@@ -404,6 +404,249 @@ partial def stampNonFiniteElems (annTy : Json) (v : Json) : Json :=
       descend "right" (descend "left" v)
   | _ => v
 
+/-- The names a binding target writes (`x`, `a, (b, c)`, `*rest`). -/
+partial def targetNames (t : Json) : List String :=
+  match nodeTypeOf t with
+  | some "Name" => ((t.getObjValAs? String "id").toOption).toList
+  | some "Tuple" | some "List" => ((t.getObjValAs? (Array Json) "elts").toOption.getD #[]).toList.flatMap targetNames
+  | some "Starred" => ((getField t "value").map targetNames).getD []
+  | _ => []
+
+/-- Does `j` rebind `x` (an assignment, augmented assignment or loop target naming it)? -/
+partial def rebindsName (x : String) (j : Json) : Bool :=
+  match j with
+  | .arr xs => xs.any (rebindsName x)
+  | .obj fs =>
+      let direct := ["target", "targets"].any fun f => match getField j f with
+        | some (.arr ts) => ts.any (fun t => (targetNames t).contains x)
+        | some t => (targetNames t).contains x
+        | none => false
+      direct || fs.toList.any (fun (_, v) => rebindsName x v)
+  | _ => false
+
+/-- `a + b` dispatching to a user class's operator dunder that raises (`!raises:` keys, see
+`stampModuleWith`) is an exception effect: stamp the `BinOp` `effect_mode: except` so it is awaited. -/
+def markEffectfulOperator (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  let dunder? : Option String := match (json.getObjValAs? String "op").toOption with
+    | some "add" => some "__add__" | some "sub" => some "__sub__" | some "mul" => some "__mul__"
+    | some "div" => some "__truediv__" | some "floordiv" => some "__floordiv__" | some "mod" => some "__mod__"
+    | _ => none
+  match dunder?, (getField json "left").map (typeOfExpr sigs env), (getField json "right").map (typeOfExpr sigs env) with
+  | some d, some (.cls c), some r =>
+      let operand := PyType.operandName r
+      if sigs.contains s!"!raises:{c}.{d}'" || sigs.contains s!"!raises:{c}.{d}'{operand}" then
+        json.setObjVal! "effect_mode" (Json.str "except")
+      else json
+  | _, _, _ => json
+
+/-- `x.m(...)` on a receiver inferred to be class `C` with a (non-mutating) method `m`, where the driver
+could not resolve the receiver (`b = a + td; b.weekday()`): stamp `_receiver_class` so codegen dispatches
+`b.weekday` and the effect pass sees whether it raises. -/
+def markReceiverClass (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if (getField json "_receiver_class").isSome || (getField json "_static_class").isSome then json
+  else match getField json "func" with
+    | some f =>
+        if nodeTypeOf f != some "Attribute" then json
+        else match (f.getObjValAs? String "attr").toOption, (getField f "value").map (typeOfExpr sigs env) with
+          -- An `Optional[C]` receiver is only dereferenced under its `is not None` guard.
+          | some m, some (.cls c) | some m, some (.opt (.cls c)) =>
+              if sigs.contains s!"{c}.{m}" && !sigs.contains s!"!mutator:{c}.{m}" then
+                (json.setObjVal! "_receiver_class" (Json.str c)).setObjVal! "_is_mutator" (Json.bool false)
+              else json
+          | _, _ => json
+    | none => json
+
+/-- `x[k]` on a dynamic (`PyAny`) container: mark the index `_box_index` so codegen boxes it (the
+container's `PyGetItem`/`PySetItem` index is the `outParam` `PyAny`). -/
+partial def markBoxIndex (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  -- Dynamic only when rooted at a boxed value: indexing a `PyAny` yields a `PyAny`, while an element
+  -- TypeInfer merely failed to type (`cc[i]` of a list of counters) keeps its concrete Lean type.
+  let rec dynamic (e : Json) : Bool :=
+    if nodeTypeOf e == some "Subscript" then (getField e "value").any dynamic
+    else typeOfExpr sigs env e == .any
+  if (getField json "value").any dynamic then
+    match getField json "slice" with
+    | some sl => if nodeTypeOf sl == some "Slice" then json
+        else json.setObjVal! "slice" (sl.setObjVal! "_box_index" (Json.bool true))
+    | none => json
+  else json
+
+/-- `a < b` (`>`, `<=`, `>=`) on a class whose `__lt__`/`__le__` raises (a naive `datetime` against an
+aware one): stamp `_dunder_class` and `effect_mode: except` so codegen calls and awaits the method. -/
+def markEffectfulCompare (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  let dunder? := match (json.getObjValAs? String "op").toOption with
+    | some "lt" | some "gt" => some "__lt__" | some "le" | some "ge" => some "__le__" | _ => none
+  match dunder?, (getField json "left").map (typeOfExpr sigs env) with
+  | some d, some (.cls c) =>
+      if sigs.contains s!"!raises:{c}.{d}'" then
+        (json.setObjVal! "effect_mode" (Json.str "except")).setObjVal! "_dunder_class" (Json.str c)
+      else json
+  | _, _ => json
+
+/-- `-x` / `abs(x)` on a class whose `__neg__` raises: stamp the `UnaryOp` with the class
+(`_dunder_class`, so codegen calls `C.__neg__`) and `effect_mode: except`. -/
+def markEffectfulUnary (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if (json.getObjValAs? String "op").toOption != some "neg" then json
+  else match (getField json "operand").map (typeOfExpr sigs env) with
+    | some (.cls c) =>
+        if sigs.contains s!"!raises:{c}.__neg__'" then
+          (json.setObjVal! "effect_mode" (Json.str "except")).setObjVal! "_dunder_class" (Json.str c)
+        else json
+    | _ => json
+
+/-- `a or b` with a nullable `a` and a plain `b` (`items or []`): stamp `_or_else` so codegen takes the
+payload (`None` is falsy, so it is never the result). -/
+def markOrElse (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if (json.getObjValAs? String "op").toOption != some "or" then json else
+  let vals := (json.getObjValAs? (Array Json) "values").toOption.getD #[]
+  match vals.toList.map (typeOfExpr sigs env) with
+  | [.opt _, last] => if (match last with | .opt _ | .none | .unknown | .any => false | _ => true) then
+      json.setObjVal! "_or_else" (Json.bool true) else json
+  | _ => json
+
+/-- An expression without its position keys, for matching occurrences of the same expression. -/
+partial def exprKey (j : Json) : String :=
+  let rec go : Json → Json
+    | .obj kvs => Json.mkObj (kvs.toList.filter (fun (k, _) => !k.startsWith "_") |>.map fun (k, v) => (k, go v))
+    | .arr xs => .arr (xs.map go)
+    | j => j
+  (go j).compress
+
+/-- `e` when `t` tests `e is not None` (also `not (e is None)`). -/
+def notNoneTest? (t : Json) : Option Json :=
+  let isTest (op : String) (c : Json) : Option Json :=
+    if nodeTypeOf c == some "Compare" && (c.getObjValAs? String "op").toOption == some op
+        && (getField c "right").any isNoneConst then getField c "left" else none
+  match nodeTypeOf t with
+  | some "Compare" => isTest "isnot" t
+  | some "UnaryOp" => if (t.getObjValAs? String "op").toOption == some "not" then (getField t "operand").bind (isTest "is") else none
+  | _ => none
+
+/-- `e` when `t` tests `e is None` (also `not (e is not None)`). -/
+def noneTest? (t : Json) : Option Json :=
+  let isTest (op : String) (c : Json) : Option Json :=
+    if nodeTypeOf c == some "Compare" && (c.getObjValAs? String "op").toOption == some op
+        && (getField c "right").any isNoneConst then getField c "left" else none
+  match nodeTypeOf t with
+  | some "Compare" => isTest "is" t
+  | some "UnaryOp" => if (t.getObjValAs? String "op").toOption == some "not" then (getField t "operand").bind (isTest "isnot") else none
+  | _ => none
+
+/-- Stamp `_or_default` on each occurrence of the expression `key` in `j`. -/
+partial def markOccurrences (key : String) (j : Json) : Json :=
+  if (nodeTypeOf j == some "Name" || nodeTypeOf j == some "Attribute") && exprKey j == key then
+    j.setObjVal! "_or_default" (Json.bool true)
+  -- `e.attr` already reads through an `Optional` `e` (`_unwrap_opt`): leave `e` itself alone
+  else if nodeTypeOf j == some "Attribute" && (j.getObjValAs? Bool "_unwrap_opt").toOption == some true
+      && (getField j "value").any (exprKey · == key) then j
+  else match j with
+    | .obj kvs => Json.mkObj (kvs.toList.map fun (k, v) => (k, markOccurrences key v))
+    | .arr xs => .arr (xs.map (markOccurrences key))
+    | j => j
+
+/-- Whether `j` assigns to the expression `key` (a name or an attribute path). -/
+partial def assignsTo (key : String) (j : Json) : Bool :=
+  match j with
+  | .arr xs => xs.any (assignsTo key)
+  | .obj fs =>
+      ["target", "targets"].any (fun f => match getField j f with
+        | some (.arr ts) => ts.any (exprKey · == key)
+        | some t => exprKey t == key
+        | none => false)
+      || fs.toList.any (fun (_, v) => assignsTo key v)
+  | _ => false
+
+/-- Narrowing by short-circuit: an `Optional` expression `e` read where the program only gets after
+testing it (`e is not None and … e …`, `e is None or … e …`, the body of `if e is not None:`, a
+conditional expression's matching branch) is stamped `_or_default`, so codegen reads its payload. Names in
+an `if` are left to `_unwrap_some`, which binds them. -/
+partial def markNarrowed (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" then json else
+  let optional (e : Json) : Bool := match typeOfExpr sigs env e with | .opt _ => true | _ => false
+  let json := match nodeTypeOf json with
+    | some "BoolOp" =>
+        let op := (json.getObjValAs? String "op").toOption.getD ""
+        let vals := (json.getObjValAs? (Array Json) "values").toOption.getD #[]
+        let vals := Id.run do
+          let mut vs := vals
+          for i in [0:vs.size] do
+            let test? := if op == "and" then notNoneTest? vs[i]! else noneTest? vs[i]!
+            if let some e := test? then
+              if optional e then
+                let key := exprKey e
+                for j in [i + 1:vs.size] do vs := vs.set! j (markOccurrences key vs[j]!)
+          return vs
+        json.setObjVal! "values" (Json.arr vals)
+    | some "If" | some "IfExp" =>
+        let narrow (field : String) (e : Json) (j : Json) : Json :=
+          let key := exprKey e
+          let isName := nodeTypeOf e == some "Name"
+          if !optional e || (isName && nodeTypeOf json == some "If") then j
+          else match getField j field with
+            | some b => if assignsTo key b then j else j.setObjVal! field (markOccurrences key b)
+            | none => j
+        let test := (getField json "test").getD Json.null
+        -- `if e is not None and c:` narrows the body as `if e is not None:` does
+        let tests := if nodeTypeOf test == some "BoolOp" && (test.getObjValAs? String "op").toOption == some "and"
+          then (test.getObjValAs? (Array Json) "values").toOption.getD #[] else #[test]
+        let j := tests.foldl (fun j t => match notNoneTest? t with
+          | some e => narrow "body" e j
+          | none => j) json
+        match noneTest? test with
+        | some e => narrow "orelse" e j
+        | none => j
+    | _ => json
+  match json with
+  | .arr xs => Json.arr (xs.map (markNarrowed sigs env))
+  | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markNarrowed sigs env v)))
+  | _ => json
+
+/-- A field read a scalar cannot have (`p.value` with `p : int`): Python raises `AttributeError` there, so
+stamp `_attr_error` with the type's name and codegen raises it. Method calls (`s.upper()`) and the
+scalars' real attributes are left alone. -/
+partial def markAttrErrors (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" then json else
+  let real := ["real", "imag", "numerator", "denominator"]
+  let recur (j : Json) : Json := match j with
+    | .arr xs => Json.arr (xs.map (markAttrErrors sigs env))
+    | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markAttrErrors sigs env v)))
+    | j => j
+  match nodeTypeOf json with
+  | some "Call" =>
+      -- the callee of a method call is a method, not a field: only its receiver is a read
+      let json := match getField json "func" with
+        | some f => if nodeTypeOf f == some "Attribute" then
+              json.setObjVal! "func" (f.setObjVal! "value" (markAttrErrors sigs env ((getField f "value").getD Json.null)))
+            else json.setObjVal! "func" (markAttrErrors sigs env f)
+        | none => json
+      Json.mkObj ((match json with | .obj fs => fs.toList | _ => []).map fun (k, v) =>
+        (k, if k == "func" then v else markAttrErrors sigs env v))
+  | some "Attribute" =>
+      let attr := (json.getObjValAs? String "attr").toOption.getD ""
+      let tyName? := match (getField json "value").map (typeOfExpr sigs env) with
+        | some .int => some "int" | some .float => some "float" | some .bool => some "bool"
+        | some .str => some "str" | some .none => some "NoneType" | _ => none
+      match tyName? with
+      | some t => if real.contains attr then recur json else json.setObjVal! "_attr_error" (Json.str t)
+      | none => recur json
+  | _ => recur json
+
+/-- `markBoxIndex` and `markEffectfulOperator` over a statement tree (the `__main__` guard body, which
+skips `markOptAttrs`). -/
+partial def markBoxIndices (sigs : Sigs) (env : Env) (json : Json) : Json :=
+  if nodeTypeOf json == some "FunctionDef" then json
+  else
+    let json := if nodeTypeOf json == some "Subscript" then markBoxIndex sigs env json
+      else if nodeTypeOf json == some "BinOp" then markEffectfulOperator sigs env json
+      else if nodeTypeOf json == some "Call" then markReceiverClass sigs env json
+      else if nodeTypeOf json == some "UnaryOp" then markEffectfulUnary sigs env json
+      else if nodeTypeOf json == some "BoolOp" then markOrElse sigs env json
+      else if nodeTypeOf json == some "Compare" then markEffectfulCompare sigs env json else json
+    match json with
+    | .arr xs => Json.arr (xs.map (markBoxIndices sigs env))
+    | .obj fs => Json.mkObj (fs.toList.map (fun (k, v) => (k, markBoxIndices sigs env v)))
+    | _ => json
+
 /-- Mark every `x.attr` whose receiver `x` is `Option`-typed with
 `_unwrap_opt`, so the field codegen emits `(x.getD default).attr` instead of the invalid
 `Option.attr` projection. Covers the tree/linked-list traversal case (`root.val`, `root.left`).
@@ -423,10 +666,29 @@ partial def markOptAttrs (sigs : Sigs) (env : Env) (noneTested : Std.HashSet Str
         let isBEqOnly := fun (side : String) => match (getField json side).map (typeOfExpr sigs env) with
           | some (.cls _) | some (.opt (.cls _)) | some (.dict _ _) => true
           | _ => false
-        if isBEqOnly "left" || isBEqOnly "right" then json.setObjVal! "_class_cmp" (Json.bool true) else json
+        let json := if isBEqOnly "left" || isBEqOnly "right" then json.setObjVal! "_class_cmp" (Json.bool true) else json
+        markEffectfulCompare sigs env json
       -- `X if c else None` (or `None if c else X`) whose value branch is ALREADY `Option`-typed
       -- (`l1 = l1.next if l1 else None`, `.next` an `Option` field): mark `_branch_opt` so codegen
       -- does not re-wrap it in `some`, which would nest to `Option (Option _)`.
+      else if nodeTypeOf json == some "Subscript" then markBoxIndex sigs env json
+      else if nodeTypeOf json == some "BinOp" then markEffectfulOperator sigs env json
+      else if nodeTypeOf json == some "Call" then markReceiverClass sigs env json
+      else if nodeTypeOf json == some "UnaryOp" then markEffectfulUnary sigs env json
+      else if nodeTypeOf json == some "BoolOp" then markOrElse sigs env json
+      -- `if x is not None:` on an `Option`-typed `x` the branch does not rebind: mark `_unwrap_some`
+      -- so codegen binds the payload (`if let some x := x then …`), as Python's narrowing does.
+      else if nodeTypeOf json == some "If" && (getField json "test").any (fun t =>
+          nodeTypeOf t == some "Compare" && (t.getObjValAs? String "op").toOption == some "isnot"
+            && (getField t "right").any isNoneConst) then
+        match (getField json "test").bind (getField · "left") with
+        | some l =>
+            match nameId? l, typeOfExpr sigs env l with
+            | some x, .opt _ =>
+                if (getField json "body").any (rebindsName x) then json
+                else json.setObjVal! "_unwrap_some" (Json.str x)
+            | _, _ => json
+        | none => json
       else if nodeTypeOf json == some "IfExp" then
         let branchOpt := fun (side : String) => match (getField json side).map (typeOfExpr sigs env) with
           | some (.opt _) => true
@@ -1125,7 +1387,7 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
         -- (which has its locals) via `returnTypeFromEnv`. This is what lets a nested helper returning a
         -- `float('inf')` sentinel plus an `int` accumulator get `_ret_ty = int` — pinning `return inf` to
         -- `Int` in its `Id.run do` block instead of the `ℚ` default.
-        let retType := if annotated then ofAnnotation ((getField fn "returns").getD Json.null)
+        let retType := if annotated then ofAnnotation ((getField fn "returns").getD Json.null) (anyDynamic := true)
                        else match sigs.get? name with
                             | some t => if t == .unknown then returnTypeFromEnv sigs env fn else t
                             | none => returnTypeFromEnv sigs env fn
@@ -1189,8 +1451,15 @@ partial def stampFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Json :
         stampFunction sigs env nh s
       else s)
     let noneTested := collectNoneTested (Json.arr body)
+    -- A param stamped `PyAny` is boxed whatever its inferred type: the body sees it as `.any`.
+    let argsArr := ((getField fn "args").bind (·.getObjValAs? (Array Json) "args" |>.toOption)).getD #[]
+    let boxedEnv := argsArr.foldl (fun m a =>
+      match (a.getObjValAs? String "arg").toOption, getField a "_ty" with
+      | some nm, some t => if (t.getObjValAs? String "id").toOption == some "PyAny" then m.insert nm .any else m
+      | _, _ => m) env
     fn.setObjVal! "body"
-      (Json.arr (((((((body.map (stampStmt sigs env body)).map (markTuples sigs env)).map (markOptAttrs sigs env noneTested)).map
+      (Json.arr (((((((((body.map (stampStmt sigs env body)).map (markTuples sigs env)).map (markOptAttrs sigs boxedEnv noneTested)).map
+        (markNarrowed sigs boxedEnv)).map (markAttrErrors sigs boxedEnv)).map
         (stampArraySeqs eligible)).map (stampCompTargets sigs env)).map (stampKeyLambdas sigs env)).map
         (stampInBounds env eligible (Json.arr body))))
   | _ => fn
@@ -1200,6 +1469,8 @@ driven by the type `ty` of the value it unpacks. `for k, (l, r) in enumerate(que
 `(int, list[int])`: the outer level is a `Prod` but the inner `(l, r)` unpacks a `list[int]`, so it
 must be indexed, not projected. A flat marker on the outer target alone misses the inner level. -/
 partial def stampUnpackShape (target : Json) (ty : PyType) : Json :=
+  -- Only a non-`None` value unpacks, so an `Optional` source (narrowed by its guard) unpacks its payload.
+  let ty := match ty with | .opt t => t | t => t
   if nodeTypeOf target == some "Tuple" then
     match target.getObjValAs? (Array Json) "elts" with
     | .ok elts => Id.run do

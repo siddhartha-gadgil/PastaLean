@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -24,6 +23,8 @@ structure DSU where
 
 instance : PastaLean.PyTruthy DSU where truthy _ := true
 
+instance : PastaLean.PyBool DSU where pyBool _ := true
+
 instance : PastaLean.PyTyped DSU where pyTypeOf _ := TypeInfer.PyType.cls "DSU"
 
 instance : Coe DSU (Option DSU) :=
@@ -37,9 +38,9 @@ partial def DSU.find := fun (self : DSU) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.parent⦋x⦌ ≠ x then 
-        let _popval'rb1 := DSU.find self self.parent⦋x⦌ |>.1
+        let _popval'rb0 := DSU.find self self.parent⦋x⦌ |>.1
         self := DSU.find self self.parent⦋x⦌ |>.2
-        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb1 }
+        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb0 }
       let p'_ret_1 := (self.parent⦋x⦌, self)
       return p'_ret_1)
 
@@ -72,6 +73,8 @@ structure DSU'rn where
 
 instance : PastaLean.PyTruthy DSU'rn where truthy _ := true
 
+instance : PastaLean.PyBool DSU'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped DSU'rn where pyTypeOf _ := TypeInfer.PyType.cls "DSU"
 
 instance : Coe DSU'rn (Option DSU'rn) :=
@@ -85,9 +88,9 @@ partial def DSU'rn.find := fun (self : DSU'rn) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.parent⦋x⦌ != x then 
-        let _popval'rb1 := DSU'rn.find self self.parent⦋x⦌ |>.1
+        let _popval'rb0 := DSU'rn.find self self.parent⦋x⦌ |>.1
         self := DSU'rn.find self self.parent⦋x⦌ |>.2
-        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb1 }
+        self := { self with parent := PastaLean.pySetItem self.parent x _popval'rb0 }
       let p'_ret_1 := (self.parent⦋x⦌, self)
       return p'_ret_1)
 
@@ -116,7 +119,7 @@ def count_components := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU.new n
       let mut count : Int := n
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_2 := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         if h_1 : PastaLean.pyTruthy p'_popv_2 then 
@@ -130,7 +133,7 @@ def count_components'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU'rn.new n
       let mut count : Int := n
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_2 := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         if h_1 : PastaLean.pyTruthy p'_popv_2 then 
@@ -142,7 +145,7 @@ def count_merges := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU.new n
       let mut merges : Int := (0 : Int)
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_3 := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         merges := merges +ₚ p'_popv_3
@@ -155,7 +158,7 @@ def count_merges'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut dsu := DSU'rn.new n
       let mut merges : Int := (0 : Int)
-      for e in (PastaLean.pyIter edges)do
+      for e in (PastaLean.pyIter edges) do
         let mut p'_popv_3 := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.1
         dsu := DSU'rn.union dsu e⦋(0 : Int)⦌ e⦋(1 : Int)⦌ |>.2
         merges := merges +ₚ p'_popv_3
@@ -168,7 +171,7 @@ def count_gated := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (gate
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU.new n
       let mut merges : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges)) do
         let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ = (1 : Int) then 
@@ -187,7 +190,7 @@ def count_gated'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (g
       -- open — a value+mutate call inside a short-circuit `and`.
       let mut dsu := DSU'rn.new n
       let mut merges : Int := (0 : Int)
-      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges))do
+      for hb'i : i in (PastaLean.pyRange (PastaLean.pyLen edges)) do
         let mut e : List Int := PastaLean.pyListGetProof edges i (PastaLean.pyRange_len_bound_of_eq rfl hb'i)
         let mut p'_sc'1 : Bool := Bool.false
         if h_1 : gate⦋i⦌ == (1 : Int) then 

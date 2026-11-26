@@ -1,4 +1,4 @@
-from typing import List
+from typing import Iterable, List
 
 
 def squares(n: int):
@@ -50,7 +50,7 @@ def evens(xs: List[int]):
             yield x
 
 
-def doubled(xs: List[int]):
+def doubled(xs: Iterable[int]):
     for x in xs:
         yield x * 2
 

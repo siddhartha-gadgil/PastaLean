@@ -1,3 +1,5 @@
+import PastaLean.PyAPI.PyPanic
+import PastaLean.PyAPI.FloatOps
 import PastaLean.Imports
 
 namespace Libraries.math
@@ -10,15 +12,14 @@ export PyMathFloatArg (toFloat)
 
 /-- Rational inputs convert exactly to Lean floats. -/
 instance : PyMathFloatArg Rat where
-  toFloat := Rat.toFloat
+  toFloat := PastaLean.ratToFloatRound
 
-/-- Integer inputs are first viewed as rationals. -/
+/-- Integer inputs convert like Python's `float(n)`: correctly rounded, `OverflowError` if too large. -/
 instance : PyMathFloatArg Int where
-  toFloat x := Rat.toFloat (x : Rat)
+  toFloat x := PastaLean.pyIntToFloat x
 
-/-- Natural inputs are first viewed as rationals. -/
 instance : PyMathFloatArg Nat where
-  toFloat x := Rat.toFloat (x : Rat)
+  toFloat x := PastaLean.pyIntToFloat x
 
 /-- Floats are already in the target runtime representation. -/
 instance : PyMathFloatArg Float where
@@ -56,29 +57,44 @@ def pyMathInf : Float :=
 def pyMathNan : Float :=
   0.0 / 0.0
 
+/-- `r`, unless the argument is outside the function's domain: Python raises `ValueError` there where
+libm returns `nan`/`-inf`. A `nan` argument fails every comparison, so it propagates as in Python. -/
+def pyMathDomain (outside : Bool) (r : Float) : Float :=
+  if outside then PastaLean.pyPanic "ValueError: math domain error" else r
+
+/-- `r`, unless it overflowed from a finite argument: Python raises `OverflowError` where libm returns `inf`. -/
+def pyMathRange (x r : Float) : Float :=
+  if r.isInf && x.isFinite then PastaLean.pyPanic "OverflowError: math range error" else r
+
 /-- Python `math.sqrt`, using Lean's computable floating-point square root. -/
 def pyMathSqrt {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.sqrt (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf < 0.0) (Float.sqrt xf)
 
 /-- Python `math.sin`, using Lean's computable floating-point sine. -/
 def pyMathSin {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.sin (toFloat x)
+  let xf := toFloat x
+  pyMathDomain xf.isInf (Float.sin xf)
 
 /-- Python `math.cos`, using Lean's computable floating-point cosine. -/
 def pyMathCos {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.cos (toFloat x)
+  let xf := toFloat x
+  pyMathDomain xf.isInf (Float.cos xf)
 
 /-- Python `math.tan`, using Lean's computable floating-point tangent. -/
 def pyMathTan {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.tan (toFloat x)
+  let xf := toFloat x
+  pyMathDomain xf.isInf (Float.tan xf)
 
 /-- Python `math.log`, using Lean's computable floating-point natural logarithm. -/
 def pyMathLog {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.log (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf ≤ 0.0) (Float.log xf)
 
 /-- Python `math.exp`, using Lean's computable floating-point exponential. -/
 def pyMathExp {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.exp (toFloat x)
+  let xf := toFloat x
+  pyMathRange xf (Float.exp xf)
 
 /-- Python `math.fabs`, returning a floating-point absolute value. -/
 def pyMathFabs {α : Type} [PyMathFloatArg α] (x : α) : Float :=
@@ -86,23 +102,22 @@ def pyMathFabs {α : Type} [PyMathFloatArg α] (x : α) : Float :=
 
 /-- Python `math.floor`, returning the greatest integer less than or equal to the input. -/
 def pyMathFloor {α : Type} [PyMathFloatArg α] (x : α) : Int :=
-  floatToInt (Float.floor (toFloat x))
+  PastaLean.pyFloatFloorInt (toFloat x)
 
 /-- Python `math.ceil`, returning the least integer greater than or equal to the input. -/
 def pyMathCeil {α : Type} [PyMathFloatArg α] (x : α) : Int :=
-  floatToInt (Float.ceil (toFloat x))
+  PastaLean.pyFloatCeilInt (toFloat x)
 
 /-- Python `math.trunc`, truncating toward zero. -/
 def pyMathTrunc {α : Type} [PyMathFloatArg α] (x : α) : Int :=
-  let xf := toFloat x
-  if xf < 0.0 then
-    floatToInt (Float.ceil xf)
-  else
-    floatToInt (Float.floor xf)
+  PastaLean.pyFloatToInt (toFloat x)
 
 /-- Python `math.pow`, returning a floating-point result. -/
 def pyMathPow {α β : Type} [PyMathFloatArg α] [PyMathFloatArg β] (x : α) (y : β) : Float :=
-  Float.pow (toFloat x) (toFloat y)
+  let xf := toFloat x
+  let yf := toFloat y
+  let r := pyMathDomain ((xf == 0.0 && yf < 0.0) || (xf < 0.0 && yf.isFinite && yf.floor != yf)) (Float.pow xf yf)
+  if r.isInf && xf.isFinite && yf.isFinite then PastaLean.pyPanic "OverflowError: math range error" else r
 
 /-- Exact-mode `math.pow` with an integer exponent: `math.pow(x, n)` is *algebraic* (`xⁿ`), NOT
 transcendental, so it stays in the base's type (`ℤ`/`ℚ`) and remains computable + provable — unlike
@@ -112,11 +127,13 @@ def pyMathPowExact {α : Type} [Monoid α] (x : α) (y : Int) : α :=
 
 /-- Python `math.asin`, using Lean's computable floating-point arcsine. -/
 def pyMathAsin {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.asin (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf > 1.0 || xf < -1.0) (Float.asin xf)
 
 /-- Python `math.acos`, using Lean's computable floating-point arccosine. -/
 def pyMathAcos {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.acos (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf > 1.0 || xf < -1.0) (Float.acos xf)
 
 /-- Python `math.atan`, using Lean's computable floating-point arctangent. -/
 def pyMathAtan {α : Type} [PyMathFloatArg α] (x : α) : Float :=
@@ -124,11 +141,13 @@ def pyMathAtan {α : Type} [PyMathFloatArg α] (x : α) : Float :=
 
 /-- Python `math.sinh`, the hyperbolic sine. -/
 def pyMathSinh {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.sinh (toFloat x)
+  let xf := toFloat x
+  pyMathRange xf (Float.sinh xf)
 
 /-- Python `math.cosh`, the hyperbolic cosine. -/
 def pyMathCosh {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.cosh (toFloat x)
+  let xf := toFloat x
+  pyMathRange xf (Float.cosh xf)
 
 /-- Python `math.tanh`, the hyperbolic tangent. -/
 def pyMathTanh {α : Type} [PyMathFloatArg α] (x : α) : Float :=
@@ -140,7 +159,8 @@ def pyMathExpm1 {α : Type} [PyMathFloatArg α] (x : α) : Float :=
 
 /-- Python `math.log1p` (`log(1 + x)`), via the natural logarithm. -/
 def pyMathLog1p {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.log (1.0 + toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf ≤ -1.0) (Float.log (1.0 + xf))
 
 /-- Python `math.isnan`, true when the argument is NaN. -/
 def pyMathIsnan {α : Type} [PyMathFloatArg α] (x : α) : Bool :=
@@ -173,7 +193,7 @@ def pyMathDist {α β : Type} [PyMathFloatArg α] [PyMathFloatArg β]
   if p.length = q.length then
     Float.sqrt ((List.zipWith (fun a b => (toFloat a - toFloat b) ^ 2) p q).foldl (· + ·) 0.0)
   else
-    panic! "ValueError: dist() expects two points of the same dimension"
+    PastaLean.pyPanic "ValueError: dist() expects two points of the same dimension"
 
 /-- Python `math.prod`, the product of an iterable of integers (with optional `start`). -/
 def pyMathProd (xs : List Int) (start : Int := 1) : Int :=
@@ -185,19 +205,19 @@ def pyMathAtan2 {α β : Type} [PyMathFloatArg α] [PyMathFloatArg β] (y : α) 
 
 /-- Python `math.hypot`, restricted to the common two-argument form. -/
 def pyMathHypot {α β : Type} [PyMathFloatArg α] [PyMathFloatArg β] (x : α) (y : β) : Float :=
-  let xf := toFloat x
-  let yf := toFloat y
-  Float.sqrt (xf * xf + yf * yf)
+  PastaLean.pyFloatHypot (toFloat x) (toFloat y)
 
 /-- Python `math.log2`, via libm's `log2` (correctly rounded — exact on powers of 2). The naive
 `log x / log 2` is NOT: e.g. `log2(1024)` comes out just below 10, so `int(log2(1024))` = 9. -/
 def pyMathLog2 {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.log2 (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf ≤ 0.0) (Float.log2 xf)
 
 /-- Python `math.log10`, via libm's `log10` (correctly rounded — exact on powers of 10). The naive
 `log x / log 10` is NOT: `log10(1e6)` comes out just below 6, so `int(log10(1e6))` = 5. -/
 def pyMathLog10 {α : Type} [PyMathFloatArg α] (x : α) : Float :=
-  Float.log10 (toFloat x)
+  let xf := toFloat x
+  pyMathDomain (xf ≤ 0.0) (Float.log10 xf)
 
 /-- Python `math.radians`, converting degrees to radians. -/
 def pyMathRadians {α : Type} [PyMathFloatArg α] (deg : α) : Float :=
@@ -210,7 +230,7 @@ def pyMathDegrees {α : Type} [PyMathFloatArg α] (rad : α) : Float :=
 /-- Python `math.factorial`, restricted to nonnegative integers. -/
 def pyMathFactorial (n : Int) : Int :=
   if n < 0 then
-    panic! "ValueError: factorial() not defined for negative values"
+    PastaLean.pyPanic "ValueError: factorial() not defined for negative values"
   else
     Int.ofNat (Nat.factorial n.toNat)
 
@@ -225,21 +245,21 @@ def pyMathLcm (a b : Int) : Int :=
 /-- Python `math.isqrt`, restricted to nonnegative integers. -/
 def pyMathIsqrt (n : Int) : Int :=
   if n < 0 then
-    panic! "ValueError: isqrt() argument must be nonnegative"
+    PastaLean.pyPanic "ValueError: isqrt() argument must be nonnegative"
   else
     Int.sqrt n
 
 /-- Python `math.comb`, restricted to nonnegative integer arguments. -/
 def pyMathComb (n k : Int) : Int :=
   if n < 0 || k < 0 then
-    panic! "ValueError: comb() not defined for negative values"
+    PastaLean.pyPanic "ValueError: comb() not defined for negative values"
   else
     Int.ofNat (Nat.choose n.toNat k.toNat)
 
 /-- Python `math.perm`, restricted to the explicit two-argument form on nonnegative integers. -/
 def pyMathPerm (n k : Int) : Int :=
   if n < 0 || k < 0 then
-    panic! "ValueError: perm() not defined for negative values"
+    PastaLean.pyPanic "ValueError: perm() not defined for negative values"
   else
     Int.ofNat (Nat.descFactorial n.toNat k.toNat)
 

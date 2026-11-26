@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,7 +27,7 @@ def neighbours := fun (i : Int) ↦ fun (j : Int) ↦
     (do
       let mut dirs : Int × Int × Int × Int × Int := (-(1 : Int), ((0 : Int), ((1 : Int), ((0 : Int), -(1 : Int)))))
       let mut out : List (Int × Int) := []
-      for p'_pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs))do
+      for p'_pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs)) do
         let a := Prod.fst p'_pair_1
         let b := Prod.snd p'_pair_1
         out := PastaLean.pyAppend out (i +ₚ a, j +ₚ b)
@@ -41,7 +40,7 @@ def neighbours'rn := fun (i : Int) ↦ fun (j : Int) ↦
     (do
       let mut dirs : Int × Int × Int × Int × Int := (-(1 : Int), ((0 : Int), ((1 : Int), ((0 : Int), -(1 : Int)))))
       let mut out : List (Int × Int) := []
-      for p'_pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs))do
+      for p'_pair_1 in (PastaLean.pyIter (Libraries.itertools.pyPairwise dirs)) do
         let a := Prod.fst p'_pair_1
         let b := Prod.snd p'_pair_1
         out := PastaLean.pyAppend out (i +ₚ a, j +ₚ b)
@@ -52,7 +51,7 @@ def stats := fun (t : Int × Int × Int × Int × Int × Int × Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for x in (PastaLean.pyIter t)do
+      for x in (PastaLean.pyIter t) do
         total := total +ₚ x
       let p'_ret_1 := (total, (PastaLean.pyMax t, PastaLean.pyMin t))
       return p'_ret_1)
@@ -63,7 +62,7 @@ def stats'rn := fun (t : Int × Int × Int × Int × Int × Int × Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for x in (PastaLean.pyIter t)do
+      for x in (PastaLean.pyIter t) do
         total := total +ₚ x
       let p'_ret_1 := (total, (PastaLean.pyMax t, PastaLean.pyMin t))
       return p'_ret_1)
@@ -102,7 +101,7 @@ def nested_for_unpack := fun (xs : List Int) ↦ fun (ys : List Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int)))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int))) do
         let i := Prod.fst p'_pair_1
         let p'_for_unpack_1 := Prod.snd p'_pair_1
         let p'_unpack_value_1 := p'_for_unpack_1
@@ -118,7 +117,7 @@ def nested_for_unpack'rn := fun (xs : List Int) ↦ fun (ys : List Int) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int)))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate (PastaLean.pyZip xs ys) (1 : Int))) do
         let i := Prod.fst p'_pair_1
         let p'_for_unpack_1 := Prod.snd p'_pair_1
         let p'_unpack_value_1 := p'_for_unpack_1
@@ -136,8 +135,8 @@ def main' :=
       let _ ←
         PastaLean.ProofMode.pyPrintProof
             [pyPrintArg (stats ((3 : Int), ((1 : Int), ((4 : Int), ((1 : Int), ((5 : Int), ((9 : Int), (2 : Int))))))))]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (homog_index)]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (heterog_index)]) :
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg homog_index]
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg heterog_index]) :
     PastaLean.ProofMode.PyProofM _)
 
 attribute [simp] main'
@@ -150,8 +149,8 @@ def main''rn :=
         pyPrintIO
             [pyPrintArg
                 (stats'rn ((3 : Int), ((1 : Int), ((4 : Int), ((1 : Int), ((5 : Int), ((9 : Int), (2 : Int))))))))]
-      let _ ← pyPrintIO [pyPrintArg (homog_index'rn)]
-      let _ ← pyPrintIO [pyPrintArg (heterog_index'rn)]) :
+      let _ ← pyPrintIO [pyPrintArg homog_index'rn]
+      let _ ← pyPrintIO [pyPrintArg heterog_index'rn]) :
     IO _)
 
 def main : IO Unit := do

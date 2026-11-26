@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -26,7 +25,7 @@ def best := fun (xs : List Int) ↦
   Id.run
     (do
       let mut ans : Int := xs⦋(0 : Int)⦌
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         ans := max'usr ans x
       return ans)
 
@@ -36,7 +35,7 @@ def best'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut ans : Int := xs⦋(0 : Int)⦌
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         ans := max'usr'rn ans x
       return ans)
 
@@ -44,7 +43,7 @@ def count_prefixes := fun (s : String) ↦ fun (p : String) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen s))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen s)) do
         if h_1 : PastaLean.pyTruthy (PastaLean.pyStringStartswith s p i) then 
           total := total +ₚ (1 : Int)
       return total)
@@ -55,7 +54,7 @@ def count_prefixes'rn := fun (s : String) ↦ fun (p : String) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for i in (PastaLean.pyRange (PastaLean.pyLen s))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen s)) do
         if h_1 : PastaLean.pyTruthy (PastaLean.pyStringStartswith s p i) then 
           total := total +ₚ (1 : Int)
       return total)

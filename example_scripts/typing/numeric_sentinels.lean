@@ -7,15 +7,15 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
 namespace PastaLean.User.Root
 
 -- !/usr/bin/env python3
+-- type: ignore
 /-
-`float('inf')` used as a DP sentinel in an INTEGER context.
+`float('inf')` used as a DP sentinel in an INTEGER context (deliberately ill-typed, hence unchecked).
 
 Python compares `-inf` against ints freely, but Lean needs one type per slot. A monomorphic `ℚ`
 sentinel made `-inf` unusable inside an `-> int` function, so the sentinel is polymorphic in its
@@ -57,7 +57,7 @@ def smallest := fun (xs : List Int) ↦
   Id.run
     (do
       let mut lo : Int := inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         lo := PastaLean.pyMin [lo, x]
       return lo)
 
@@ -67,7 +67,7 @@ def smallest'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut lo : Int := inf
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         lo := PastaLean.pyMin [lo, x]
       return lo)
 
@@ -77,7 +77,7 @@ def scaled := fun (xs : List Rat) ↦
     Id.run
       (do
         let mut hi := -inf
-        for x in (PastaLean.pyIter xs)do
+        for x in (PastaLean.pyIter xs) do
           hi := PastaLean.pyMax [hi, x *ₚ (2.0 : Rat)]
         return hi))
 
@@ -88,7 +88,7 @@ def scaled'rn := fun (xs : List Float) ↦
     Id.run
       (do
         let mut hi := -inf
-        for x in (PastaLean.pyIter xs)do
+        for x in (PastaLean.pyIter xs) do
           hi := PastaLean.pyMax [hi, x *ₚ (2.0 : Float)]
         return hi))
 
@@ -99,7 +99,7 @@ def max_profit := fun (prices : List Int) ↦
     (do
       let mut ans : Int := (0 : Int)
       let mut mi : Int := inf
-      for v in (PastaLean.pyIter prices)do
+      for v in (PastaLean.pyIter prices) do
         ans := PastaLean.pyMax [ans, v -ₚ mi]
         mi := PastaLean.pyMin [mi, v]
       return ans)
@@ -111,7 +111,7 @@ def max_profit'rn := fun (prices : List Int) ↦
     (do
       let mut ans : Int := (0 : Int)
       let mut mi : Int := inf
-      for v in (PastaLean.pyIter prices)do
+      for v in (PastaLean.pyIter prices) do
         ans := PastaLean.pyMax [ans, v -ₚ mi]
         mi := PastaLean.pyMin [mi, v]
       return ans)
@@ -123,7 +123,7 @@ def shortest_gap := fun (nums : List Int) ↦
     (do
       let mut q : List Int := Libraries.collections.pyDequeEmpty
       let mut ans : Int := inf
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums)) do
         if h_1 : PastaLean.pyTruthy q then 
           let mut p'_popv_1 := PastaLean.pyPopLeftValue q
           q := PastaLean.pyPopLeftRest q
@@ -139,7 +139,7 @@ def shortest_gap'rn := fun (nums : List Int) ↦
     (do
       let mut q : List Int := Libraries.collections.pyDequeEmpty
       let mut ans : Int := inf
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums)) do
         if h_1 : PastaLean.pyTruthy q then 
           let mut p'_popv_1 := PastaLean.pyPopLeftValue q
           q := PastaLean.pyPopLeftRest q

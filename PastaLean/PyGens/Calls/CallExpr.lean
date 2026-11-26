@@ -486,7 +486,12 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
       match ← (jsonFieldOption json "_ty").mapM (fun ann => pyTypeSyntax? (TypeInfer.ofAnnotation ann)) with
       | some (some tyStx) => return ← `(($nonFinite : $tyStx))
       | _ => return nonFinite
-    let mut argsCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
+    -- A raising argument (`f(g(x))`, `C(...).m()`) is awaited in place; `IO` arguments are bound below.
+    let codeOf (j : Json) : PygenM (TSyntax `term) :=
+      if basicJsonUsesMonadicEffect j && !basicJsonUsesIOEffect j && !basicJsonUsesIOEffect json then
+        inlineEffectfulTerm j
+      else getCode j `term
+    let mut argsCodes ← argsArray.mapM codeOf
 
     let .ok keyWordsJson := json.getObjVal? "keywords" | throwError
       s!"Call node does not have a 'keywords' field or it is not json pairs: {json}"
@@ -515,11 +520,8 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
         if let some cls := (json.getObjValAs? String "_static_class").toOption then
           let methodIdent : TSyntax `term := mkIdent (Name.mkStr (← suffixIfUserName cls).toName attr)
           let build : Array (TSyntax `term) → PygenM (TSyntax `term) := fun resolved => do
-            let mut t ← `($methodIdent $resolved*)
-            for (kwName, kwValueJson) in keyWordsMap.toList do
-              let kwValueCode ← getCode kwValueJson `term
-              t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-            pure t
+            let named ← keyWordsMap.toList.toArray.mapM fun (n, v) => do return (n.toName, ← getCode v `term)
+            mkAppNamed methodIdent resolved named
           if argsArray.toList.any basicJsonUsesIOEffect then
             return ← buildIOPureApplicationFromArgs argsArray argsCodes build
           else
@@ -533,7 +535,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
           if (json.getObjValAs? Bool "_is_mutator").toOption.getD false && !heap then
             throwError s!"Mutating method '{attr}' cannot be used as an expression under value \
               semantics; call it as a statement on its own line."
-          let valCode ← getCode valueJson `term
+          let valCode ← codeOf valueJson
           let attrId := mkIdent attr.toName
           -- Non-heap: dispatch via Lean DOT-NOTATION `recv.attr args` (not `Cls.attr recv args`), which
           -- resolves `attr` in the receiver's structure namespace and WALKS `extends`, so an inherited
@@ -546,11 +548,8 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
           let build : Array (TSyntax `term) → PygenM (TSyntax `term) := fun resolved => do
             let recv := resolved[0]!
             let args := resolved.extract 1 resolved.size
-            let mut t ← `($recv.$attrId $args*)
-            for (kwName, kwValueJson) in keyWordsMap.toList do
-              let kwValueCode ← getCode kwValueJson `term
-              t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-            pure t
+            let named ← keyWordsMap.toList.toArray.mapM fun (n, v) => do return (n.toName, ← getCode v `term)
+            mkAppNamed (← `($recv.$attrId)) args named
           -- Under `--heap`, `C.m recv args : HeapM Val ret` — await it inline (the `←` lifts into the
           -- enclosing method/function `do`-block).
           if heap then
@@ -562,7 +561,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
             for (kwName, kwValueJson) in keyWordsMap.toList do
               let kwValueCode ← inlineEffectfulTerm kwValueJson
               t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-            return ← `((← $t))
+            return ← `((← $t:term))
           if allJsons.toList.any basicJsonUsesIOEffect then
             return ← buildIOPureApplicationFromArgs allJsons allCodes build
           else
@@ -635,7 +634,10 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
                     value semantics; call it as a statement on its own line."
                 funcIdent := mkIdent (Name.mkStr (← suffixIfUserName cls).toName attr)
             | none =>
-                throwError s!"Unsupported Python method '{attr}' encountered in Call node."
+                -- A method of a library object (`pattern.fullmatch(s)`, `m.group(1)`): Lean's dot
+                -- notation resolves it in the receiver's type namespace.
+                let named ← keyWordsMap.toList.toArray.mapM fun (n, v) => do return (n.toName, ← getCode v `term)
+                return ← mkAppNamed (← `($valCode.$(mkIdent attr.toName):ident)) argsCodes named
       else
         -- Inside a memoized function's body, a recursive self-call lowers to the monadic `StateM`
         -- worker `(← fooMemo'rn args)`, so the recursion threads the shared cache. Do-notation hoists
@@ -644,7 +646,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
           if funcJson.getObjValAs? String "id" == .ok memoName
              && funcJson.getObjValAs? String "node_type" == .ok "Name" then
             let argCodes ← argsArray.mapM (fun a => getCode a `term)
-            return ← `((← $(mkIdent memoWorker) $argCodes*))
+            return ← `((← $(mkIdent memoWorker):term $argCodes*))
         match funcJson.getObjValAs? String "node_type", funcJson.getObjValAs? String "id" with
         | .ok "Name", .ok "print" => do
             let supportedKeywords := ["sep", "end"]
@@ -713,8 +715,8 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
             | 0 => `("")
             | 1 => do
                 let pyStrIdent := mkIdent ``pyStr
-                let argsCodes ← derefBuiltinArgCodes argsArray argsCodes
-                buildIOPureApplicationFromArgs argsArray argsCodes fun resolvedArgs => do
+                let strArgsCodes ← derefBuiltinArgCodes argsArray argsCodes
+                buildIOPureApplicationFromArgs argsArray strArgsCodes fun resolvedArgs => do
                   let arg0 := resolvedArgs[0]!
                   `($pyStrIdent $arg0)
             | _ =>
@@ -843,7 +845,7 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
                 for (kwName, kwValueJson) in keyWordsMap.toList do
                   let kwValueCode ← inlineEffectfulTerm kwValueJson
                   t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-                return ← `((← $t))
+                return ← `((← $t:term))
               funcIdent := ctorId
             | none =>
             -- Variadic builtins that fold a binary runtime function over their args (e.g. `zip`)
@@ -918,27 +920,18 @@ def callSyntaxTerm (json : Json) : PygenM (TSyntax `term) := do
       -- params (`bisect_right(s, x, lo=…)`) binds them instead of applying to the already-complete
       -- `(f a b)`. Handled explicitly for 1–2 kwargs (the common `lo=`/`hi=`/`key=`/`reverse=`); 3+
       -- falls to the fold (rare, and only fails when every remaining param has a default).
-      match keyWordsMap.toList with
-      | [] => `($funcIdent $resolvedArgs*)
-      | [(n, v)] =>
-          let a ← getCode v `term
-          `($funcIdent $resolvedArgs* ($(mkIdent n.toName) := $a))
-      | [(n1, v1), (n2, v2)] =>
-          let a ← getCode v1 `term
-          let b ← getCode v2 `term
-          `($funcIdent $resolvedArgs* ($(mkIdent n1.toName) := $a) ($(mkIdent n2.toName) := $b))
-      | kwPairs =>
-          let mut t ← `($funcIdent $resolvedArgs*)
-          for (kwName, kwValueJson) in kwPairs do
-            let kwValueCode ← getCode kwValueJson `term
-            t ← `($t ($(mkIdent kwName.toName):ident := $kwValueCode))
-          return t
+      let named ← keyWordsMap.toList.toArray.mapM fun (n, v) => do return (n.toName, ← getCode v `term)
+      mkAppNamed funcIdent resolvedArgs named
 
     let applied ← if allArgJsons.toList.any basicJsonUsesIOEffect then
         buildIOPureApplicationFromArgs allArgJsons allArgs buildApplied
       else buildApplied allArgs
+    let applied ← match funcJson.getObjValAs? String "id" with
+      | .ok nm => if (← getNumericMode) == .exact && (← idDefRegistry.get).contains nm
+          then `(PastaLean.runPure $applied) else pure applied
+      | _ => pure applied
     -- A call to a heap-effectful user function returns a `HeapM` action; await it inline.
-    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied))
+    if json.getObjValAs? Bool "_heap_call" == .ok true then return ← `((← $applied:term))
     return applied
 
 def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
@@ -954,7 +947,10 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
     let .ok keyWordsMap := keyWordsJson.getObj? | throwError
       s!"Call node 'keywords' field is not a JSON object: {keyWordsJson}"
 
-    let mut argsCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
+    let mut argsCodes ← argsArray.mapM fun j =>
+      if basicJsonUsesMonadicEffect j && !basicJsonUsesIOEffect j && !basicJsonUsesIOEffect json then
+        inlineEffectfulTerm j
+      else getCode j `term
 
     let mut allArgs : Array (TSyntax `term) := #[]
     let mut allArgJsons : Array Json := #[]
@@ -1026,7 +1022,8 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
             else
               throwError s!"Mutating method '{attr}' on a non-variable receiver is not supported \
                 under value semantics."
-          let valCode ← getCode valueJson `term
+          let valCode ← if basicJsonUsesMonadicEffect valueJson && !basicJsonUsesIOEffect json
+            then inlineEffectfulTerm valueJson else getCode valueJson `term
           let allJsons := #[valueJson] ++ argsArray
           let allCodes := #[valCode] ++ argsCodes
           let build : Array (TSyntax `term) → PygenM (TSyntax `term) := fun resolved => do
@@ -1052,7 +1049,7 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
         -- user method.
         if let some (rebuildFn, arities) := statementMutatorRebuild? attr then
           if keyWordsMap.isEmpty && arities.contains argsArray.size then
-            let argCodes ← argsArray.mapM (fun argJson => getCode argJson `term)
+            let argCodes ← argsArray.mapM inlineEffectfulTerm
             -- A SortedList receiver: `add`/`remove`/`discard` share names with the set methods but must
             -- maintain sort order (they otherwise default to set semantics — dedup, no ordering). The
             -- runtime name comes from the Libraries layer; codegen only supplies the receiver gate.
@@ -1069,14 +1066,7 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
               else if attr == "pop" && argsArray.size == 1 && (← jsonIsDictExpr valueJson) then
                 pure ``PastaLean.pyDictKeyPopRest
               else if (json.getObjValAs? String "_seq" == .ok "array") && (← getNumericMode) == .approx then
-                pure (match attr with
-                  | "append" => ``PastaLean.pyArrayAppend
-                  | "extend" => ``PastaLean.pyArrayExtend
-                  | "reverse" => ``PastaLean.pyArrayReverse
-                  | "insert" => ``PastaLean.pyArrayInsert
-                  | "pop" => ``PastaLean.pyArrayPopRest
-                  | "popleft" => ``PastaLean.pyArrayPopLeftRest
-                  | _ => rebuildFn)
+                pure (Twin.runPrim rebuildFn)
               else pure rebuildFn
             let fnIdent := mkIdent rebuildFn
             return ← mutatingMethodDoElem valueJson fun recv => `($fnIdent $recv $argCodes*)
@@ -1164,7 +1154,12 @@ def callSyntaxDoElem (json : Json) : PygenM (TSyntax `doElem) := do
                 else
                   funcIdent := mkIdent (Name.mkStr (← suffixIfUserName cls).toName attr)
             | none =>
-                throwError s!"Unsupported Python method '{attr}' encountered in Call node."
+                -- A library object's method as a statement: resolved by dot notation (see the term path).
+                let valCode ← getCode valueJson `term
+                let named ← keyWordsMap.toList.toArray.mapM fun (n, v) => do return (n.toName, ← getCode v `term)
+                let t ← mkAppNamed (← `($valCode.$(mkIdent attr.toName):ident)) argsCodes named
+                return ← if basicJsonUsesMonadicEffect json then `(doElem| let _ ← $t:term)
+                  else `(doElem| let _ := $t)
       else
         match funcJson.getObjValAs? String "node_type", funcJson.getObjValAs? String "id" with
         | .ok "Name", .ok "print" => do
@@ -1426,7 +1421,7 @@ def attributeSyntax : (kind : SyntaxNodeKind) → Json →
             let cls? ← heapVarClassOf? vid.toName
             let isHeapRecv := if vid == "self" then selfRef else cls?.isSome
             if isHeapRecv then
-              return ← `((← $(mkIdent vid.toName) ~> $attrId))
+              return ← `((← $(mkIdent vid.toName):term ~> $attrId))
         let valueCode ← getCode valueJson `term
         -- `_unwrap_opt` (TypeInfer): the receiver is `Option _`, so unwrap before projecting the field
         if json.getObjValAs? Bool "_unwrap_opt" == .ok true then

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -40,6 +39,8 @@ structure Counter where
 
 instance : PastaLean.PyTruthy Counter where truthy _ := true
 
+instance : PastaLean.PyBool Counter where pyBool _ := true
+
 instance : PastaLean.PyTyped Counter where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 
 instance : Coe Counter (Option Counter) :=
@@ -60,6 +61,8 @@ structure Counter'rn where
 
 instance : PastaLean.PyTruthy Counter'rn where truthy _ := true
 
+instance : PastaLean.PyBool Counter'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped Counter'rn where pyTypeOf _ := TypeInfer.PyType.cls "Counter"
 
 instance : Coe Counter'rn (Option Counter'rn) :=
@@ -79,6 +82,8 @@ structure TreeNode where
 
 instance : PastaLean.PyTruthy TreeNode where truthy _ := true
 
+instance : PastaLean.PyBool TreeNode where pyBool _ := true
+
 instance : PastaLean.PyTyped TreeNode where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
 instance : Coe TreeNode (Option TreeNode) :=
@@ -96,6 +101,8 @@ structure TreeNode'rn where
 
 instance : PastaLean.PyTruthy TreeNode'rn where truthy _ := true
 
+instance : PastaLean.PyBool TreeNode'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped TreeNode'rn where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
 instance : Coe TreeNode'rn (Option TreeNode'rn) :=
@@ -107,9 +114,7 @@ def TreeNode'rn.new (val : Int := (0 : Int)) (left : Option TreeNode'rn := Optio
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do
@@ -118,7 +123,7 @@ def main : IO Unit := do
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (greet "x")]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (greet "x" "yo" (1 : Int))]
           let mut c := Counter.new
-          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c.bumped)]
+          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg c.bumped]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c.bumped (5 : Int))]
           let mut c2 := Counter.new (10 : Int) (2 : Int)
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (c2.bumped (3 : Int))]
@@ -144,7 +149,7 @@ def main'rn : IO Unit := do
   let _ ← pyPrintIO [pyPrintArg (greet'rn "x")]
   let _ ← pyPrintIO [pyPrintArg (greet'rn "x" "yo" (1 : Int))]
   let mut c := Counter'rn.new
-  let _ ← pyPrintIO [pyPrintArg (c.bumped)]
+  let _ ← pyPrintIO [pyPrintArg c.bumped]
   let _ ← pyPrintIO [pyPrintArg (c.bumped (5 : Int))]
   let mut c2 := Counter'rn.new (10 : Int) (2 : Int)
   let _ ← pyPrintIO [pyPrintArg (c2.bumped (3 : Int))]

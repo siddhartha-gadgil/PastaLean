@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import Libraries.numpy.NumpyDef
 
 namespace Libraries.numpy
@@ -10,7 +11,7 @@ def pyNumpyTranspose {α γ} [PyNumpyCompute α γ] [Zero γ] [Inhabited γ]
     (List.range (pyNumpyCols matrix)).map (fun c =>
       normalized.map (fun row => row.getD c 0))
   else
-    panic! "ValueError: transpose() expects a rectangular matrix"
+    PastaLean.pyPanic "ValueError: transpose() expects a rectangular matrix"
 
 /-- Element-wise binary matrix operation, computed in the field both operands join to. -/
 def pyNumpyBinaryMatrix
@@ -22,7 +23,7 @@ def pyNumpyBinaryMatrix
       List.zipWith f (lrow.map (PyNumpyJoin.castL (β := β)))
                      (rrow.map (PyNumpyJoin.castR (α := α)))) lhs rhs
   else
-    panic! "ValueError: matrices must have the same rectangular shape"
+    PastaLean.pyPanic "ValueError: matrices must have the same rectangular shape"
 
 /-- Add two matrices element-wise. -/
 def pyNumpyAdd {α β γ} [PyNumpyJoin α β γ] [Add γ] [Inhabited γ]
@@ -46,20 +47,20 @@ def pyNumpyScale {α β γ} [PyNumpyJoin α β γ] [Mul γ] [Inhabited γ]
     let s : γ := PyNumpyJoin.castL (β := β) scalar
     matrix.map (fun row => row.map (fun x => s * PyNumpyJoin.castR (α := α) x))
   else
-    panic! "ValueError: scale() expects a rectangular matrix"
+    PastaLean.pyPanic "ValueError: scale() expects a rectangular matrix"
 
 /-- Dot product of two vectors. -/
 def pyNumpyDotFloats : List Float -> List Float -> Float
   | [], [] => 0.0
   | x :: xs, y :: ys => x * y + pyNumpyDotFloats xs ys
-  | _, _ => panic! "ValueError: dot() expects vectors of the same length"
+  | _, _ => PastaLean.pyPanic "ValueError: dot() expects vectors of the same length"
 
 /-- Dot product over an arbitrary numeric type. Only needs `+`, `*`, `0` — NOT `Field`
 (crucially `Float` is not a Mathlib `Field`, but is `Add`/`Mul`/`Zero`). -/
 def pyNumpyDotField {γ} [Add γ] [Mul γ] [Zero γ] [Inhabited γ] : List γ -> List γ -> γ
   | [], [] => 0
   | x :: xs, y :: ys => x * y + pyNumpyDotField xs ys
-  | _, _ => panic! "ValueError: dot() expects vectors of the same length"
+  | _, _ => PastaLean.pyPanic "ValueError: dot() expects vectors of the same length"
 
 /-- Dot product of two vectors whose element types may DIFFER (e.g. `ℚ` data · `ℝ` weights in a
 neural net under exact mode). Both element types join to a common compute type `γ` via
@@ -70,7 +71,7 @@ def pyNumpyDot {α β γ} [PyNumpyJoin α β γ] [Add γ] [Mul γ] [Zero γ] [In
     pyNumpyDotField (lhs.map (fun x => PyNumpyJoin.castL (β := β) x))
                     (rhs.map (fun y => PyNumpyJoin.castR (α := α) y))
   else
-    panic! "ValueError: dot() expects vectors of the same length"
+    PastaLean.pyPanic "ValueError: dot() expects vectors of the same length"
 
 /-- Matrix multiplication, computed in the field both operands join to. -/
 def pyNumpyMatmul {α β γ} [PyNumpyJoin α β γ] [Add γ] [Mul γ] [Zero γ] [Inhabited γ]
@@ -82,7 +83,7 @@ def pyNumpyMatmul {α β γ} [PyNumpyJoin α β γ] [Add γ] [Mul γ] [Zero γ] 
       (List.range (pyNumpyCols rhs)).map (fun c => rhsF.map (fun row => row.getD c 0))
     lhsF.map (fun row => rhsT.map (fun col => pyNumpyDotField row col))
   else
-    panic! "ValueError: matmul() requires compatible rectangular matrices"
+    PastaLean.pyPanic "ValueError: matmul() requires compatible rectangular matrices"
 
 /-- Trace of a square matrix, in the entries' own compute field. -/
 def pyNumpyTrace {α γ} [PyNumpyCompute α γ] [Add γ] [Zero γ] [Inhabited γ]
@@ -93,7 +94,7 @@ def pyNumpyTrace {α γ} [PyNumpyCompute α γ] [Add γ] [Zero γ] [Inhabited γ
       (fun acc i => acc + (normalized.getD i []).getD i 0)
       0
   else
-    panic! "ValueError: trace() expects a square matrix"
+    PastaLean.pyPanic "ValueError: trace() expects a square matrix"
 
 /-- Euclidean norm of a vector. -/
 def pyNumpyNorm {α} [PyNumpyScalar α] (xs : List α) : Float :=
@@ -138,7 +139,7 @@ partial def pyNumpyDet (matrix : List (List Float)) : Float :=
               sign * a * pyNumpyDet (pyNumpyMinor matrix 0 j) + expand as (j + 1)
         expand row 0
   else
-    panic! "ValueError: det() expects a square matrix"
+    PastaLean.pyPanic "ValueError: det() expects a square matrix"
 
 /-- Inverse for 1x1 and 2x2 square matrices. -/
 def pyNumpyInv (matrix : List (List Float)) : List (List Float) :=
@@ -146,18 +147,18 @@ def pyNumpyInv (matrix : List (List Float)) : List (List Float) :=
     match matrix with
     | [ [a] ] =>
         if a == 0.0 then
-          panic! "ValueError: singular matrix"
+          PastaLean.pyPanic "ValueError: singular matrix"
         else
           [[1.0 / a]]
     | [ [a, b], [c, d] ] =>
         let det := a * d - b * c
         if det == 0.0 then
-          panic! "ValueError: singular matrix"
+          PastaLean.pyPanic "ValueError: singular matrix"
         else
           [[d / det, -b / det], [-c / det, a / det]]
-    | _ => panic! "ValueError: inv() currently supports only 1x1 and 2x2 matrices"
+    | _ => PastaLean.pyPanic "ValueError: inv() currently supports only 1x1 and 2x2 matrices"
   else
-    panic! "ValueError: inv() expects a square matrix"
+    PastaLean.pyPanic "ValueError: inv() expects a square matrix"
 
 /-- Solve a linear system via a closed-form inverse. -/
 def pyNumpySolve (matrix rhs : List (List Float)) : List (List Float) :=

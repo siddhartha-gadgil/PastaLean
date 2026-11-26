@@ -87,7 +87,8 @@ def paramSeed (fn : Json) : Env := Id.run do
     if let .ok name := arg.getObjValAs? String "arg" then
       match getField arg "annotation" with
       | some ann => if !ann.isNull then
-          let t := match ofAnnotation ann with
+          -- an explicit `x: Any` is a dynamic value (`PyAny`), not "no information"
+          let t := match ofAnnotation ann (anyDynamic := true) with
             | .cls c => if nameIsNoneTested name body then .opt (.cls c) else .cls c
             | other => other
           env := env.insert name t
@@ -130,6 +131,15 @@ partial def containsSubscriptOf (name : String) (j : Json) : Bool :=
   || (match j with
       | .arr xs => xs.any (containsSubscriptOf name)
       | .obj fs => fs.toList.any (fun (_, v) => containsSubscriptOf name v)
+      | _ => false)
+
+/-- `name["key"]` (a string-literal key) appears anywhere in `j`: `name` is a `dict[str, …]`. -/
+partial def containsStrKeySubscriptOf (name : String) (j : Json) : Bool :=
+  (nodeTypeOf j == some "Subscript" && (getField j "value").bind nameId? == some name
+    && ((getField j "slice").bind fun sl => (sl.getObjValAs? String "value").toOption).isSome)
+  || (match j with
+      | .arr xs => xs.any (containsStrKeySubscriptOf name)
+      | .obj fs => fs.toList.any (fun (_, v) => containsStrKeySubscriptOf name v)
       | _ => false)
 
 /-- An expression built PURELY from subscripts of `name` combined by `+` (`p[0]`, `p[0] + p[1]`), so
@@ -441,6 +451,10 @@ partial def usageEvidence (fnParams : Std.HashMap String (Array PyType)) (known 
     | .arr xs => xs.toList.flatMap (usageEvidence fnParams known fuel name)
     | .obj fs => fs.toList.flatMap (fun (_, v) => usageEvidence fnParams known fuel name v)
     | _ => []
+  -- element evidence through a string key (`d["age"] < 100`) is a value of a `dict[str, …]`
+  let here : PyType := match here with
+    | .list t => if containsStrKeySubscriptOf name json then PyType.dict .str t else here
+    | t => t
   match here with
   | .unknown => sub
   | _ => here :: sub

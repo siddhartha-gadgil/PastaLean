@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..paths import REPO_ROOT, lake_executable
+from ..refute.limits import apply_memory_cap
 
 # `file.lean:12:4: error: unknown identifier 'foo'`, or with Lean's diagnostic code:
 # `file.lean:12:4: error(lean.unknownIdentifier): Unknown identifier 'foo'`
@@ -105,6 +106,7 @@ def compile_check(
                 text=True,
                 capture_output=True,
                 timeout=timeout,
+                preexec_fn=apply_memory_cap,
             )
         except subprocess.TimeoutExpired:
             return CheckResult(ok=False, stderr=f"lean timed out after {timeout}s")
@@ -160,6 +162,7 @@ def run_program(
                 text=True,
                 capture_output=True,
                 timeout=timeout,
+                preexec_fn=apply_memory_cap,
             )
         except subprocess.TimeoutExpired as err:
             return RunResult(

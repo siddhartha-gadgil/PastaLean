@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,7 +27,7 @@ def process_data := fun (data : List (List Rat)) ↦ fun (weights : List (List R
         let mut result := Libraries.numpy.pyNumpyMatmul centered weights
         return result
       catch caught =>
-        if (caught).OfKind == "ValueError" then 
+        if PastaLean.pyExcIsA caught "ValueError" then 
           let e := caught
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "Processing failed: {e}"]
           -- Fallback to a zero matrix if dimensions fail
@@ -55,7 +54,7 @@ def process_data'rn : List (List Float) → List (List Float) → PastaLean.PyEx
     let mut result := Libraries.numpy.pyNumpyMatmul centered weights
     return result
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       let e := caught
       let _ ← pyPrintIO [pyPrintArg s! "Processing failed: {e}"]
       -- Fallback to a zero matrix if dimensions fail
@@ -131,9 +130,7 @@ def run_example'rn :=
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

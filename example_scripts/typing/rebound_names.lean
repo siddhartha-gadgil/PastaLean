@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,7 +27,7 @@ def letter_sum := fun (s : String) ↦
     Id.run
       (do
         let mut total : PyAny := (0 : Int)
-        for p'_loop_1 in (PastaLean.pyIter s)do
+        for p'_loop_1 in (PastaLean.pyIter s) do
           let ch := p'_loop_1
           let mut ch := PastaLean.pyOrd ch -ₚ PastaLean.pyOrd "a"
           total := total +ₚ ch
@@ -41,7 +40,7 @@ def letter_sum'rn := fun (s : String) ↦
     Id.run
       (do
         let mut total : PyAny := (0 : Int)
-        for p'_loop_1 in (PastaLean.pyIter s)do
+        for p'_loop_1 in (PastaLean.pyIter s) do
           let ch := p'_loop_1
           let mut ch := PastaLean.pyOrd ch -ₚ PastaLean.pyOrd "a"
           total := total +ₚ ch
@@ -54,7 +53,7 @@ def appeal := fun (s : String) ↦
       let mut ans : Int := (0 : Int)
       let mut t : Int := (0 : Int)
       let mut pos : List Int := PastaLean.pyListRepeat [-(1 : Int)] (26 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
         let i := Prod.fst p'_pair_1
         let c := Prod.snd p'_pair_1
         let mut c := PastaLean.pyOrd c -ₚ PastaLean.pyOrd "a"
@@ -71,7 +70,7 @@ def appeal'rn := fun (s : String) ↦
       let mut ans : Int := (0 : Int)
       let mut t : Int := (0 : Int)
       let mut pos : Array Int := PastaLean.pyArrayRepeat #[-(1 : Int)] (26 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate s)) do
         let i := Prod.fst p'_pair_1
         let c := Prod.snd p'_pair_1
         let mut c := PastaLean.pyOrd c -ₚ PastaLean.pyOrd "a"
@@ -86,7 +85,7 @@ def shifted := fun (words : List String) ↦
     Id.run
       (do
         let mut total : PyAny := (0 : Int)
-        for p'_loop_1 in (PastaLean.pyIter words)do
+        for p'_loop_1 in (PastaLean.pyIter words) do
           let w := p'_loop_1
           let mut w := PastaLean.pyLen w
           w := w +ₚ (1 : Int)
@@ -100,7 +99,7 @@ def shifted'rn := fun (words : List String) ↦
     Id.run
       (do
         let mut total : PyAny := (0 : Int)
-        for p'_loop_1 in (PastaLean.pyIter words)do
+        for p'_loop_1 in (PastaLean.pyIter words) do
           let w := p'_loop_1
           let mut w := PastaLean.pyLen w
           w := w +ₚ (1 : Int)

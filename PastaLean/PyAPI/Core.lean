@@ -1,4 +1,5 @@
 import PastaLean.Imports
+import PastaLean.PyAPI.PyPanic
 
 namespace PastaLean
 
@@ -33,6 +34,36 @@ def OfKind (exc : PyException) : String :=
   exc.kind
 
 end PyException
+
+/-- The base class of a builtin (or modelled library) exception, per Python's hierarchy. -/
+def pyExcParent : String → Option String
+  | "ArithmeticError" | "AssertionError" | "AttributeError" | "EOFError" | "ImportError"
+  | "LookupError" | "NameError" | "OSError" | "RuntimeError" | "StopIteration" | "TypeError"
+  | "ValueError" => some "Exception"
+  | "ZeroDivisionError" | "OverflowError" | "FloatingPointError" => some "ArithmeticError"
+  | "IndexError" | "KeyError" => some "LookupError"
+  | "ModuleNotFoundError" => some "ImportError"
+  | "RecursionError" | "NotImplementedError" => some "RuntimeError"
+  | "UnboundLocalError" => some "NameError"
+  | "FileNotFoundError" | "PermissionError" | "TimeoutError" => some "OSError"
+  | "UnicodeError" | "JSONDecodeError" | "PatternError" => some "ValueError"
+  | "UnicodeDecodeError" | "UnicodeEncodeError" => some "UnicodeError"
+  | "Exception" | "KeyboardInterrupt" | "SystemExit" => some "BaseException"
+  | _ => none
+
+/-- Is the exception kind `kind` (`"KeyError"`) an instance of class `cls` (`"LookupError"`)? -/
+def pyKindIsA (kind cls : String) : Bool :=
+  go kind 8
+where
+  go (k : String) : Nat → Bool
+    | 0 => false
+    | n + 1 => k == cls || match pyExcParent k with
+      | some p => go p n
+      | none => cls == "Exception" || cls == "BaseException"
+
+/-- `except cls:` catches `exc` when its class is `cls` or a subclass (`except ValueError` catches a
+`json.JSONDecodeError`). An unknown kind is a direct `Exception` subclass. -/
+def pyExcIsA (exc : PyException) (cls : String) : Bool := pyKindIsA exc.kind cls
 
 /-- Concrete exception monad used for translated Python code that can raise (with IO). -/
 abbrev PyExcept (α : Type) := ExceptT PyException IO α
@@ -123,16 +154,16 @@ def pyFmtApply (spec : String) (arg : String) : String :=
 def pyListGetItem {α : Type} [Inhabited α] (xs : List α) (idx : Int) : α :=
   let len := xs.length
   if len == 0 then
-    panic! "IndexError: list index out of range"
+    PastaLean.pyPanic "IndexError: list index out of range"
   else
     let lenInt : Int := len
     let trueIdx := if idx < 0 then lenInt + idx else idx
     if trueIdx < 0 || trueIdx >= lenInt then
-      panic! "IndexError: list index out of range"
+      PastaLean.pyPanic "IndexError: list index out of range"
     else
       match xs[trueIdx.toNat]? with
       | some value => value
-      | none => panic! "IndexError: list index out of range"
+      | none => PastaLean.pyPanic "IndexError: list index out of range"
 
 /-- Python-style slicing for lists. -/
 def pyListSlice {α : Type} (xs : List α) (start : Option Int) (stop : Option Int) : List α :=
@@ -149,11 +180,11 @@ def pyListSlice {α : Type} (xs : List α) (start : Option Int) (stop : Option I
 reverses; `xs[::2]` takes every other element). Implements CPython's index clamping: with a
 positive step the bounds clamp into `[0, len]`, with a negative step into `[-1, len-1]`, then it
 walks `start, start+step, …` while still on the correct side of `stop`. A `step` of `0` (a Python
-`ValueError`) yields `[]`. -/
+`ValueError`) is a `pyPanic`, logically `[]`. -/
 def pyListSliceStep {α : Type} (xs : List α) (start stop step : Option Int) : List α :=
   let len : Int := xs.length
   let s : Int := step.getD 1
-  if s == 0 then []
+  if s == 0 then pyPanic "ValueError: slice step cannot be zero"
   else
     let arr := xs.toArray
     let clampPos (i : Int) : Int := if i < 0 then max 0 (len + i) else min i len
@@ -195,7 +226,7 @@ out-of-range index yields the empty string. -/
 def pyStringGetItemStr (s : String) (idx : Int) : String :=
   match pyStringGetItem s idx with
   | some c => c.toString
-  | none => ""
+  | none => pyPanic "IndexError: string index out of range"
 
 /-- Python-style slicing for strings. -/
 def pyStringSlice (s : String) (start : Option Int) (stop : Option Int) : String :=

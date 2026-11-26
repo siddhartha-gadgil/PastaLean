@@ -437,12 +437,13 @@ def monadicContractInfo? (body : Array Json) : Option MonadicContract := Id.run 
   -- `Requires`-only helper becomes `Id α`, breaking a caller that uses it purely (`min(f x for x in …)`
   -- needs `Ord α`, not `Ord (Id α)`).
   if ensures.isEmpty && loops.isEmpty then return none
-  -- Inline pre-loop SNAPSHOT locals into the postcondition. An `Ensures` may name a local defined
-  -- before the loop (`n = len(nums)`; `orig = x`; `base = a//b+1`) — but the Hoare-triple spec binds
-  -- only the parameters + result, so that name is unbound ("Unknown identifier"). A *snapshot* — a
-  -- top-level `x = e` before the first loop, with `x` assigned nowhere else — has a fixed value, so we
-  -- substitute `x ↦ e` into the `Ensures` (mirroring the pure track's `let`-chain). Each snapshot's
-  -- value is first expanded through earlier snapshots, so the result names only params/constants.
+  -- Inline pre-loop SNAPSHOT locals into the pre- and postcondition. A `Requires`/`Ensures` may
+  -- name a local defined before the loop (`n = len(nums)`; `orig = x`; `base = a//b+1`) — but the
+  -- Hoare-triple spec binds only the parameters + result, so that name is unbound ("Unknown
+  -- identifier"). A *snapshot* — a top-level `x = e` before the first loop, with `x` assigned nowhere
+  -- else — has a fixed value, so we substitute `x ↦ e` into them (mirroring the pure track's
+  -- `let`-chain). Each snapshot's value is first expanded through earlier snapshots, so the result
+  -- names only params/constants.
   let firstLoop := body.findIdx? (fun s => jsonNodeType? s == some "For" || jsonNodeType? s == some "While")
   let preLoop := match firstLoop with | some i => body.extract 0 i | none => body
   let mut snaps : Array (String × Json) := #[]
@@ -453,8 +454,8 @@ def monadicContractInfo? (body : Array Json) : Option MonadicContract := Id.run 
           if (body.foldl (fun acc st => acc + (if jsonAssignsName st tname then 1 else 0)) 0) == 1 then
             let val' := snaps.foldl (fun e (n, rv) => substNameWith n rv e) val
             snaps := snaps.push (tname, val')
-  ensures := ensures.map (fun e => snaps.foldl (fun x (n, rv) => substNameWith n rv x) e)
-  return some { cleanBody := clean, requires, ensures, retName, loops }
+  let inline (e : Json) : Json := snaps.foldl (fun x (n, rv) => substNameWith n rv x) e
+  return some { cleanBody := clean, requires := requires.map inline, ensures := ensures.map inline, retName, loops }
 
 /-- A contracted function whose loop is a single straight-line `while` carrying an `Invariant` and a
 `Decreases`. This is the shape we lower through `pyWhile` + `pyWhile_correct` (instead of mvcgen's

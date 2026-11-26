@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -53,12 +52,12 @@ def count_components := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         p := _count_components'union a b p
       let mut p'_cc1 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _count_components'find i p
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1
@@ -102,12 +101,12 @@ def count_components'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         p := _count_components'union'rn a b p
       let mut p'_cc1 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _count_components'find'rn i p
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1
@@ -228,7 +227,7 @@ def k_smallest_after_pushes := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut heap : List Int := []
-      for v in (PastaLean.pyIter nums)do
+      for v in (PastaLean.pyIter nums) do
         heap := _k_smallest_after_pushes'push heap v k
       let p'_ret_1 := PastaLean.pySort ((PastaLean.pyIter heap).map fun (x : Int) => -x)
       return p'_ret_1)
@@ -248,7 +247,7 @@ def k_smallest_after_pushes'rn := fun (nums : List Int) ↦ fun (k : Int) ↦
   Id.run
     (do
       let mut heap : List Int := []
-      for v in (PastaLean.pyIter nums)do
+      for v in (PastaLean.pyIter nums) do
         heap := _k_smallest_after_pushes'push'rn heap v k
       let p'_ret_1 := PastaLean.pySort ((PastaLean.pyIter heap).map fun (x : Int) => -x)
       return p'_ret_1)
@@ -270,9 +269,9 @@ def selection_sort := fun (arr : List Int) ↦
   Id.run
     (do
       let mut arr := arr
-      for i in (PastaLean.pyRange (PastaLean.pyLen arr))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen arr)) do
         let mut m : Int := i
-        for j in (PastaLean.pyRange (PastaLean.pyLen arr) (i +ₚ (1 : Int)))do
+        for j in (PastaLean.pyRange (PastaLean.pyLen arr) (i +ₚ (1 : Int))) do
           if h_1 : arr⦋j⦌ < arr⦋m⦌ then 
             m := j
         arr := _selection_sort'swap arr i m
@@ -294,9 +293,9 @@ def selection_sort'rn := fun (arr : List Int) ↦
   Id.run
     (do
       let mut arr := arr
-      for i in (PastaLean.pyRange (PastaLean.pyLen arr))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen arr)) do
         let mut m : Int := i
-        for j in (PastaLean.pyRange (PastaLean.pyLen arr) (i +ₚ (1 : Int)))do
+        for j in (PastaLean.pyRange (PastaLean.pyLen arr) (i +ₚ (1 : Int))) do
           if h_1 : arr⦋j⦌ < arr⦋m⦌ then 
             m := j
         arr := _selection_sort'swap'rn arr i m
@@ -311,7 +310,7 @@ private partial def _is_bipartite'dfs := fun (i : Int) ↦ fun (c : Int) ↦ fun
     (do
       let mut color := color
       color := PastaLean.pySetItem color i c
-      for j in (PastaLean.pyIter graph⦋i⦌)do
+      for j in (PastaLean.pyIter graph⦋i⦌) do
         if h_1 : color⦋j⦌ = c then 
           let p'_ret_1 := (Bool.false, color)
           return p'_ret_1
@@ -330,7 +329,7 @@ def is_bipartite := fun (n : Int) ↦ fun (graph : List (List Int)) ↦
     (do
       let mut color : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : color⦋i⦌ ≠ (0 : Int) then 
           p'_cc2 := PastaLean.pyAppend p'_cc2 (color⦋i⦌ != (0 : Int))
         else
@@ -350,7 +349,7 @@ private partial def _is_bipartite'dfs'rn := fun (i : Int) ↦ fun (c : Int) ↦ 
     (do
       let mut color := color
       color := PastaLean.pySetItem color i c
-      for j in (PastaLean.pyIter graph⦋i⦌)do
+      for j in (PastaLean.pyIter graph⦋i⦌) do
         if h_1 : color⦋j⦌ == c then 
           let p'_ret_1 := (Bool.false, color)
           return p'_ret_1
@@ -369,7 +368,7 @@ def is_bipartite'rn := fun (n : Int) ↦ fun (graph : List (List Int)) ↦
     (do
       let mut color : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         if h_1 : color⦋i⦌ != (0 : Int) then 
           p'_cc2 := PastaLean.pyAppend p'_cc2 (color⦋i⦌ != (0 : Int))
         else
@@ -392,7 +391,7 @@ private def _any_valid_pair'outer := fun (i : Int) ↦ fun (s : String) ↦ fun 
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for j in (PastaLean.pyRange n)do
+      for j in (PastaLean.pyRange n) do
         if h_1 : PastaLean.pyTruthy (_any_valid_pair'check i j s n) then 
           total := total +ₚ (1 : Int)
       return total)
@@ -414,7 +413,7 @@ private def _any_valid_pair'outer'rn := fun (i : Int) ↦ fun (s : String) ↦ f
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for j in (PastaLean.pyRange n)do
+      for j in (PastaLean.pyRange n) do
         if h_1 : PastaLean.pyTruthy (_any_valid_pair'check'rn i j s n) then 
           total := total +ₚ (1 : Int)
       return total)
@@ -441,7 +440,7 @@ def sort_then_union := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pySortBy (fun (e : List Int) ↦ e⦋(2 : Int)⦌) false edges))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pySortBy (fun (e : List Int) ↦ e⦋(2 : Int)⦌) false edges)) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let w := PastaLean.pyListGetItem p'_pair_1 (2 : Int)
@@ -454,7 +453,7 @@ def sort_then_union := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
         p := Prod.snd p'_unpack_pair_2
         p := PastaLean.pySetItem p p'_thread_t1 (Prod.fst p'_unpack_pair_2)
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _sort_then_union'find i p
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t3 := Prod.fst p'_unpack_pair_1
@@ -482,7 +481,7 @@ def sort_then_union'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pySortBy (fun (e : List Int) ↦ e⦋(2 : Int)⦌) false edges))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pySortBy (fun (e : List Int) ↦ e⦋(2 : Int)⦌) false edges)) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let w := PastaLean.pyListGetItem p'_pair_1 (2 : Int)
@@ -495,7 +494,7 @@ def sort_then_union'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
         p := Prod.snd p'_unpack_pair_2
         p := PastaLean.pySetItem p p'_thread_t1 (Prod.fst p'_unpack_pair_2)
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _sort_then_union'find'rn i p
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t3 := Prod.fst p'_unpack_pair_1
@@ -520,7 +519,7 @@ private partial def _has_any_cycle'hasCycle := fun (u : Int) ↦ fun (graph : Li
         return p'_ret_1
       state := PastaLean.pySetItem state u (1 : Int)
       let mut p'_cc1 := []
-      for v in (PastaLean.pyIter graph⦋u⦌)do
+      for v in (PastaLean.pyIter graph⦋u⦌) do
         let p'_unpack_value_1 := _has_any_cycle'hasCycle v graph state
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1
@@ -539,7 +538,7 @@ def has_any_cycle := fun (n : Int) ↦ fun (graph : List (List Int)) ↦
     (do
       let mut state : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut p'_cc3 := []
-      for u in (PastaLean.pyRange n)do
+      for u in (PastaLean.pyRange n) do
         if h_1 : state⦋u⦌ = (0 : Int) then 
           let p'_unpack_value_1 := _has_any_cycle'hasCycle u graph state
           let p'_unpack_pair_1 := p'_unpack_value_1
@@ -564,7 +563,7 @@ private partial def _has_any_cycle'hasCycle'rn := fun (u : Int) ↦ fun (graph :
         return p'_ret_1
       state := PastaLean.pySetItem state u (1 : Int)
       let mut p'_cc1 := []
-      for v in (PastaLean.pyIter graph⦋u⦌)do
+      for v in (PastaLean.pyIter graph⦋u⦌) do
         let p'_unpack_value_1 := _has_any_cycle'hasCycle'rn v graph state
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1
@@ -583,7 +582,7 @@ def has_any_cycle'rn := fun (n : Int) ↦ fun (graph : List (List Int)) ↦
     (do
       let mut state : List Int := PastaLean.pyListRepeat [(0 : Int)] n
       let mut p'_cc3 := []
-      for u in (PastaLean.pyRange n)do
+      for u in (PastaLean.pyRange n) do
         if h_1 : state⦋u⦌ == (0 : Int) then 
           let p'_unpack_value_1 := _has_any_cycle'hasCycle'rn u graph state
           let p'_unpack_pair_1 := p'_unpack_value_1
@@ -599,7 +598,7 @@ def reset_grid := fun (grid : List (List Int)) ↦ fun (m : Int) ↦
   Id.run
     (do
       let mut grid := grid
-      for i in (PastaLean.pyRange (PastaLean.pyLen grid))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen grid)) do
         grid := PastaLean.pySetItem grid i (PastaLean.pyListRepeat [(0 : Int)] m)
       return grid)
 
@@ -609,7 +608,7 @@ def reset_grid'rn := fun (grid : List (List Int)) ↦ fun (m : Int) ↦
   Id.run
     (do
       let mut grid := grid
-      for i in (PastaLean.pyRange (PastaLean.pyLen grid))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen grid)) do
         grid := PastaLean.pySetItem grid i (PastaLean.pyListRepeat [(0 : Int)] m)
       return grid)
 
@@ -631,7 +630,7 @@ def query_connected := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let p'_unpack_value_1 := _query_connected'find a p
@@ -643,7 +642,7 @@ def query_connected := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fun (
         p := Prod.snd p'_unpack_pair_2
         p := PastaLean.pySetItem p p'_thread_t1 (Prod.fst p'_unpack_pair_2)
       let mut p'_cc2 := []
-      for p'_pair_1 in (PastaLean.pyIter queries)do
+      for p'_pair_1 in (PastaLean.pyIter queries) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let mut p'_cc2cond :=
@@ -679,7 +678,7 @@ def query_connected'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fu
   Id.run
     (do
       let mut p : List Int := PastaLean.pyList (PastaLean.pyRange n)
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let p'_unpack_value_1 := _query_connected'find'rn a p
@@ -691,7 +690,7 @@ def query_connected'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦ fu
         p := Prod.snd p'_unpack_pair_2
         p := PastaLean.pySetItem p p'_thread_t1 (Prod.fst p'_unpack_pair_2)
       let mut p'_cc2 := []
-      for p'_pair_1 in (PastaLean.pyIter queries)do
+      for p'_pair_1 in (PastaLean.pyIter queries) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         let mut p'_cc2cond :=

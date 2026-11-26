@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import Libraries.pandas.Series
 
 set_option linter.unusedVariables false
@@ -91,18 +92,18 @@ def tail (df : DataFrame) (n : Nat := 5) : DataFrame :=
 def getAt (df : DataFrame) (rowLabel : String) (colName : String) : Cell :=
   match df.index.idxOf? rowLabel, df.colCells? colName with
   | some i, some cells => cells[i]!
-  | _, _ => panic! "KeyError: row label or column name not found"
+  | _, _ => PastaLean.pyPanic "KeyError: row label or column name not found"
 
 /-- Scalar access by integer positions (`df.iat[i, j]`). -/
 def iat (df : DataFrame) (i j : Nat) : Cell :=
   match df.cols[j]? with
   | some col => col.2[i]!
-  | none => panic! "IndexError: iat position out of bounds"
+  | none => PastaLean.pyPanic "IndexError: iat position out of bounds"
 
 /-- Insert / replace a column, preserving order (append if new). Length must match the row count. -/
 def insertColumn (df : DataFrame) (name : String) (cells : List Cell) : DataFrame :=
   if cells.length != df.index.length then
-    panic! "ValueError: length of values does not match length of index"
+    PastaLean.pyPanic "ValueError: length of values does not match length of index"
   else if df.cols.any (·.1 == name) then
     { df with cols := df.cols.map fun (nm, c) => if nm == name then (nm, cells) else (nm, c) }
   else

@@ -135,12 +135,10 @@ def valueAndMutateMethod? (attr : String) (argc : Nat) : Option (Lean.Name × Le
   | "setdefault" => if argc == 2 then some (``PastaLean.pyGetD, ``PastaLean.pyDictSetdefaultRest, 2) else none
   | _         => none
 
-/-- Swap the `(value, rest)` pop pair to its O(1) `Array` variant when the receiver is `array_ok`. -/
-def arrayPopFns (attr : String) (valueFn restFn : Lean.Name) : Lean.Name × Lean.Name :=
-  match attr with
-  | "pop"     => (``PastaLean.pyArrayPopValue, ``PastaLean.pyArrayPopRest)
-  | "popleft" => (``PastaLean.pyArrayPopLeftValue, ``PastaLean.pyArrayPopLeftRest)
-  | _         => (valueFn, restFn)
+/-- Swap the `(value, rest)` pop pair to its O(1) `Array` variant when the receiver is `array_ok`
+(the substitution table, `PastaLean/PyVerify/Twin/Table.lean`). -/
+def arrayPopFns (valueFn restFn : Lean.Name) : Lean.Name × Lean.Name :=
+  (Twin.runPrim valueFn, Twin.runPrim restFn)
 
 /-- Recognize `container.<m>(args…)` for a value-and-mutate method `m` on an already-declared
 mutable variable. Returns the runtime pair, the receiver, the value-form args, and the rest-form
@@ -163,7 +161,7 @@ def popCallParts? (value : Json) :
     if attr == "pop" && args.size == 1 && (← jsonIsDictExpr receiverJson) then
       pure (``PastaLean.pyDictKeyPopValue, ``PastaLean.pyDictKeyPopRest, 1)
     else if (value.getObjValAs? String "_seq" == .ok "array") && (← getNumericMode) == .approx then
-      let (vf, rf) := arrayPopFns attr valueFn restFn
+      let (vf, rf) := arrayPopFns valueFn restFn
       pure (vf, rf, restArgc)
     else pure (valueFn, restFn, restArgc)
   let argCodes ← args.mapM (getCode · `term)

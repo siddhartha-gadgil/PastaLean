@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -48,7 +47,7 @@ def grass_rate := fun (g : Rat) ↦ fun (r_pop : Rat) ↦
 attribute [simp, taste_ingr] grass_rate
 
 def grass_rate'rn := fun (g : Float) ↦ fun (r_pop : Float) ↦
-  (show Float from r *ₚ g *ₚ ((1.0 : Float) -ₚ PastaLean.pyFloat g /ₚ k) -ₚ a *ₚ g *ₚ r_pop)
+  (show Float from r *ₚ g *ₚ ((1.0 : Float) -ₚ PastaLean.pyTrueDiv g k) -ₚ a *ₚ g *ₚ r_pop)
 
 def rabbit_rate := fun (g : Rat) ↦ fun (r_pop : Rat) ↦ fun (w : Rat) ↦
   (show Rat from b *ₚ g *ₚ r_pop -ₚ d *ₚ r_pop -ₚ c *ₚ r_pop *ₚ w)
@@ -87,7 +86,7 @@ def calc_avg := fun (g : Rat) ↦ fun (r_p : Rat) ↦ fun (w : Rat) ↦ (show Ra
 attribute [simp, taste_ingr] calc_avg
 
 def calc_avg'rn := fun (g : Float) ↦ fun (r_p : Float) ↦ fun (w : Float) ↦
-  (show Float from PastaLean.pyFloat (g +ₚ r_p +ₚ w) /ₚ (3.0 : Float))
+  (show Float from PastaLean.pyTrueDiv (g +ₚ r_p +ₚ w) (3.0 : Float))
 
 noncomputable def calc_entropy := fun (g : Rat) ↦ fun (r_p : Rat) ↦ fun (w : Rat) ↦
   -(g *ₚ Libraries.math.pyMathLogR (g +ₚ (1.0 : Rat)) +ₚ r_p *ₚ Libraries.math.pyMathLogR (r_p +ₚ (1.0 : Rat)) +ₚ

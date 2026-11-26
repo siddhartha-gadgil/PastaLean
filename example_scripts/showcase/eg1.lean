@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -56,7 +55,7 @@ noncomputable def find_nearest_neighbor := fun (target : List Int) ↦ fun (data
         -- Find the index of the minimum distance
         -- Using a loop since index() might not be supported based on tests
         let mut min_index : Int := -(1 : Int)
-        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances))do
+        for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances)) do
           let i := Prod.fst p'_pair_1
           let d := Prod.snd p'_pair_1
           if h_1 : d = min_dist then 
@@ -65,7 +64,7 @@ noncomputable def find_nearest_neighbor := fun (target : List Int) ↦ fun (data
         let p'_ret_1 := (min_dist, dataset⦋min_index⦌)
         return p'_ret_1
       catch caught =>
-        if (caught).OfKind == "ValueError" then 
+        if PastaLean.pyExcIsA caught "ValueError" then 
           let e := caught
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg s! "Error calculating distances: {e}"]
           let p'_ret_2 := (-(1.0 : Real), [])
@@ -87,7 +86,7 @@ def find_nearest_neighbor'rn : List Int → List (List Int) → PastaLean.PyExce
     -- Find the index of the minimum distance
     -- Using a loop since index() might not be supported based on tests
     let mut min_index : Int := -(1 : Int)
-    for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances))do
+    for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate distances)) do
       let i := Prod.fst p'_pair_1
       let d := Prod.snd p'_pair_1
       if h_1 : d == min_dist then 
@@ -96,7 +95,7 @@ def find_nearest_neighbor'rn : List Int → List (List Int) → PastaLean.PyExce
     let p'_ret_1 := (min_dist, dataset⦋min_index⦌)
     return p'_ret_1
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       let e := caught
       let _ ← pyPrintIO [pyPrintArg s! "Error calculating distances: {e}"]
       let p'_ret_2 := (-(1.0 : Float), [])
@@ -160,9 +159,7 @@ def run_example'rn :=
 
 noncomputable def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

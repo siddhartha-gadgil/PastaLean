@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -23,10 +22,10 @@ def count_primes := fun (n : Int) ↦
     (do
       let mut sieve : List Bool := PastaLean.pyListRepeat [Bool.true] n
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange n (2 : Int))do
+      for i in (PastaLean.pyRange n (2 : Int)) do
         if h_1 : PastaLean.pyTruthy sieve⦋i⦌ then 
           ans := ans +ₚ (1 : Int)
-          for j in (PastaLean.pyRange n (i +ₚ i) i)do
+          for j in (PastaLean.pyRange n (i +ₚ i) i) do
             sieve := PastaLean.pySetItem sieve j Bool.false
       let mut head : List Bool := PastaLean.pySlice sieve none (some (PastaLean.pyFloorDiv n (2 : Int))) none
       let p'_ret_1 := ans +ₚ PastaLean.pyLen head
@@ -39,10 +38,10 @@ def count_primes'rn := fun (n : Int) ↦
     (do
       let mut sieve : Array Bool := PastaLean.pyArrayRepeat #[Bool.true] n
       let mut ans : Int := (0 : Int)
-      for i in (PastaLean.pyRange n (2 : Int))do
+      for i in (PastaLean.pyRange n (2 : Int)) do
         if h_1 : PastaLean.pyTruthy sieve⦋i⦌ then 
           ans := ans +ₚ (1 : Int)
-          for j in (PastaLean.pyRange n (i +ₚ i) i)do
+          for j in (PastaLean.pyRange n (i +ₚ i) i) do
             sieve := PastaLean.pySetItem sieve j Bool.false
       let mut head : Array Bool := PastaLean.pySlice sieve none (some (PastaLean.pyFloorDiv n (2 : Int))) none
       let p'_ret_1 := ans +ₚ PastaLean.pyLen head

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -17,18 +16,18 @@ namespace PastaLean.User.Root
 -- so the program stays total. In prove mode each PyAny binder is flagged as unprovable.
 -- `data` has no annotation and its element type is never pinned (indexing is ambiguous), so it boxes
 -- to PyAny and `data[0]` still elaborates via the delegating PyGetItem instance.
-def first_item := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋(0 : Int)⦌)
+def first_item := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋((0 : Int) : PastaLean.PyAny)⦌)
 
 attribute [simp] first_item
 
-def first_item'rn := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋(0 : Int)⦌)
+def first_item'rn := fun (data : PyAny) ↦ (show PastaLean.PyAny from data⦋((0 : Int) : PastaLean.PyAny)⦌)
 
 -- `xs` used by len() and a for-loop; still un-inferrable, boxed to PyAny.
 def count_items := fun (xs : List Int) ↦
   Id.run
     (do
       let mut n : Int := (0 : Int)
-      for _ in (PastaLean.pyIter xs)do
+      for _ in (PastaLean.pyIter xs) do
         n := n +ₚ (1 : Int)
       return n)
 
@@ -38,15 +37,13 @@ def count_items'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut n : Int := (0 : Int)
-      for _ in (PastaLean.pyIter xs)do
+      for _ in (PastaLean.pyIter xs) do
         n := n +ₚ (1 : Int)
       return n)
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

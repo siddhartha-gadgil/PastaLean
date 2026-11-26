@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -20,7 +19,7 @@ def squares := fun (n : Int) ↦
       -- A generator: `yield` in the body. PastaLean materialises it to a `List Int` (each `yield`
       -- becomes an append), so `list(...)`, `sum(...)`, `for`, and comprehensions consume it directly
       -- via the `PyIterable` protocol.
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         __gen'acc := PastaLean.pyAppend __gen'acc (i *ₚ i)
       return __gen'acc)
 
@@ -33,7 +32,7 @@ def squares'rn := fun (n : Int) ↦
       -- A generator: `yield` in the body. PastaLean materialises it to a `List Int` (each `yield`
       -- becomes an append), so `list(...)`, `sum(...)`, `for`, and comprehensions consume it directly
       -- via the `PyIterable` protocol.
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         __gen'acc := PastaLean.pyAppend __gen'acc (i *ₚ i)
       return __gen'acc)
 
@@ -42,7 +41,7 @@ def evens_with_tag := fun (xs : List Int) ↦
     (do
       let mut __gen'acc : List Int := []
       -- Conditional yields plus a trailing yield.
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         if h_1 : x %ₚ (2 : Int) = (0 : Int) then 
           __gen'acc := PastaLean.pyAppend __gen'acc x
       __gen'acc := PastaLean.pyAppend __gen'acc (-(1 : Int))
@@ -55,7 +54,7 @@ def evens_with_tag'rn := fun (xs : List Int) ↦
     (do
       let mut __gen'acc : List Int := []
       -- Conditional yields plus a trailing yield.
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         if h_1 : x %ₚ (2 : Int) == (0 : Int) then 
           __gen'acc := PastaLean.pyAppend __gen'acc x
       __gen'acc := PastaLean.pyAppend __gen'acc (-(1 : Int))
@@ -119,8 +118,8 @@ partial def subsets : List Int → Int → List (List Int) := fun (nums : List I
       -- typed by TypeInfer (run *after* generator lowering), so `[nums[i]] + tail` stays list-concat —
       -- without that the empty-list seed defaults the element type wrong under recursion.
       __gen'acc := PastaLean.pyAppend __gen'acc []
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums) start)do
-        for tail in (PastaLean.pyIter (subsets nums (i +ₚ (1 : Int))))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums) start) do
+        for tail in (PastaLean.pyIter (subsets nums (i +ₚ (1 : Int)))) do
           __gen'acc := PastaLean.pyAppend __gen'acc ([nums⦋i⦌] +ₚ tail)
       return __gen'acc)
 
@@ -132,8 +131,8 @@ partial def subsets'rn : List Int → Int → List (List Int) := fun (nums : Lis
       -- typed by TypeInfer (run *after* generator lowering), so `[nums[i]] + tail` stays list-concat —
       -- without that the empty-list seed defaults the element type wrong under recursion.
       __gen'acc := PastaLean.pyAppend __gen'acc []
-      for i in (PastaLean.pyRange (PastaLean.pyLen nums) start)do
-        for tail in (PastaLean.pyIter (subsets'rn nums (i +ₚ (1 : Int))))do
+      for i in (PastaLean.pyRange (PastaLean.pyLen nums) start) do
+        for tail in (PastaLean.pyIter (subsets'rn nums (i +ₚ (1 : Int)))) do
           __gen'acc := PastaLean.pyAppend __gen'acc ([nums⦋i⦌] +ₚ tail)
       return __gen'acc)
 
@@ -141,7 +140,7 @@ def evens := fun (xs : List Int) ↦
   Id.run
     (do
       let mut __gen'acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         if h_1 : x %ₚ (2 : Int) = (0 : Int) then 
           __gen'acc := PastaLean.pyAppend __gen'acc x
       return __gen'acc)
@@ -152,7 +151,7 @@ def evens'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut __gen'acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         if h_1 : x %ₚ (2 : Int) == (0 : Int) then 
           __gen'acc := PastaLean.pyAppend __gen'acc x
       return __gen'acc)
@@ -161,7 +160,7 @@ def doubled := fun (xs : List Int) ↦
   Id.run
     (do
       let mut __gen'acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         __gen'acc := PastaLean.pyAppend __gen'acc (x *ₚ (2 : Int))
       return __gen'acc)
 
@@ -171,7 +170,7 @@ def doubled'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut __gen'acc : List Int := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         __gen'acc := PastaLean.pyAppend __gen'acc (x *ₚ (2 : Int))
       return __gen'acc)
 
@@ -182,7 +181,7 @@ def fib := fun (n : Int) ↦
       -- Stateful generator: the `a, b = b, a + b` swap threads through the materialised loop.
       let mut a : Int := (0 : Int)
       let mut b : Int := (1 : Int)
-      for _ in (PastaLean.pyRange n)do
+      for _ in (PastaLean.pyRange n) do
         __gen'acc := PastaLean.pyAppend __gen'acc a
         let p'_unpack_value_1 := (b, a +ₚ b)
         let p'_unpack_pair_1 := p'_unpack_value_1
@@ -199,7 +198,7 @@ def fib'rn := fun (n : Int) ↦
       -- Stateful generator: the `a, b = b, a + b` swap threads through the materialised loop.
       let mut a : Int := (0 : Int)
       let mut b : Int := (1 : Int)
-      for _ in (PastaLean.pyRange n)do
+      for _ in (PastaLean.pyRange n) do
         __gen'acc := PastaLean.pyAppend __gen'acc a
         let p'_unpack_value_1 := (b, a +ₚ b)
         let p'_unpack_pair_1 := p'_unpack_value_1

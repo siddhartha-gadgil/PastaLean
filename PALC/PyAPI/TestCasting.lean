@@ -14,9 +14,13 @@ open PastaLean
 #guard_msgs in
 #eval pyInt true
 
-/-- info: 0 -/
-#guard_msgs in
-#eval pyInt "oops"
+-- `int(s)` accepts Python's literal syntax; anything else is a ValueError (`pyPanic`).
+#guard pyParseIntLiteral? "  -1_000 " == some (-1000)
+#guard pyParseIntLiteral? "+7" == some 7
+#guard pyParseIntLiteral? "oops" == none
+#guard pyParseIntLiteral? "1__0" == none
+#guard pyParseIntLiteral? "_1" == none
+#guard pyParseIntLiteral? "" == none
 
 -- `float(str)` must actually parse decimals (a stub once returned 0.0 for everything but
 -- inf/nan, silently breaking `float(input())`). Only exact-in-binary values are guarded.

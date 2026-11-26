@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -29,6 +28,8 @@ structure UnionFind where
 
 instance : PastaLean.PyTruthy UnionFind where truthy _ := true
 
+instance : PastaLean.PyBool UnionFind where pyBool _ := true
+
 instance : PastaLean.PyTyped UnionFind where pyTypeOf _ := TypeInfer.PyType.cls "UnionFind"
 
 instance : Coe UnionFind (Option UnionFind) :=
@@ -43,9 +44,9 @@ partial def UnionFind.find := fun (self : UnionFind) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.p⦋x⦌ ≠ x then 
-        let _popval'rb1 := UnionFind.find self self.p⦋x⦌ |>.1
+        let _popval'rb0 := UnionFind.find self self.p⦋x⦌ |>.1
         self := UnionFind.find self self.p⦋x⦌ |>.2
-        self := { self with p := PastaLean.pySetItem self.p x _popval'rb1 }
+        self := { self with p := PastaLean.pySetItem self.p x _popval'rb0 }
       let p'_ret_1 := (self.p⦋x⦌, self)
       return p'_ret_1)
 
@@ -72,6 +73,8 @@ structure UnionFind'rn where
 
 instance : PastaLean.PyTruthy UnionFind'rn where truthy _ := true
 
+instance : PastaLean.PyBool UnionFind'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped UnionFind'rn where pyTypeOf _ := TypeInfer.PyType.cls "UnionFind"
 
 instance : Coe UnionFind'rn (Option UnionFind'rn) :=
@@ -86,9 +89,9 @@ partial def UnionFind'rn.find := fun (self : UnionFind'rn) ↦ fun (x : Int) ↦
     (do
       let mut self := self
       if h_1 : self.p⦋x⦌ != x then 
-        let _popval'rb1 := UnionFind'rn.find self self.p⦋x⦌ |>.1
+        let _popval'rb0 := UnionFind'rn.find self self.p⦋x⦌ |>.1
         self := UnionFind'rn.find self self.p⦋x⦌ |>.2
-        self := { self with p := PastaLean.pySetItem self.p x _popval'rb1 }
+        self := { self with p := PastaLean.pySetItem self.p x _popval'rb0 }
       let p'_ret_1 := (self.p⦋x⦌, self)
       return p'_ret_1)
 
@@ -112,6 +115,8 @@ structure Bag where
 
 instance : PastaLean.PyTruthy Bag where truthy _ := true
 
+instance : PastaLean.PyBool Bag where pyBool _ := true
+
 instance : PastaLean.PyTyped Bag where pyTypeOf _ := TypeInfer.PyType.cls "Bag"
 
 instance : Coe Bag (Option Bag) :=
@@ -130,6 +135,8 @@ structure Bag'rn where
   deriving Inhabited, Repr, BEq
 
 instance : PastaLean.PyTruthy Bag'rn where truthy _ := true
+
+instance : PastaLean.PyBool Bag'rn where pyBool _ := true
 
 instance : PastaLean.PyTyped Bag'rn where pyTypeOf _ := TypeInfer.PyType.cls "Bag"
 
@@ -157,7 +164,7 @@ def main' :=
       uf := UnionFind.find uf (5 : Int) |>.2
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (p'_popv_3 == p'_popv_4)]
       let mut b := Bag.new ["pear", "apple"]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (b.first)]
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg b.first]
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg b.n]) :
     PastaLean.ProofMode.PyProofM _)
 
@@ -179,7 +186,7 @@ def main''rn :=
       uf := UnionFind'rn.find uf (5 : Int) |>.2
       let _ ← pyPrintIO [pyPrintArg (p'_popv_3 == p'_popv_4)]
       let mut b := Bag'rn.new ["pear", "apple"]
-      let _ ← pyPrintIO [pyPrintArg (b.first)]
+      let _ ← pyPrintIO [pyPrintArg b.first]
       let _ ← pyPrintIO [pyPrintArg b.n]) :
     IO _)
 

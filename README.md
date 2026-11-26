@@ -65,9 +65,9 @@ PastaLean transpiles Python code into Lean 4 and verifies it there. As the name 
 </table>
 
 <p align="center">
-  <img src="./docs/images/typeevalpy.svg" alt="TypeEvalPy autogen: TypeInfer 72.7% exact match vs HeaderGen 65.7%, Jedi 37.0%, Scalpel 20.2%, Type4Py 7.0%" width="32%"/>
-  <img src="./docs/images/typybench.svg" alt="TypyBench: TypeInfer TypeSim 0.284 vs pyrefly 0.243, pyre 0.239, pytype 0.158, hityper 0.105" width="32%"/>
-  <img src="./docs/images/typecheck.svg" alt="Type checking: pastalean catches 82.8% of seeded errors and flags 0% of clean files; ty 73.0/23.0, pyright 70.1/26.5, pyrefly 68.6/27.5, zuban 64.7/20.6, mypy 58.3/39.2" width="32%"/>
+  <img src="./docs/images/typeevalpy.svg" alt="TypeEvalPy autogen: TypeInfer 72.7% exact match vs HeaderGen 65.7%, Jedi 37.0%, Scalpel 20.2%, Type4Py 7.0%" width="29%"/>
+  <img src="./docs/images/typybench.svg" alt="TypyBench: TypeInfer TypeSim 0.284 vs pyrefly 0.243, pyre 0.239, pytype 0.158, hityper 0.105" width="29%"/>
+  <img src="./docs/images/typecheck.svg" alt="Type checking, 195 seeded errors: caught / errors on originals / time — TypeInfer 95.9%/0.0%/0.56 s, pyright 95.4%/5.5%/2.23 s, zuban 95.4%/11.0%/0.13 s, pyrefly 94.9%/6.8%/0.28 s, ty 94.9%/4.1%/0.07 s, mypy 92.8%/19.2%/0.96 s" width="38%"/>
 </p>
 
 *Elaborated* means the generated Lean type-checks. *Tests passed* means the runnable twin gives
@@ -392,7 +392,7 @@ pastalean typeinfer script.py --check         # type-check it: Lean-style errors
 pastalean typeinfer my_project/               # repo mode: annotate a whole project
 ```
 
-**On benchmarks.** On the file-level TypeEvalPy benchmark, TypeInfer is the top-scoring static tool on the micro set and leads on return and parameter facts on the autogen set. On the repository-level TypyBench benchmark (50 real projects with their annotations stripped) it leads every accuracy metric against the other inference-capable tools (pyrefly, pyre, pytype), while being the fastest at repository scale and using less memory than every tool except hityper. On the TypeEvalPy autogen set (5,453 snippets, 77,268 facts, exact match):
+**On benchmarks.** On the file-level TypeEvalPy benchmark, TypeInfer is the top-scoring static tool on the micro set and leads on return and parameter facts on the autogen set. On the repository-level TypyBench benchmark (50 real projects with their annotations stripped) it leads every accuracy metric against the other inference-capable tools (pyrefly, pyre, pytype), while being the fastest at repository scale and using less memory than every tool except hityper. As a checker (`--check`) it catches the most seeded errors of the six tools compared, with no error on the unmodified programs ([Type checking](#type-checking)). On the TypeEvalPy autogen set (5,453 snippets, 77,268 facts, exact match):
 
 | Tool | Return | Param | Var | Matched | Match |
 |---|---|---|---|---|---|
@@ -447,6 +447,114 @@ Two lessons:
 2. Even a _true_ postcondition can be out of automated reach — a functional characterization like
    `Ensures(Result() == number_of_pairs(i, j) with i < j and words[i] == reverse(words[j]))` is true
    but needs a bespoke inductive proof; `taste?`/`mvcgen` will leave a `sorry`, and that is expected.
+
+
+### Finding counterexamples
+
+A false contract cannot be proved, so PastaLean looks for a counterexample before it tries: `taste?`
+first runs a short search on every obligation, and `pastalean refute f.py` (MCP: `find_counterexample`)
+searches properly. It covers contracts and *property functions*, which is how equivalences are written —
+brute force against an optimized version:
+
+```python
+def agree(xs: list[int]):
+    if len(xs) >= 1:
+        assert max_sub_brute(xs) == max_sub_fast(xs)   # Kadane seeded with 0: wrong on all-negative lists
+```
+
+```
+$ pastalean refute max_subarray.py
+agree                        REFUTED                  xs = [-1]
+                             provable: violates · runnable: violates · CPython: violates · found by prov
+                             kernel-checked: theorem agree_counterexample : ¬ type_of% @agree := by refute_at ([-1] : List ℤ)
+```
+
+All searching happens in Lean, over the translated program (the `refute?` machinery): small-scope
+exhaustive enumeration and random draws in both twins, with generators that aim at the literals in the
+program's own definitions (a `"sx250ab" in s` precondition needs that substring). Python only supplies
+the program and its contracts; a program PastaLean cannot translate is reported as such. A contract
+witness also says what the function returned and which `Ensures` it broke — either the code is wrong
+there or that `Ensures` is too strong. Equivalences need no property function: `--equiv brute=fast`
+checks `brute(x) == fast(x)` under `brute`'s `Requires`. Every witness Lean finds is executed once under
+CPython and is then judged in **all three worlds** — the provable twin (exact ℚ), the runnable twin (IEEE floats)
+and CPython — so a counterexample is classified, not just reported:
+
+| Verdict | Meaning |
+|---|---|
+| `REFUTED` | false everywhere; comes with a kernel-checked `refute_at` proof of the negation (no `native_decide`) |
+| `FLOAT_ONLY` | true over exact ℚ, false in IEEE floats — a ℚ proof would hide a real float bug |
+| `ROUNDING_SENSITIVE` | as `FLOAT_ONLY`, and the IEEE error enclosure shows the flip is rounding (`x / 49 * 49 == x` at `x = 1.0`) |
+| `TWIN_DIVERGENCE_PROVABLE` | fails only in the exact model, which is stricter than Python |
+| `FIDELITY_BUG` | the Lean twins disagree with CPython: a translation bug (e.g. dict iteration order) |
+| `PARTIALITY_GAP` | Python raises, the exact model returns a default (`sum(xs) // len(xs)` on `[]`): provable yet crashing |
+| `NONTERMINATION` | the input made some world run past its deadline |
+| `PROGRAM_DIFF` | (stdin, `--against`) the program and the reference print differently |
+
+Float inputs are dyadic rationals (`k / 2^e`), so the same input is the same number in all three worlds.
+
+**Stdin programs.** A program that reads `input()` and has no contracts is compared across worlds on
+generated inputs. A line is written only when the program reads it, shaped by how that call site
+consumes it (`int(input())` one integer, `a, b = map(int, input().split())` two, `list(map(int, …))` as
+many as the last count read), and an input counts only if CPython runs it cleanly. With `--against` a
+reference program (brute force), differing outputs are shrunk and confirmed in both Lean worlds:
+
+```
+$ pastalean refute stdin_kadane_fast.py --against stdin_kadane_brute.py --negative
+PROGRAM_DIFF: the program and the reference print differently on this input (confirmed in runnable and provable twins)
+  input:
+    1
+    1
+    -1
+  cpython:             '0\n'
+  reference cpython:   '-1\n'
+  ...
+```
+
+Without a reference it reports inputs where a twin prints something other than CPython — e.g.
+`stdin_word_order.py`, where PastaLean's `HashMap` does not keep dict insertion order. `--stdin-examples`
+mutates given inputs instead of generating them.
+
+**IEEE enclosures.** A float witness is also re-run with every float an interval that provably contains
+the IEEE double ([`PyAPI/FloatInterval.lean`](PastaLean/PyAPI/FloatInterval.lean): round-to-nearest
+error `max(2⁻⁵³|z|, 2⁻¹⁰⁷⁵)`, soundness of `+ − × ÷ abs` and of decided comparisons proved over ℚ). If
+the intervals decide the property, it holds or fails for *every* rounding (`a + b / 2` as a midpoint fails
+robustly); if they cannot, the failure is a rounding effect (`ROUNDING_SENSITIVE`). Anything outside the
+modelled operations (`math.*`, `**`, float `//`) is reported as unmodelled rather than guessed.
+`pastalean refute --float-report f.py` (MCP: `float_model_report`) measures each `-> float` function's
+twins against the enclosure on sampled inputs:
+
+Over the 27 top-level `-> float` functions in `example_scripts/` that run without scipy (up to 100 dyadic inputs each):
+
+| Measure | Result |
+|---|---|
+| CPython inside the enclosure (validates the enclosure) | 2233 / 2233 |
+| runnable twin (`Float`) bit-identical to CPython | 2277 / 2277 |
+| runnable twin / provable twin (exact ℚ) inside the enclosure | 2196 / 2196 each |
+| enclosure width, median / 99th percentile | 2.4 / 76 ulps |
+| CPython raised (306 inputs): runnable twin raised too | 306 / 306 |
+| … provable twin's total model gave a default instead | 131 (`IndexError`, `ZeroDivisionError`; a proof there says nothing about the crash) |
+
+### Float fidelity
+
+The runnable twin computes in Lean's `Float`, IEEE binary64 like a CPython `float`; the runtime then
+reproduces what Python adds on top (`//` and `%` via CPython's `fmod`-based algorithm, exact
+`int()`/`round()`/`math.floor` for any magnitude, correctly rounded int→float, int `/` int,
+`round(x, n)`, `hypot` and `float(str)`, and the `ZeroDivisionError`/`OverflowError`/`ValueError` rules).
+[`PastaBench/float_fidelity/bench.py`](PastaBench/float_fidelity/bench.py) evaluates 33 operations on
+small dyadics, short decimals, arbitrary doubles and IEEE edge values (`±0.0`, `±inf`, `nan`,
+subnormals) in CPython and both twins:
+
+| 93,198 cases (1000 per operation and input class) | Result |
+|---|---|
+| runnable twin bit-identical to CPython (value, or the same exception) | 93,198 / 93,198 |
+| provable twin (exact ℚ) equal to CPython's double | 51,250 / 68,707 |
+| … otherwise within | 0.5 ulp (one rounding), except one `//` edge case where CPython's own `float_divmod` is 1 ulp from the exact floor |
+| Python raises, the total ℚ model gives a value | 925 (division by zero, overflow) |
+
+Before these runtime fixes the runnable twin matched on 91.9% of a 6,359-case run: `//`/`%` used
+`floor(a / b)`, `int()`/`round()`/`math.floor` saturated at 2⁶⁴, int→float and int `/` int were not
+correctly rounded, and `abs(-0.0)`, `hypot`, `float(str)` and the error rules differed. The ℚ
+comparison also exposed that the provable twin's `int(x)` floored instead of truncating (`int(-2.5)`).
 
 ## Libraries
 
@@ -565,48 +673,66 @@ but is expected to have type
 ```
 
 Four judgments feed it: a parameter annotation against its body's uses, a return annotation against
-the body re-inferred with every return type stripped, a local `x: T = e` against its value flow, and
-each call argument against the parameter it is passed to. On a seeded-error benchmark — 204 mechanical
-annotation flips over 77 known-good programs, scored differentially (credit only when the mutant is
-flagged and its untouched original is not) — it catches the most of any checker while being the only
-one that never flags a known-good file:
+the body re-inferred with every return type stripped, a local `x: T = e` (or a declared class field)
+against the value written to it, and each call argument against the parameter it is passed to — for
+functions, constructors and methods alike. On top of inference, an *exact* layer
+(`TypeInfer/Diagnostics/Exact.lean`) adds what Python's builtin types decide outright: `str + int`,
+`str > int`, `int.pop()`, `xs["k"]` on a list, `range(s)` on a `str`, `itertools.accumulate`/
+`functools.reduce` over an `operator` function. It only reasons about parameters whose concrete
+annotation is never rebound or `isinstance`-tested, locals every binding of which has one exact type,
+and loop/comprehension variables over those — so it accuses only what fails at run time for every
+value of the declared type. It honours `# type: ignore` and `@no_type_check` (PEP 484).
 
-| Tool | Caught | Flagged clean | Time |
+On a seeded-error benchmark — 195 mechanical annotation flips (`int` → `str`, …) over the 73 annotated
+`example_scripts/` programs whose imports resolve in isolation, a mutant counting as caught when it
+gets a `(line, rule)` diagnostic its untouched original does not:
+
+| Tool | Caught | Errors on originals | Time |
 |---|---|---|---|
-| **pastalean** | **169 (82.8%)** | **0 (0.0%)** | 0.8 s |
-| ty | 149 (73.0%) | 47 (23.0%) | 0.1 s |
-| pyright | 143 (70.1%) | 54 (26.5%) | 5.5 s |
-| pyrefly | 140 (68.6%) | 56 (27.5%) | 0.5 s |
-| zuban | 132 (64.7%) | 42 (20.6%) | 1.6 s |
-| mypy | 119 (58.3%) | 80 (39.2%) | 1.5 s |
+| **TypeInfer** | **187 (95.9%)** | **0/73 (0.0%)** | 0.56 s |
+| pyright 1.1.414 | 186 (95.4%) | 4/73 (5.5%) | 2.23 s |
+| zuban 0.10.1 | 186 (95.4%) | 8/73 (11.0%) | 0.13 s |
+| pyrefly 0.64.1 | 185 (94.9%) | 5/73 (6.8%) | 0.28 s |
+| ty 0.0.90 | 185 (94.9%) | 3/73 (4.1%) | 0.07 s |
+| mypy 2.4.0 | 181 (92.8%) | 14/73 (19.2%) | 0.96 s |
 
-Reproduce with `PastaBench/typecheck_bench/mutate.py` and `bench_checkers.py`. The corpus is
-`example_scripts/`, Python that PastaLean fully supports; the "flagged clean" column is mostly extra
-strictness for the other tools rather than a bug, which is exactly why recall is scored
-differentially. One caveat: those originals are the corpus PastaLean's own filters were written
-against, so the zero has home advantage — the differential rule protects the *caught* column, not the
-*flagged clean* one.
+Of TypeInfer's 8 misses, 7 are not type errors at run time (a `str` used only for truthiness, `set.union`
+of a string, `x in list` for any `x`, string unpacking), and no tool flags them; the eighth needs
+typeshed's convention that `Counter` values are `int`. Two catches are TypeInfer's alone, both
+confirmed under CPython (`accumulate(s, xor, initial=0)` with `s: str`, and a `-> str` function its
+callers make return an `int`). "Errors on originals" is not a false-positive
+rate: what remains there is checker strictness (`Optional` narrowing through a subscript, mypy's
+empty-container and rebinding rules, possibly-unbound loop variables) and a few checker bugs
+(pyrefly on `lambda n=n: …`, mypy on a forward `nonlocal`). The originals are also the corpus
+TypeInfer's filters were written against, so its zero has home advantage. Files that are deliberately
+ill-typed are marked with a PEP 484 file-level `# type: ignore` and excluded. Reproduce with
+`PastaBench/typecheck_bench/mutate.py` and `bench_checkers.py` (24 cores).
 
 #### False positives on the mypy_primer corpus
 
-204 mutants of our own examples is a recall test, not a precision test. For that we use
+The seeded-error benchmark is a recall test on our own examples, not a precision test. For that we use
 [mypy_primer](https://github.com/hauntsaninja/mypy_primer)'s project list — the corpus mypy,
 pyright, ty and pyrefly all run their own regressions against. Its selection rule is what makes it
 useful: a project is on the list only if it already type-checks in its own CI, so **every diagnostic
 PastaLean emits on it is a candidate false positive**.
 
 ```
-mypy_primer corpus: 158 projects, 68,542 .py files CHECKED
-  diagnostics       294 (4.29 per 1000 files)
-  front-end failed  6,221 (IR could not be built; excluded from the rate above)
+mypy_primer corpus: 160 projects, 69,857 .py files CHECKED
+  diagnostics       245 (3.51 per 1000 files)
+  front-end failed  6,450 (IR could not be built; excluded from the rate above)
   timed out         8 files (> 90s, bisected)
-  wall              2,343s (29 files/s)
+  wall              792s (88 files/s, 24 cores)
 ```
 
-One diagnostic per ~230 files, on 10M lines nobody here wrote, with nothing skipped for size. The rate
-is over files whose IR was actually built; earlier runs (238 / 72,923) also counted unparsed files in
-the denominator, so the two are not comparable — see
-[`docs/typeinfer-certificates.md`](./docs/typeinfer-certificates.md#precision-at-scale-mypy_primer).
+One diagnostic per ~285 files, on 10M lines nobody here wrote, with nothing skipped for size. The rate
+is over files whose IR was actually built. Against the checker before the exact layer, on the same
+fetch, that is 297 → 245: the 17 new diagnostics were each read by hand and are real (deliberately
+ill-typed test fixtures in `beartype`, `pylint` and `jax`, a `str` passed where `dict[str, str]` is
+declared, a `tuple` where `List[int]` is), and the 69 dropped are 49 false positives of the old call-site
+check (protocol annotations such as `Sequence`/`Iterable` read as `list`, a bare `tuple` read as the
+empty tuple), 13 calls into decorated functions, 3 `None` arguments and 4 `@no_type_check` fixtures. An
+earlier harness counted unparsed files in the denominator (238 / 72,923), so its numbers are not
+comparable — see [`docs/typeinfer-certificates.md`](./docs/typeinfer-certificates.md#precision-at-scale-mypy_primer).
 The 8 timeouts are a known recursion in local-import inlining, not in the checker. The largest module in the corpus is a 4.1 MB
 generated test (`manticore/tests/native/test_x86.py`) at 12.8 s; the 33k-line GraphQL schema dump
 that used to run for minutes is 3.7 s. Both were the same bug: the signature fixpoint propagated
@@ -625,7 +751,7 @@ The sweep is what the current filters were written against: a class must be in a
 define (a `TypeVar` is a binder, not a nominal type), a use-conflict is reported only between two
 committed scalars, and a `yield` function's `-> None` is not contradicted by the list its
 materialisation builds. Together those took the corpus from 860 diagnostics to 234 (under the older
-accounting) at **no cost to recall** — still 169/204.
+accounting) at no cost to recall on the seeded-error benchmark as it was then scored.
 
 What the corpus does *not* give us is a scoreboard. The published one is the
 [typing conformance suite](https://github.com/python/typing/tree/main/conformance), scored by exact

@@ -22,6 +22,7 @@ except ImportError:  # pragma: no cover - non-POSIX
     fcntl = None
 
 from ..paths import REPO_ROOT, lake_executable
+from ..refute.limits import backend_preexec, lean_env
 
 logger = logging.getLogger(__name__)
 
@@ -141,16 +142,32 @@ class LeanBackendClient:
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
 
     def _command(self):
-        return [lake_executable(), "env", str(self.binary_path), "--server"]
+        # The binary itself, not `lake env <binary>`: a parent-death signal set before exec must land
+        # on the server (lake would pass it no further), so `_lake_env` supplies lake's environment.
+        return [str(self.binary_path), "--server"]
+
+    _lake_env_cache: dict[str, str] | None = None
+
+    def _lake_env(self) -> dict[str, str]:
+        """The environment `lake env` runs a command in (LEAN_PATH, LEAN_SYSROOT, …), read once."""
+        if LeanBackendClient._lake_env_cache is None:
+            out = subprocess.run([lake_executable(), "env", "env", "-0"], cwd=self.cwd, capture_output=True,
+                                 text=True, check=True).stdout
+            LeanBackendClient._lake_env_cache = dict(kv.split("=", 1) for kv in out.split("\0") if "=" in kv)
+        return LeanBackendClient._lake_env_cache
 
     def _drain_stderr(self):
         assert self.proc is not None and self.proc.stderr is not None
-        for line in self.proc.stderr:
-            line = line.rstrip()
-            if not line:
-                continue
-            self._stderr_lines.append(line)
-            logger.debug("Lean backend stderr: %s", line)
+        stream = self.proc.stderr
+        try:
+            for line in stream:
+                line = line.rstrip()
+                if not line:
+                    continue
+                self._stderr_lines.append(line)
+                logger.debug("Lean backend stderr: %s", line)
+        except (ValueError, OSError):   # `close()` shut the pipe under us (a restart after a hang)
+            pass
 
     def _recent_stderr(self):
         return "\n".join(self._stderr_lines)
@@ -205,6 +222,8 @@ class LeanBackendClient:
             stderr=subprocess.PIPE,
             text=True,
             bufsize=1,
+            preexec_fn=backend_preexec,
+            env=lean_env(self._lake_env()),
         )
         self._warm = False
         self._stderr_lines.clear()
@@ -294,9 +313,22 @@ class LeanBackendClient:
         assert; return the parsed JSON carrying the ordered list of winning tactic strings
         (`winners`). Uses a long timeout because this elaborates the whole program — a
         `nlinarith`/`grind` search would blow past the ordinary per-request budget."""
+        return self._long_task({"task": "proveFile", "code": code}, timeout)
+
+    def refute(self, code, targets, witnesses=None, config=None, timeout=DEFAULT_PROVE_TIMEOUT, evals=None):
+        """Search for and cross-check counterexamples in both Lean worlds (the `refute` task): `targets`
+        name each obligation's theorem / checker constants, `witnesses` are inputs found elsewhere (e.g.
+        by a CPython search) to evaluate in both twins, `evals` functions to evaluate at given inputs.
+        See `PastaLean/PyVerify/Refute/Task.lean`."""
+        payload = {"task": "refute", "code": code, "targets": targets,
+                   "witnesses": witnesses or [], "config": config or {}, "evals": evals or []}
+        return self._long_task(payload, timeout)
+
+    def _long_task(self, payload, timeout):
+        """One whole-file request with a long budget; `None` (and a restarted backend) on no answer."""
         self.start()
         assert self.proc is not None and self.proc.stdin is not None
-        json_task = json.dumps({"task": "proveFile", "code": code}, separators=(",", ":"))
+        json_task = json.dumps(payload, separators=(",", ":"))
         try:
             self.proc.stdin.write(json_task + "\n")
             self.proc.stdin.flush()
@@ -307,14 +339,14 @@ class LeanBackendClient:
         budget = timeout if self._warm else timeout + self.startup_timeout
         line = self._read_response(budget)
         if line is None:
-            logger.debug("proveFile got no response in %ss; leaving taste? in place.", budget)
+            logger.debug("%s got no response in %ss.", payload.get("task"), budget)
             self.close()
             return None
         self._warm = True
         try:
             return json.loads(line)
         except json.JSONDecodeError as err:
-            logger.debug("proveFile returned invalid JSON: %s", err)
+            logger.debug("%s returned invalid JSON: %s", payload.get("task"), err)
             return None
 
     def infer_types(self, ast_json, timeout=None):

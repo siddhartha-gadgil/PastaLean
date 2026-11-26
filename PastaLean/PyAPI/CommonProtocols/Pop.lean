@@ -52,7 +52,7 @@ The index defaults to `-1` (the last element), matching `list.pop()`; `set.pop()
 arbitrary element, and "the last" is an acceptable arbitrary choice for the list-backed set. -/
 
 /-- Normalize a possibly-negative `pop` index against a length; out-of-range stays out of range. -/
-private def pyPopIndex (len : Nat) (idx : Int) : Int :=
+def pyPopIndex (len : Nat) (idx : Int) : Int :=
   if idx < 0 then (len : Int) + idx else idx
 
 /-- Index-based `pop` over any ordered container (`List`, `Array`-via-`toList`, `PySet`), returning the

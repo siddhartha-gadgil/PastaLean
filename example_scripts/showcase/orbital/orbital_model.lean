@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -297,36 +296,38 @@ theorem spring_energy_nonneg :
 
 def cauchy_schwarz := fun (ax : Rat) ↦ fun (ay : Rat) ↦ fun (az : Rat) ↦ fun (bx : Rat) ↦ fun («by» : Rat) ↦
   fun (bz : Rat) ↦
-  /-
-  Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
-      local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
-        1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
-        2. the cross norm is non-negative   |a x b|^2 >= 0,
-      whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
-  -/
-  have ht_1 :
-    norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) +ₚ
-        dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz =
-      norm_sq ax ay az *ₚ norm_sq bx «by» bz :=
-    by simp_all (config := { zetaDelta := true }) [taste_ingr]; ring
-  have ht_2 :
-    norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) ≥ (0 : Int) := by
-    simp_all (config := { zetaDelta := true }) [taste_ingr]; nlinarith
-  have ht_3 : dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz ≤ norm_sq ax ay az *ₚ norm_sq bx «by» bz := by simp_all (config := { zetaDelta := true }) [taste_ingr]; linarith
-  ()
+  (show Unit from
+    /-
+    Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
+        local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
+          1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
+          2. the cross norm is non-negative   |a x b|^2 >= 0,
+        whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
+    -/
+    have ht_1 :
+      norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) +ₚ
+          dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz =
+        norm_sq ax ay az *ₚ norm_sq bx «by» bz :=
+      by simp_all (config := { zetaDelta := true }) [taste_ingr]; ring
+    have ht_2 :
+      norm_sq (cross_x ax ay az bx «by» bz) (cross_y ax ay az bx «by» bz) (cross_z ax ay az bx «by» bz) ≥ (0 : Int) :=
+      by simp_all (config := { zetaDelta := true }) [taste_ingr]; nlinarith
+    have ht_3 : dot ax ay az bx «by» bz *ₚ dot ax ay az bx «by» bz ≤ norm_sq ax ay az *ₚ norm_sq bx «by» bz := by simp_all (config := { zetaDelta := true }) [taste_ingr]; linarith
+    ())
 
 attribute [simp] cauchy_schwarz
 
 def cauchy_schwarz'rn := fun (ax : Float) ↦ fun (ay : Float) ↦ fun (az : Float) ↦ fun (bx : Float) ↦
   fun («by» : Float) ↦ fun (bz : Float) ↦
-  /-
-  Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
-      local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
-        1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
-        2. the cross norm is non-negative   |a x b|^2 >= 0,
-      whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
-  -/
-  ()
+  (show Unit from
+    /-
+    Cauchy-Schwarz: (a . b)^2 <= |a|^2 |b|^2, built from two helper facts that land in scope as
+        local hypotheses (so `linarith` composes them) -- the SOS certificate bare `nlinarith` can't find:
+          1. Lagrange's identity   |a x b|^2 + (a . b)^2 = |a|^2 |b|^2, and
+          2. the cross norm is non-negative   |a x b|^2 >= 0,
+        whence (a . b)^2 = |a|^2 |b|^2 - |a x b|^2 <= |a|^2 |b|^2.
+    -/
+    ())
 
 -- ----------------------------------------------------------------------------------------------
 -- Provable invariants: physical conservation laws
@@ -384,7 +385,7 @@ def main' :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut t := (0.0 : Rat)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x
@@ -445,18 +446,18 @@ def main''rn :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut t := (0.0 : Float)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Hooke spring (rest length 0): force F = -k (r1 - r2) on body 1, +k (r1 - r2) on body 2.
         -- Acceleration is F / m; all polynomial, no transcendentals.
         let mut dx := r1x -ₚ r2x
         let mut dy := r1y -ₚ r2y
         let mut dz := r1z -ₚ r2z
-        let mut a1x := PastaLean.pyFloat (-k *ₚ dx) /ₚ m1
-        let mut a1y := PastaLean.pyFloat (-k *ₚ dy) /ₚ m1
-        let mut a1z := PastaLean.pyFloat (-k *ₚ dz) /ₚ m1
-        let mut a2x := PastaLean.pyFloat (k *ₚ dx) /ₚ m2
-        let mut a2y := PastaLean.pyFloat (k *ₚ dy) /ₚ m2
-        let mut a2z := PastaLean.pyFloat (k *ₚ dz) /ₚ m2
+        let mut a1x := PastaLean.pyTrueDiv (-k *ₚ dx) m1
+        let mut a1y := PastaLean.pyTrueDiv (-k *ₚ dy) m1
+        let mut a1z := PastaLean.pyTrueDiv (-k *ₚ dz) m1
+        let mut a2x := PastaLean.pyTrueDiv (k *ₚ dx) m2
+        let mut a2y := PastaLean.pyTrueDiv (k *ₚ dy) m2
+        let mut a2z := PastaLean.pyTrueDiv (k *ₚ dz) m2
         -- Velocity-Verlet (here the force is linear, so a half/full kick step is exact enough).
         v1x := v1x +ₚ a1x *ₚ dt
         v1y := v1y +ₚ a1y *ₚ dt
@@ -486,9 +487,7 @@ def main''rn :=
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

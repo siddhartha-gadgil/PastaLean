@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 import PastaLean.PyAPI.Core
 import PastaLean.PyAPI.CommonProtocols.Iterable
@@ -59,6 +60,6 @@ instance {κ ν : Type} [BEq κ] [Hashable κ] [Inhabited ν] : PyGetItem (Std.H
   getItem m k :=
     match m.get? k with
     | some v => v
-    | none => panic! "KeyError"
+    | none => PastaLean.pyPanic "KeyError"
 
 end PastaLean

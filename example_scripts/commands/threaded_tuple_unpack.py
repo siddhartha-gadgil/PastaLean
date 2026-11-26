@@ -5,7 +5,7 @@
 def count_components(n: int, adj: list[list[int]]) -> int:
     vis = [False] * n
 
-    def dfs(i: int) -> (int, int):
+    def dfs(i: int) -> tuple[int, int]:
         vis[i] = True
         nodes, edges = (1, len(adj[i]))
         for j in adj[i]:

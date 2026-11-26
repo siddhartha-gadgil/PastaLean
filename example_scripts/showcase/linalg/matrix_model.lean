@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -250,7 +249,7 @@ def main' :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.ProofMode.pyInputProof "")
       let mut detA := det a b c d
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- One step of the linear map (x, y) -> (a x + b y, c x + d y).
         let mut nx := a *ₚ x +ₚ b *ₚ y
         let mut ny := c *ₚ x +ₚ d *ₚ y
@@ -275,7 +274,7 @@ def main''rn :=
       let mut nsteps : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut every : Int := PastaLean.pyInt (← PastaLean.pyInputIO "")
       let mut detA := det'rn a b c d
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- One step of the linear map (x, y) -> (a x + b y, c x + d y).
         let mut nx := a *ₚ x +ₚ b *ₚ y
         let mut ny := c *ₚ x +ₚ d *ₚ y
@@ -287,9 +286,7 @@ def main''rn :=
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

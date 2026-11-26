@@ -40,6 +40,7 @@ def pythonBuiltinMap? (name : String) : Option Lean.Name :=
   -- registry entries make them usable as first-class callables, e.g. `map(int, xs)`.
   | "int" => some ``pyInt
   | "str" => some ``pyStr
+  | "repr" => some ``PyPrintable.pyReprify
   | "float" => some ``pyFloat
   -- We have no real tuple-from-iterable runtime; `tuple(xs)` is treated as a list, which is
   -- adequate for the membership/comparison/iteration uses that appear in this subset.
@@ -52,6 +53,9 @@ def pythonBuiltinMap? (name : String) : Option Lean.Name :=
   | "list" => some ``pyList
   | "type" => some ``pyType
   | "eval" => some ``pyEval
+  -- `next(iter(e))` / `next(iter(e), d)`, rewritten by the driver (general iterators are stateful)
+  | "__pl_first" => some ``pyFirst
+  | "__pl_first_or" => some ``pyFirstOr
   | _ => none
 
 /-- Exact-mode overrides for builtins whose numeric result type changes when `float` lowers to

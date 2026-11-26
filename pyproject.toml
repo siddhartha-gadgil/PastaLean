@@ -20,6 +20,13 @@ server = [
     "pydantic>=2.0",
     "uvicorn>=0.30",
 ]
+# `pastalean refute`: extra CPython-side search engines. Without them refute still runs its own
+# enumeration, precondition-directed and Lean searches.
+refute = [
+    "hypothesis>=6",
+    "crosshair-tool>=0.0.80",
+    "icontract>=2.6",
+]
 # `pastalean mcp` only: the Model Context Protocol server for LLM clients.
 mcp = [
     "mcp>=2.3",

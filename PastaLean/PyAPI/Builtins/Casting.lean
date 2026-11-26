@@ -1,4 +1,6 @@
 import PastaLean.Imports
+import PastaLean.PyAPI.FloatOps
+import PastaLean.PyAPI.Operators
 import PastaLean.PyAPI.CommonProtocols.Iterable
 import PastaLean.PyAPI.PyPrint
 
@@ -23,11 +25,12 @@ instance : PyIntCast Int where
 /-- `int(x)` on an exact-mode real number (a transcendental result). `ℝ` is noncomputable, so this
 is `noncomputable` and only lets the program elaborate. -/
 noncomputable instance : PyIntCast ℝ where
-  pyInt x := ⌊x⌋
+  pyInt x := if x < 0 then ⌈x⌉ else ⌊x⌋
 
-/-- `int(q)` on an exact-mode rational truncates toward the floor (`⌊q⌋`), computable. -/
+/-- `int(q)` on an exact-mode rational truncates toward zero like Python (`int(-2.5) = -2`, not
+`⌊q⌋ = -3`), computable. -/
 instance : PyIntCast Rat where
-  pyInt q := ⌊q⌋
+  pyInt q := if q < 0 then ⌈q⌉ else ⌊q⌋
 
 instance : PyIntCast Nat where
   pyInt x := x
@@ -37,12 +40,28 @@ instance : PyIntCast Bool where
     | true => 1
     | false => 0
 
+/-- Python's `int(s)` literal: surrounding whitespace, an optional sign, decimal digits with single `_`
+separators between them. -/
+def pyParseIntLiteral? (s : String) : Option Int :=
+  let t := s.trimAscii.toString
+  let (neg, body) := match t.front with
+    | '-' => (true, (t.drop 1).toString)
+    | '+' => (false, (t.drop 1).toString)
+    | _ => (false, t)
+  let groups := body.splitOn "_"
+  if body.isEmpty || groups.any (fun g => g.isEmpty || !g.all Char.isDigit) then none
+  else
+    let n : Int := (String.join groups).toNat!
+    some (if neg then -n else n)
+
 instance : PyIntCast String where
-  pyInt s := s.trimAscii.toString.toInt? |>.getD 0
+  pyInt s := match pyParseIntLiteral? s with
+    | some n => n
+    | none => pyPanic s!"ValueError: invalid literal for int() with base 10: {pyReprString s}"
 
 /-- Python `int(x)` on a float truncates toward zero (e.g. `int(n ** 0.5)`). -/
 instance : PyIntCast Float where
-  pyInt x := if x ≥ 0 then (x.toUInt64.toNat : Int) else -((-x).toUInt64.toNat : Int)
+  pyInt := pyFloatToInt
 
 /-- Python `int(s, base)`: parse the string `s` as an integer in `base` (2–36), with an optional
 sign and the usual `0x`/`0b`/`0o` prefix for base 16/2/8. Malformed input yields `0`. -/
@@ -91,14 +110,13 @@ def pyList {α β : Type} [PyIterable α β] (x : α) : List β :=
   pyIter x
 
 /-- Convert an `Int` to a `Float` (no `Float.ofInt` in core; build from the magnitude). -/
-def floatOfInt (x : Int) : Float :=
-  if x ≥ 0 then Float.ofNat x.toNat else - Float.ofNat (-x).toNat
+def floatOfInt (x : Int) : Float := pyIntToFloat x
 
 /-- Python widens `int` to `float` implicitly (`xs[i] = 0` into a float list, `f = g[i]` from an int
 matrix into a float one). Mirror it so an `Int` value flows into a `Float` slot. Only relevant in
 `--approx` (Float) mode; exact mode uses `ℚ`, which already has `IntCast`. -/
 instance : Coe Int Float := ⟨floatOfInt⟩
-instance : Coe Nat Float := ⟨Float.ofNat⟩
+instance : Coe Nat Float := ⟨fun n => pyIntToFloat n⟩
 
 /-- Python's numeric tower bottoms out at `bool ⊆ int` (`True == 1`), which widens on up
 (`sum([True, False, True]) == 2`, a `bool` flowing into an int/float/ℚ slot). `int → ℚ`/`float`/`ℝ`
@@ -127,11 +145,11 @@ instance : PyFloatCast Float where pyFloat x := x
 -- `a / b` with untyped params, emitted as `pyFloat a /ₚ b`) to `Int`.
 @[default_instance]
 instance : PyFloatCast Int where pyFloat x := floatOfInt x
-instance : PyFloatCast Nat where pyFloat x := Float.ofNat x
+instance : PyFloatCast Nat where pyFloat x := pyIntToFloat x
 instance : PyFloatCast Bool where
   pyFloat | true => 1.0 | false => 0.0
 -- `float(q)` on a rational (`float(float('inf'))`, or a run twin whose value stayed `ℚ`): its `Float`.
-instance : PyFloatCast Rat where pyFloat x := x.toFloat
+instance : PyFloatCast Rat where pyFloat x := ratToFloatRound x
 /-- `10.0 ^ n` built by repeated multiplication (avoids `Nat` overflow for the exponent). -/
 private def tenPowNat : Nat → Float
   | 0 => 1.0
@@ -157,7 +175,7 @@ private def parseFloatString (s : String) : Float :=
     let (mant, exp) :=
       match lower.splitOn "e" with
       | [m] => (m, (0 : Int))
-      | [m, e] => (m, e.toInt?.getD 0)
+      | [m, e] => (m, ((if e.startsWith "+" then (e.drop 1).toString else e).toInt?).getD 0)
       | _ => (lower, 0)
     let (ip, fp) :=
       match mant.splitOn "." with
@@ -172,7 +190,26 @@ private def parseFloatString (s : String) : Float :=
     if neg then -v else v
 
 instance : PyFloatCast String where
-  pyFloat s := parseFloatString s
+  pyFloat s := pyParseFloat s
+
+/-- Python true division `a / b` in the run twin, which always yields a float. Two ints divide
+exactly and round once (as CPython does); anything else widens the left operand to `Float` first. -/
+class PyTrueDiv (α β : Type) where
+  trueDiv : α → β → Float
+
+instance (priority := low) {α β : Type} [PyFloatCast α] [PyHDiv Float β Float] : PyTrueDiv α β where
+  trueDiv a b := pyFloat a /ₚ b
+-- As with `PyFloatCast Int`: untyped operands (`def divide(a, b): return a / b`) default to `Int`.
+@[default_instance]
+instance : PyTrueDiv Int Int := ⟨pyIntTrueDiv⟩
+instance : PyTrueDiv Int Nat := ⟨fun a b => pyIntTrueDiv a b⟩
+instance : PyTrueDiv Nat Int := ⟨fun a b => pyIntTrueDiv a b⟩
+instance : PyTrueDiv Nat Nat := ⟨fun a b => pyIntTrueDiv a b⟩
+instance : PyTrueDiv Bool Int := ⟨fun a b => pyIntTrueDiv (if a then 1 else 0) b⟩
+instance : PyTrueDiv Int Bool := ⟨fun a b => pyIntTrueDiv a (if b then 1 else 0)⟩
+
+/-- Python `a / b` in the run twin. -/
+def pyTrueDiv {α β : Type} [PyTrueDiv α β] (a : α) (b : β) : Float := PyTrueDiv.trueDiv a b
 
 /-! ## Exact-mode `float(...)` → `ℚ`
 
@@ -263,7 +300,7 @@ private def parseRatString (s : String) : Rat :=
     let (mant, exp) :=
       match lower.splitOn "e" with
       | [m] => (m, (0 : Int))
-      | [m, e] => (m, e.toInt?.getD 0)
+      | [m, e] => (m, ((if e.startsWith "+" then (e.drop 1).toString else e).toInt?).getD 0)
       | _ => (lower, 0)
     let (ip, fp) :=
       match mant.splitOn "." with
@@ -272,6 +309,12 @@ private def parseRatString (s : String) : Rat :=
       | _ => (mant, "")
     let intVal : Nat := ip.toNat?.getD 0
     let fracVal : Nat := fp.toNat?.getD 0
+    -- past a double's range the literal is `inf` (the non-finite sentinel) or `0`, as the run twin's
+    -- `pyParseFloat` decides; computing `10 ^ exp` exactly there would never finish
+    if intVal + fracVal == 0 then 0
+    else if exp > 330 then pyRatNonFinite (if neg then "-inf" else "inf")
+    else if exp < -(345 + (fp.length : Int)) then 0
+    else
     let base : Rat := (intVal : Rat) + (fracVal : Rat) / tenPowNatRat fp.length
     let scale : Rat := if exp ≥ 0 then tenPowNatRat exp.toNat else 1 / tenPowNatRat (-exp).toNat
     let v := base * scale

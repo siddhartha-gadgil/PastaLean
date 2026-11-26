@@ -104,9 +104,14 @@ theorem strlen_correct : ∀ (string : String), strlen string ≥ (0 : Int) ∧ 
 ## When a proof will not close
 
 1. **Check the property is true.** The most common failure is a *false postcondition*, not a weak
-   proof. Evaluate the runnable twin on candidate inputs (`#eval f'rn 0`, `#eval f'rn (-1)`), or run
-   `run_differential` with a `__main__` that prints edge cases. If it is false, fix the Python or its
-   contract (that is a finding worth reporting), then re-translate.
+   proof. `pastalean refute f.py` (MCP: `find_counterexample`) searches for a counterexample with
+   in both Lean twins (CPython only confirms what it finds); inside a proof, `refute?` does the same for the current goal
+   and `#refute thm` for a declaration. `taste?` itself refutes first. A refutation comes with a
+   kernel-checked `refute_at` proof of the negation. If it is false, fix the Python or its contract
+   (that is a finding worth reporting), then re-translate. For float code, a proof over exact ℚ only
+   speaks for the float program if the property survives rounding: `ROUNDING_SENSITIVE` says it does
+   not, and `pastalean refute --float-report` shows how wide the IEEE error enclosure of each `-> float`
+   function is.
 2. **Strengthen the invariant.** An invariant must be inductive: strong enough that it implies itself
    after one more iteration, and that it implies the postcondition at the end. Most stuck `step`
    goals mean a fact is missing from it (a bound, a length, a relation to the loop index).

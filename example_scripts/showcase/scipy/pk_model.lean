@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -94,7 +93,7 @@ def concentration'rn := fun (amount : Float) ↦ fun (vol : Float) ↦
     /-
     Convert a compartment amount (mg) to a concentration (mg/L).
     -/
-    PastaLean.pyFloat amount /ₚ vol)
+    PastaLean.pyTrueDiv amount vol)
 
 noncomputable def body_load := fun (depot : Rat) ↦ fun (central : Rat) ↦ fun (periph : Rat) ↦
   /-
@@ -204,7 +203,7 @@ noncomputable def main' :=
       let mut periph := (0.0 : Rat)
       let mut t := (0.0 : Rat)
       let mut dose_num : Int := (0 : Int)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Administer a dose into the gut depot when one is due.
         if h_1 : step %ₚ dose_step = (0 : Int) then 
           if h_2 : dose_num < ndoses then 
@@ -246,7 +245,7 @@ def main''rn :=
       let mut periph := (0.0 : Float)
       let mut t := (0.0 : Float)
       let mut dose_num : Int := (0 : Int)
-      for step in (PastaLean.pyRange nsteps)do
+      for step in (PastaLean.pyRange nsteps) do
         -- Administer a dose into the gut depot when one is due.
         if h_1 : step %ₚ dose_step == (0 : Int) then 
           if h_2 : dose_num < ndoses then 
@@ -270,9 +269,7 @@ def main''rn :=
 
 noncomputable def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do

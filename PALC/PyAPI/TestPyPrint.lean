@@ -1,6 +1,10 @@
 import PastaLean.PyAPI.PyPrint
+import PastaLean.PyAPI.Arrays
 
 open PastaLean
+
+-- Array printing renders elements with `repr`, as the `List` instance (and CPython) does.
+#guard PyPrintable.pyStringify #["a", "b"] == "['a', 'b']"
 
 /-- info: "hello" -/
 #guard_msgs in
@@ -95,6 +99,14 @@ info: 9
 /-- info: "-1.5" -/
 #guard_msgs in
 #eval pyFloatRepr (-1.5 : Float)
+
+/-- info: "-0.0" -/
+#guard_msgs in
+#eval pyFloatRepr (-0.0 : Float)
+
+/-- info: "0.0" -/
+#guard_msgs in
+#eval pyFloatRepr (0.0 : Float)
 
 /-- info: "100.0" -/
 #guard_msgs in

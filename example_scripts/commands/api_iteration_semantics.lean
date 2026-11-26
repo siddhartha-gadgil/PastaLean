@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -23,7 +22,7 @@ def topo_order_count := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut g : List (List Int) := (PastaLean.pyRange n).map fun (_ : Int) => []
       let mut indeg : List Int := PastaLean.pyListRepeat [(0 : Int)] n
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         g := PastaLean.pySetItem g b (PastaLean.pyAppend g⦋b⦌ a)
@@ -35,7 +34,7 @@ def topo_order_count := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
         p'_fi'_1 := p'_fi'_1 +ₚ (1 : Int)
         let i := PastaLean.pyGetItem q p'_fi'_1
         seen := seen +ₚ (1 : Int)
-        for j in (PastaLean.pyIter g⦋i⦌)do
+        for j in (PastaLean.pyIter g⦋i⦌) do
           indeg := PastaLean.pySetItem indeg j (indeg⦋j⦌ -ₚ (1 : Int))
           if h_1 : indeg⦋j⦌ = (0 : Int) then 
             q := PastaLean.pyAppend q j
@@ -48,7 +47,7 @@ def topo_order_count'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
     (do
       let mut g : List (List Int) := (PastaLean.pyRange n).map fun (_ : Int) => []
       let mut indeg : Array Int := PastaLean.pyArrayRepeat #[(0 : Int)] n
-      for p'_pair_1 in (PastaLean.pyIter edges)do
+      for p'_pair_1 in (PastaLean.pyIter edges) do
         let a := PastaLean.pyListGetItem p'_pair_1 (0 : Int)
         let b := PastaLean.pyListGetItem p'_pair_1 (1 : Int)
         g := PastaLean.pySetItem g b (PastaLean.pyAppend g⦋b⦌ a)
@@ -60,7 +59,7 @@ def topo_order_count'rn := fun (n : Int) ↦ fun (edges : List (List Int)) ↦
         p'_fi'_1 := p'_fi'_1 +ₚ (1 : Int)
         let i := PastaLean.pyGetItem q p'_fi'_1
         seen := seen +ₚ (1 : Int)
-        for j in (PastaLean.pyIter g⦋i⦌)do
+        for j in (PastaLean.pyIter g⦋i⦌) do
           indeg := PastaLean.pySetItem indeg j (indeg⦋j⦌ -ₚ (1 : Int))
           if h_1 : indeg⦋j⦌ == (0 : Int) then 
             q := PastaLean.pyArrayAppend q j
@@ -148,7 +147,7 @@ def flip_invert := fun (image : List (List Int)) ↦
         let p'_loop_1 := PastaLean.pyGetItem image p'_fi'_1
         let mut row := p'_loop_1
         row := PastaLean.pyReverse row
-        for i in (PastaLean.pyRange (PastaLean.pyLen row))do
+        for i in (PastaLean.pyRange (PastaLean.pyLen row)) do
           row := PastaLean.pySetItem row i (PastaLean.pyBitXor row⦋i⦌ (1 : Int))
         image := PastaLean.pySetItem image p'_fi'_1 row
       return image)
@@ -167,7 +166,7 @@ def flip_invert'rn := fun (image : List (List Int)) ↦
         let p'_loop_1 := PastaLean.pyGetItem image p'_fi'_1
         let mut row := p'_loop_1
         row := PastaLean.pyReverse row
-        for i in (PastaLean.pyRange (PastaLean.pyLen row))do
+        for i in (PastaLean.pyRange (PastaLean.pyLen row)) do
           row := PastaLean.pySetItem row i (PastaLean.pyBitXor row⦋i⦌ (1 : Int))
         image := PastaLean.pySetItem image p'_fi'_1 row
       return image)

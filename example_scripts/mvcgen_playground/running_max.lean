@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -18,7 +17,7 @@ namespace PastaLean.User.Root
 def running_max := fun (xs : List Int) ↦
   (do
     let mut m : Int := xs⦋(0 : Int)⦌
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       let _ := Libraries.passta.pyPassInvariant (decide (m ≥ xs⦋(0 : Int)⦌))
       if h_1 : x > m then 
         m := x
@@ -47,7 +46,7 @@ def running_max'rn := fun (xs : List Int) ↦
     (do
       let _ := Libraries.passta.pyPassRequires (decide (PastaLean.pyLen xs > (0 : Int)))
       let mut m : Int := xs⦋(0 : Int)⦌
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let _ := Libraries.passta.pyPassInvariant (decide (m ≥ xs⦋(0 : Int)⦌))
         if h_1 : x > m then 
           m := x

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -20,7 +19,7 @@ def scan := fun (d : Std.HashMap PyAny Int) ↦ fun (xs : List PyAny) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for t in (PastaLean.pyIter xs)do
+      for t in (PastaLean.pyIter xs) do
         if h_1 : PastaLean.pyContains d t then 
           let mut k : Int := d⦋t⦌
           if h_2 : k < (100 : Int) then 
@@ -33,7 +32,7 @@ def scan'rn := fun (d : Std.HashMap PyAny Int) ↦ fun (xs : List PyAny) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for t in (PastaLean.pyIter xs)do
+      for t in (PastaLean.pyIter xs) do
         if h_1 : PastaLean.pyContains d t then 
           let mut k : Int := d⦋t⦌
           if h_2 : k < (100 : Int) then 

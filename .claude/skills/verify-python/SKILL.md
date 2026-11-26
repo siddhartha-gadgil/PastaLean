@@ -33,6 +33,25 @@ with the CLI (`uv run pastalean translate f.py -o f.lean`, `lake env lean f.lean
      Restructure the Python (`get_guide("verifiable_design")`) and translate again.
    - `compile.errors` should be empty. `open_obligations` lists the theorems to prove.
 
+3b. **Look for a counterexample first**: `find_counterexample(source=..., name="f")`. It searches every
+   property function (`def p(x): assert brute(x) == fast(x)`) and contract in both Lean twins (CPython
+   only executes the witnesses found, to confirm them), then
+   judges each witness in all three worlds:
+   - `REFUTED`: the claim is false everywhere. Report **False** with the witness and the
+     `refutation_theorem` (kernel-checked); do not try to prove it.
+   - `FLOAT_ONLY` / `ROUNDING_SENSITIVE` / `TWIN_DIVERGENCE_PROVABLE`: true over exact ℚ but not for
+     floats, or the other way round. A proof would not cover the float program; say so explicitly.
+     `ROUNDING_SENSITIVE` means the proved IEEE error enclosure cannot decide it (a rounding effect);
+     `float_model_report` measures how far each float function's twins drift from IEEE.
+   - `FIDELITY_BUG`: the Lean twins agree, CPython does not. Report it as a PastaLean bug.
+   - `PARTIALITY_GAP`: Python raises on the witness (e.g. division by zero) but the exact model returns a
+     default, so the theorem may still be provable. Report that the program crashes there; suggest a
+     `Requires` excluding the input.
+   - stdin programs (no contracts): `find_counterexample` compares CPython and both twins on generated
+     inputs; pass `against_path` (a brute-force reference) to get `PROGRAM_DIFF` inputs.
+   - `NO_COUNTEREXAMPLE`: go on to prove it. `taste?` also refutes first, so a false obligation it
+     meets is reported rather than searched.
+
 4. **Prove** each obligation by editing `lean_path`, **only the proof after `:= by`**.
    - Start from `get_guide("proving")` and the closest worked example: `list_proved_examples("mvcgen")`,
      then `get_example("CountUpTo")` or `get_example("playground/factorial")`.
@@ -67,9 +86,8 @@ with the CLI (`uv run pastalean translate f.py -o f.lean`, `lake env lean f.lean
 
 ## When a proof will not close
 
-First test the claim. Evaluate the runnable twin (`#eval f'rn …` in `check_lean`) or run
-`run_differential` on edge cases (0, negatives, empty lists, duplicates). False postconditions are
-the most common failure. If the claim holds, the invariant is usually too weak: add the missing
+First test the claim with `find_counterexample` (or `refute?` before the proof inside `check_lean`).
+False postconditions are the most common failure. If the claim holds, the invariant is usually too weak: add the missing
 bound, length, or relation to the loop index. If it only holds for some inputs, add a `Requires` to
 the Python and re-translate.
 

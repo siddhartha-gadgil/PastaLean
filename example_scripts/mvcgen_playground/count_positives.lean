@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -18,7 +17,7 @@ namespace PastaLean.User.Root
 def count_positives := fun (xs : List Int) ↦
   (do
     let mut cnt : Int := (0 : Int)
-    for x in (PastaLean.pyIter xs)do
+    for x in (PastaLean.pyIter xs) do
       let _ := Libraries.passta.pyPassInvariant (decide (cnt ≥ (0 : Int)))
       if h_1 : x > (0 : Int) then 
         cnt := cnt +ₚ (1 : Int)
@@ -45,7 +44,7 @@ def count_positives'rn := fun (xs : List Int) ↦
   Id.run
     (do
       let mut cnt : Int := (0 : Int)
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let _ := Libraries.passta.pyPassInvariant (decide (cnt ≥ (0 : Int)))
         if h_1 : x > (0 : Int) then 
           cnt := cnt +ₚ (1 : Int)

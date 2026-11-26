@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -48,24 +47,26 @@ def complex_branching'rn := fun (x : Int) ↦
   if x == (1 : Int) then "one" else if x == (2 : Int) then "two" else if x == (3 : Int) then "three" else "other"
 
 def cond_multi := fun (x : Int) ↦
-  Id.run do
-    let mut x := x
-    let mut a : Int := (1 : Int)
-    let mut b : Int := (2 : Int)
-    let mut c : Int := (1 : Int)
-    if h_1 : a < b ∧ b > c then 
-      x := x +ₚ (1 : Int)
+  (show Unit from
+    Id.run do
+      let mut x := x
+      let mut a : Int := (1 : Int)
+      let mut b : Int := (2 : Int)
+      let mut c : Int := (1 : Int)
+      if h_1 : a < b ∧ b > c then 
+        x := x +ₚ (1 : Int))
 
 attribute [simp, taste_ingr] cond_multi
 
 def cond_multi'rn := fun (x : Int) ↦
-  Id.run do
-    let mut x := x
-    let mut a : Int := (1 : Int)
-    let mut b : Int := (2 : Int)
-    let mut c : Int := (1 : Int)
-    if h_1 : decide (a < b) && decide (b > c) then 
-      x := x +ₚ (1 : Int)
+  (show Unit from
+    Id.run do
+      let mut x := x
+      let mut a : Int := (1 : Int)
+      let mut b : Int := (2 : Int)
+      let mut c : Int := (1 : Int)
+      if h_1 : decide (a < b) && decide (b > c) then 
+        x := x +ₚ (1 : Int))
 
 def cond_none := fun (x : PyAny) ↦
   Id.run

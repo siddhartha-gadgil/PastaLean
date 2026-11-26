@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -18,7 +17,7 @@ def heads_and_tails := fun (rows : List (List Int)) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate rows))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate rows)) do
         let i := Prod.fst p'_pair_1
         let p'_for_unpack_1 := Prod.snd p'_pair_1
         let p'_unpack_value_1 := p'_for_unpack_1
@@ -34,7 +33,7 @@ def heads_and_tails'rn := fun (rows : List (List Int)) ↦
   Id.run
     (do
       let mut total : Int := (0 : Int)
-      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate rows))do
+      for p'_pair_1 in (PastaLean.pyIter (PastaLean.pyEnumerate rows)) do
         let i := Prod.fst p'_pair_1
         let p'_for_unpack_1 := Prod.snd p'_pair_1
         let p'_unpack_value_1 := p'_for_unpack_1
@@ -49,8 +48,8 @@ def scalar_defaults := fun (keys : List PyAny) ↦
   Id.run
     (do
       let mut sums := Libraries.collections.PyDefaultDict.empty (0.0 : Float)
-      let mut names := Libraries.collections.PyDefaultDict.empty ""
-      for k in (PastaLean.pyIter keys)do
+      let mut names : Libraries.collections.PyDefaultDict PyAny String := Libraries.collections.PyDefaultDict.empty ""
+      for k in (PastaLean.pyIter keys) do
         sums := PastaLean.pySetItem sums k (sums⦋k⦌ +ₚ (1.5 : Rat))
         names := PastaLean.pySetItem names k (names⦋k⦌ +ₚ "x")
       let p'_ret_1 := names⦋keys⦋(0 : Int)⦌⦌ +ₚ PastaLean.pyStr (PastaLean.pyLen sums)
@@ -62,8 +61,8 @@ def scalar_defaults'rn := fun (keys : List PyAny) ↦
   Id.run
     (do
       let mut sums := Libraries.collections.PyDefaultDict.empty (0.0 : Float)
-      let mut names := Libraries.collections.PyDefaultDict.empty ""
-      for k in (PastaLean.pyIter keys)do
+      let mut names : Libraries.collections.PyDefaultDict PyAny String := Libraries.collections.PyDefaultDict.empty ""
+      for k in (PastaLean.pyIter keys) do
         sums := PastaLean.pySetItem sums k (sums⦋k⦌ +ₚ (1.5 : Float))
         names := PastaLean.pySetItem names k (names⦋k⦌ +ₚ "x")
       let p'_ret_1 := names⦋keys⦋(0 : Int)⦌⦌ +ₚ PastaLean.pyStr (PastaLean.pyLen sums)

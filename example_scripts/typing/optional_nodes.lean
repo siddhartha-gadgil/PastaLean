@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -28,6 +27,8 @@ structure TreeNode where
 
 instance : PastaLean.PyTruthy TreeNode where truthy _ := true
 
+instance : PastaLean.PyBool TreeNode where pyBool _ := true
+
 instance : PastaLean.PyTyped TreeNode where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
 instance : Coe TreeNode (Option TreeNode) :=
@@ -45,6 +46,8 @@ structure TreeNode'rn where
 
 instance : PastaLean.PyTruthy TreeNode'rn where truthy _ := true
 
+instance : PastaLean.PyBool TreeNode'rn where pyBool _ := true
+
 instance : PastaLean.PyTyped TreeNode'rn where pyTypeOf _ := TypeInfer.PyType.cls "TreeNode"
 
 instance : Coe TreeNode'rn (Option TreeNode'rn) :=
@@ -61,6 +64,8 @@ structure ListNode where
 
 instance : PastaLean.PyTruthy ListNode where truthy _ := true
 
+instance : PastaLean.PyBool ListNode where pyBool _ := true
+
 instance : PastaLean.PyTyped ListNode where pyTypeOf _ := TypeInfer.PyType.cls "ListNode"
 
 instance : Coe ListNode (Option ListNode) :=
@@ -75,6 +80,8 @@ structure ListNode'rn where
   deriving Inhabited, Repr, BEq
 
 instance : PastaLean.PyTruthy ListNode'rn where truthy _ := true
+
+instance : PastaLean.PyBool ListNode'rn where pyBool _ := true
 
 instance : PastaLean.PyTyped ListNode'rn where pyTypeOf _ := TypeInfer.PyType.cls "ListNode"
 
@@ -94,11 +101,15 @@ partial def depth'rn : Option TreeNode'rn → Int := fun (root : Option TreeNode
   else (1 : Int) +ₚ PastaLean.pyMax [depth'rn ((root).getD default).left, depth'rn ((root).getD default).right]
 
 -- Chained read: `root.left` is itself `Option TreeNode`, so `.val` needs a SECOND unwrap.
-def left_val := fun (root : Option TreeNode) ↦ ((((root).getD default).left).getD default).val
+def left_val := fun (root : Option TreeNode) ↦
+  if PastaLean.pyIsNone root ∨ PastaLean.pyIsNone ((root).getD default).left then (0 : Int)
+  else ((((root).getD default).left).getD default).val
 
 attribute [simp, taste_ingr] left_val
 
-def left_val'rn := fun (root : Option TreeNode'rn) ↦ ((((root).getD default).left).getD default).val
+def left_val'rn := fun (root : Option TreeNode'rn) ↦
+  if PastaLean.pyIsNone root || PastaLean.pyIsNone ((root).getD default).left then (0 : Int)
+  else ((((root).getD default).left).getD default).val
 
 -- Field WRITE through an `Option`: needs unwrap + re-wrap, not a bare record update.
 def bump := fun (head : Option ListNode) ↦
@@ -147,29 +158,5 @@ def total'rn := fun (head : Option ListNode'rn) ↦
         acc := acc +ₚ ((head).getD default).val
         head := ((head).getD default).next
       return acc)
-
--- Param annotated as a bare `ListNode` (NOT `Optional`), but `head = head.next` makes it nullable —
--- inference must widen the cursor to `Option ListNode` and the run twin must suffix the param class.
-def get_decimal := fun (head : Option ListNode) ↦
-  Id.run
-    (do
-      let mut head := head
-      let mut ans : Int := (0 : Int)
-      while (PastaLean.pyTruthy head) do
-        ans := PastaLean.pyBitOr (PastaLean.pyShiftLeft ans (1 : Int)) ((head).getD default).val
-        head := ((head).getD default).next
-      return ans)
-
-attribute [simp, taste_ingr] get_decimal
-
-def get_decimal'rn := fun (head : Option ListNode'rn) ↦
-  Id.run
-    (do
-      let mut head := head
-      let mut ans : Int := (0 : Int)
-      while (PastaLean.pyTruthy head) do
-        ans := PastaLean.pyBitOr (PastaLean.pyShiftLeft ans (1 : Int)) ((head).getD default).val
-        head := ((head).getD default).next
-      return ans)
 
 end PastaLean.User.Root

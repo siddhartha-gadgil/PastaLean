@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 800000
 
@@ -51,7 +50,7 @@ attribute [simp] add
 def add'rn := fun (a : PyAny) ↦ fun (b : PyAny) ↦ (show PastaLean.PyAny from a +ₚ b)
 
 @[taste_ingr]
-theorem add_thm : ∀ (a : PyAny), ∀ (b : PyAny), a +ₚ b +ₚ b = a +ₚ (b +ₚ b) := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; sorry
+theorem add_thm : ∀ (a : PyAny), ∀ (b : PyAny), a +ₚ b +ₚ b = a +ₚ (b +ₚ b) := by intros; simp_all (config := { zetaDelta := true }) [taste_ingr]; pyany_cases <;> grind +locals
 
 -- A try/except whose branches return different types (int vs str) → the whole function is PyAny,
 -- so the `PyExcept _` codomain in Exceptions.lean infers `PyAny` on its own.
@@ -61,7 +60,7 @@ def describe : Int → PastaLean.ProofMode.PyProofM PastaLean.PyAny := fun (x : 
       throw (PastaLean.PyException.Raise "ValueError" "")
     return (x : PastaLean.PyAny)
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       return ("negative" : PastaLean.PyAny)
     else
       throw caught
@@ -74,22 +73,20 @@ def describe'rn : Int → PastaLean.PyExcept PastaLean.PyAny := fun (x : Int) �
       throw (PastaLean.PyException.Raise "ValueError" "")
     return (x : PastaLean.PyAny)
   catch caught =>
-    if (caught).OfKind == "ValueError" then 
+    if PastaLean.pyExcIsA caught "ValueError" then 
       return ("negative" : PastaLean.PyAny)
     else
       throw caught
 
 def main : IO Unit := do
   let inputText ← IO.getStdin >>= fun h => h.readToEnd
-  let inputLines := String.splitOn inputText "\n"
-  let inputStream : PastaLean.ProofMode.IOStream :=
-    ⟨0, fun i => PastaLean.ProofMode.IOResult.success (List.getD inputLines i "")⟩
+  let inputStream : PastaLean.ProofMode.IOStream := PastaLean.ProofMode.IOStream.ofText inputText
   let initState : PastaLean.ProofMode.IOState := { input := inputStream, output := [] }
   let (result, finalState) :=
     (((do
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (classify (5 : Int))]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (classify (-(3 : Int)))]
-          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (reassigned)]
+          let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg reassigned]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (add (3 : Int) (4 : Int))]
           let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (add "x" "y")]
           let mut d1 := (← describe (5 : Int))
@@ -113,7 +110,7 @@ def main'rn : IO Unit := do
     (((do
             let _ ← pyPrintIO [pyPrintArg (classify'rn (5 : Int))]
             let _ ← pyPrintIO [pyPrintArg (classify'rn (-(3 : Int)))]
-            let _ ← pyPrintIO [pyPrintArg (reassigned'rn)]
+            let _ ← pyPrintIO [pyPrintArg reassigned'rn]
             let _ ← pyPrintIO [pyPrintArg (add'rn (3 : Int) (4 : Int))]
             let _ ← pyPrintIO [pyPrintArg (add'rn "x" "y")]
             let mut d1 := (← describe'rn (5 : Int))

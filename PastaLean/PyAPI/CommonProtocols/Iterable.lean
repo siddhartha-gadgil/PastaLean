@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 
 namespace PastaLean
@@ -16,6 +17,20 @@ class PyIterable (α : Type) (β : outParam Type) where
 def pyIter {α β : Type} [inst : PyIterable α β] (value : α) : List β :=
   inst.toPyList value
 
+/-- A list of subclass instances where a list of the base class is expected (`Coe Sub Base`, emitted
+for each class base). -/
+instance (priority := low) {α β : Type} [Coe α β] : CoeTail (List α) (List β) := ⟨List.map (fun a => ↑a)⟩
+
+/-- `next(iter(xs))`: the first element, `StopIteration` when there is none. -/
+def pyFirst {α β : Type} [PyIterable α β] [Inhabited β] (value : α) : β :=
+  match pyIter value with
+  | x :: _ => x
+  | [] => pyPanic "StopIteration"
+
+/-- `next(iter(xs), default)`. -/
+def pyFirstOr {α β : Type} [PyIterable α β] (value : α) (default : β) : β :=
+  (pyIter value).headD default
+
 /--
 Unpack exactly two elements from a Python-style iterable.
 
@@ -25,9 +40,9 @@ error when the iterable length is not exactly two.
 def pyUnpack2 {α β : Type} [inst : PyIterable α β] [Inhabited β] (value : α) : β × β :=
   match pyIter value with
   | [first, second] => (first, second)
-  | [] => panic! "ValueError: not enough values to unpack (expected 2, got 0)"
-  | [_] => panic! "ValueError: not enough values to unpack (expected 2, got 1)"
-  | _ => panic! "ValueError: too many values to unpack (expected 2)"
+  | [] => PastaLean.pyPanic "ValueError: not enough values to unpack (expected 2, got 0)"
+  | [_] => PastaLean.pyPanic "ValueError: not enough values to unpack (expected 2, got 1)"
+  | _ => PastaLean.pyPanic "ValueError: too many values to unpack (expected 2)"
 
 
 /-- Lists are already Python-style iterables. -/

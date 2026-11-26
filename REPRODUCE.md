@@ -116,7 +116,8 @@ a third artifact — the certificate behind each verdict (`docs/typeinfer-certif
 ```bash
 lake build typeinfer
 
-# Precision: 165 files believed correct. Every diagnostic is a candidate FALSE POSITIVE.
+# Precision: example_scripts, believed correct apart from the files marked `# type: ignore`.
+# Every diagnostic on the rest is a candidate FALSE POSITIVE.
 uv run PastaBench/typecheck_bench/check_corpus.py example_scripts --expect clean \
     --certs _certs/clean --verify --out _certs/clean.json
 
@@ -124,9 +125,18 @@ uv run PastaBench/typecheck_bench/check_corpus.py example_scripts --expect clean
 uv run PastaBench/typecheck_bench/check_corpus.py PastaBench/typecheck_bench/negative \
     --expect error --certs _certs/negative --verify --out _certs/negative.json
 
-# Recall at scale: mechanical annotation flips, scored differentially against the untouched original.
+# Recall at scale: mechanical annotation flips; a mutant is caught when it gets a (line, rule)
+# diagnostic its untouched original does not. The other checkers are found on .venv/bin or PATH
+# (paper versions: mypy 2.4.0, pyright 1.1.414, pyrefly 0.64.1, ty 0.0.90, zuban 0.10.1).
+uv venv /tmp/checkers && VIRTUAL_ENV=/tmp/checkers uv pip install mypy==2.4.0 pyright==1.1.414 \
+    pyrefly==0.64.1 ty==0.0.90 zuban==0.10.1
 uv run PastaBench/typecheck_bench/mutate.py example_scripts -o _tcb --per-file 3
-uv run PastaBench/typecheck_bench/bench_checkers.py _tcb --out _tcb/results.json
+PATH=/tmp/checkers/bin:$PATH uv run PastaBench/typecheck_bench/bench_checkers.py _tcb --out _tcb/results.json
+
+# Precision at scale: every diagnostic on mypy_primer (projects that type-check in their own CI) is a
+# candidate false positive. `--json` keeps every diagnostic, so two runs can be diffed line by line.
+uv run PastaBench/typecheck_bench/primer.py fetch     /tmp/primer   # ~3.7 GB, shallow clones
+uv run PastaBench/typecheck_bench/primer.py precision /tmp/primer --json _primer.json
 ```
 
 `--certs` writes one certificate per file plus a run manifest; `--verify` re-checks every one of them

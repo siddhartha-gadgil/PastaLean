@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 import PastaLean.PyAPI.Core
 import PastaLean.PyAPI.CommonProtocols.Iterable
@@ -195,7 +196,7 @@ Raises at runtime when the substring is missing, matching Python's `str.index`.
 def pyStringIndex (s sub : String) (start : Int := 0) (stop : Int := (s.length : Int)) : Int :=
   match (pyMatchPositions s sub start stop).head? with
   | some i => Int.ofNat i
-  | none => panic! "ValueError: substring not found"
+  | none => PastaLean.pyPanic "ValueError: substring not found"
 
 /-- Concrete string implementation for Python `startswith`. Python's optional `start`/`end` restrict
 the check to the slice `s[start:end]` (`s.startswith(pfx, i)` / `s.startswith(pfx, i, j)`). -/
@@ -290,7 +291,7 @@ def pyStringSplit : String → (sep : String := splitNoSepSentinel) → List Str
         splitOnPyWhitespace s
       else
         if sep = "" then
-          panic! "ValueError: empty separator"
+          PastaLean.pyPanic "ValueError: empty separator"
         else
           s.splitOn sep
 
@@ -354,7 +355,7 @@ def pyIsWhitespace : String → Bool
 def pyPartition : String → (sep : String) → (String × String × String)
   | s, sep =>
     match sep with
-    | "" => panic! "ValueError: empty separator"
+    | "" => PastaLean.pyPanic "ValueError: empty separator"
     | _ =>
       match s.find? sep with
       | some idx =>
@@ -377,7 +378,7 @@ theorem pyLower_is_lower (s : String) : pyIsLower s = true → pyStringLower s =
     · intro n
       by_cases h' : n < s.toList.length
       · simp_all only [List.length_map, String.length_toList, getElem!_pos, List.getElem_map]
-        have g : s.toList[n] ∈ s.toList := by simp
+        have g : s.toList[n] ∈ s.toList := List.getElem_mem _
         have g' : s.toList[n].isAlpha = false ∨ s.toList[n].isLower = true := by grind only [=
             List.all_eq]
         by_cases sc : s.toList[n].isLower
@@ -399,7 +400,7 @@ theorem pyUpper_is_upper (s : String) : pyIsUpper s = true → pyStringUpper s =
     · intro n
       by_cases h' : n < s.toList.length
       · simp_all only [List.length_map, String.length_toList, getElem!_pos, List.getElem_map]
-        have g : s.toList[n] ∈ s.toList := by simp
+        have g : s.toList[n] ∈ s.toList := List.getElem_mem _
         have g' : s.toList[n].isAlpha = false ∨ s.toList[n].isUpper = true := by grind only [= List.all_eq]
         by_cases sc : s.toList[n].isUpper
         · grind only [Char.toUpper_eq_of_not_isLower, Char.not_isLower_of_isUpper]

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -19,7 +18,7 @@ def stack_sum := fun (n : Int) ↦
   Id.run
     (do
       let mut st : List Int := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         st := PastaLean.pyAppend st i
       let mut total : Int := (0 : Int)
       while (PastaLean.pyTruthy st) do
@@ -34,7 +33,7 @@ def stack_sum'rn := fun (n : Int) ↦
   Id.run
     (do
       let mut st : Array Int := #[]
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         st := PastaLean.pyArrayAppend st i
       let mut total : Int := (0 : Int)
       while (PastaLean.pyTruthy st) do
@@ -72,7 +71,7 @@ def list_ops'rn :=
 def main' :=
   ((do
       let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (stack_sum (5 : Int))]
-      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg (list_ops)]) :
+      let _ ← PastaLean.ProofMode.pyPrintProof [pyPrintArg list_ops]) :
     PastaLean.ProofMode.PyProofM _)
 
 attribute [simp] main'
@@ -80,7 +79,7 @@ attribute [simp] main'
 def main''rn :=
   ((do
       let _ ← pyPrintIO [pyPrintArg (stack_sum'rn (5 : Int))]
-      let _ ← pyPrintIO [pyPrintArg (list_ops'rn)]) :
+      let _ ← pyPrintIO [pyPrintArg list_ops'rn]) :
     IO _)
 
 def main : IO Unit := do

@@ -7,7 +7,6 @@ open Libraries
 open Std.Do
 
 set_option linter.all false
-set_option mvcgen.warning false
 
 set_option maxHeartbeats 200000
 
@@ -34,7 +33,7 @@ private partial def _count_components'dfs := fun (i : Int) ↦ fun (adj : List (
         let p'_ret_1 := ((0 : Int), seen)
         return p'_ret_1
       seen := PastaLean.pySetAdd seen i
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         let p'_unpack_value_1 := _count_components'dfs j adj seen
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t1 := Prod.fst p'_unpack_pair_1
@@ -47,7 +46,7 @@ def count_components := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut seen : PastaLean.PySet Int := PastaLean.pySetFromList []
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _count_components'dfs i adj seen
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t3 := Prod.fst p'_unpack_pair_1
@@ -67,7 +66,7 @@ private partial def _count_components'dfs'rn := fun (i : Int) ↦ fun (adj : Lis
         let p'_ret_1 := ((0 : Int), seen)
         return p'_ret_1
       seen := PastaLean.pySetAdd seen i
-      for j in (PastaLean.pyIter adj⦋i⦌)do
+      for j in (PastaLean.pyIter adj⦋i⦌) do
         let p'_unpack_value_1 := _count_components'dfs'rn j adj seen
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t1 := Prod.fst p'_unpack_pair_1
@@ -80,7 +79,7 @@ def count_components'rn := fun (n : Int) ↦ fun (adj : List (List Int)) ↦
     (do
       let mut seen : PastaLean.PySet Int := PastaLean.pySetFromList []
       let mut p'_cc2 := []
-      for i in (PastaLean.pyRange n)do
+      for i in (PastaLean.pyRange n) do
         let p'_unpack_value_1 := _count_components'dfs'rn i adj seen
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t3 := Prod.fst p'_unpack_pair_1
@@ -102,7 +101,7 @@ def running := fun (xs : List Int) ↦
     (do
       let mut total : Int := (0 : Int)
       let mut p'_cc1 := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let p'_unpack_value_1 := _running'step x total
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1
@@ -121,7 +120,7 @@ def running'rn := fun (xs : List Int) ↦
     (do
       let mut total : Int := (0 : Int)
       let mut p'_cc1 := []
-      for x in (PastaLean.pyIter xs)do
+      for x in (PastaLean.pyIter xs) do
         let p'_unpack_value_1 := _running'step'rn x total
         let p'_unpack_pair_1 := p'_unpack_value_1
         let mut p'_thread_t2 := Prod.fst p'_unpack_pair_1

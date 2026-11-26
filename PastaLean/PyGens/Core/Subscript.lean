@@ -50,6 +50,9 @@ def subscriptTermFromValue (valueJson sliceJson : Json) (valueCode : TSyntax `te
           | _ => none
     let isTuple := tupleArity.isSome
     let isString := isStringConstant valueJson
+    -- A boxed `PyAny` container takes a boxed index (its `PyGetItem` index is the `outParam` `PyAny`).
+    if sliceJson.getObjValAs? Bool "_box_index" == .ok true then
+      return ← `($valueCode⦋($(← getCode sliceJson `term) : PastaLean.PyAny)⦌)
 
     -- TypeInfer proved this index in range (`for h : i in range(len(xs))`, `_inbounds_h` on the slice):
     -- index through the proof, so no `Inhabited` default and no unreachable `panic!`. Not under

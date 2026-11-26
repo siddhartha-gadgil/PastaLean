@@ -1,3 +1,4 @@
+import PastaLean.PyAPI.PyPanic
 import PastaLean.Imports
 import PastaLean.PyAPI.CommonProtocols.Iterable
 import PastaLean.PyAPI.Operators
@@ -70,7 +71,7 @@ theorem pySum_Singleton {α β γ : Type} [inst : PyIterable α β] [PySummand �
 
 /-- Pick the minimum element of a non-empty list using `Ord`. -/
 private def pyMinList [Ord α] [Inhabited α] : List α → α
-  | [] => panic! "ValueError: min() arg is an empty sequence"
+  | [] => PastaLean.pyPanic "ValueError: min() arg is an empty sequence"
   | x :: xs =>
       xs.foldl
         (fun best y => if compare y best == Ordering.lt then y else best)
@@ -98,7 +99,7 @@ theorem pyMin_singleton [inst : PyIterable α β] [Ord β] [Inhabited β] : ∀ 
 
 /-- Pick the maximum element of a non-empty list using `Ord`. -/
 private def pyMaxList [Ord α] [Inhabited α] : List α → α
-  | [] => panic! "ValueError: max() arg is an empty sequence"
+  | [] => PastaLean.pyPanic "ValueError: max() arg is an empty sequence"
   | x :: xs =>
       xs.foldl
         (fun best y => if compare y best == Ordering.gt then y else best)
@@ -124,7 +125,7 @@ def pyMax {α β : Type} [inst : PyIterable α β] [Ord β] [Inhabited β] (xs :
 first element (Python's `min` is stable on the leftmost minimum). -/
 def pyMinBy {α β κ : Type} [PyIterable α β] [Ord κ] [Inhabited β] (key : β → κ) (xs : α) : β :=
   match pyIter xs with
-  | [] => panic! "ValueError: min() arg is an empty sequence"
+  | [] => PastaLean.pyPanic "ValueError: min() arg is an empty sequence"
   | x :: rest =>
       rest.foldl (fun best y => if compare (key y) (key best) == Ordering.lt then y else best) x
 
@@ -132,7 +133,7 @@ def pyMinBy {α β κ : Type} [PyIterable α β] [Ord κ] [Inhabited β] (key : 
 matching Python). -/
 def pyMaxBy {α β κ : Type} [PyIterable α β] [Ord κ] [Inhabited β] (key : β → κ) (xs : α) : β :=
   match pyIter xs with
-  | [] => panic! "ValueError: max() arg is an empty sequence"
+  | [] => PastaLean.pyPanic "ValueError: max() arg is an empty sequence"
   | x :: rest =>
       rest.foldl (fun best y => if compare (key y) (key best) == Ordering.gt then y else best) x
 

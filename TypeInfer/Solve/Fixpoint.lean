@@ -436,7 +436,7 @@ partial def inferFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Env :=
   let declTypes : Env := stmts.foldl (fun m s =>
     if nodeTypeOf s == some "Assign" then
       match (getField s "target").bind nameId?, getField s "_decl_ty" with
-      | some name, some ann => m.insert name (ofAnnotation ann)
+      | some name, some ann => m.insert name (ofAnnotation ann (anyDynamic := true))
       | _, _ => m
     else m) {}
   let mut env := paramUsageSeed fn
@@ -477,6 +477,11 @@ partial def inferFunction (sigs : Sigs) (outer hints : Env) (fn : Json) : Env :=
 `inferFunction`. Split out so a caller that already holds the env (the interprocedural fixpoint, which
 also needs it for call-site refinement) computes the body env ONCE instead of inferring it twice. -/
 partial def returnTypeFromEnv (sigs : Sigs) (env : Env) (fn : Json) : PyType := Id.run do
+  -- A return annotation that fixes the type wins: the codegen signature uses it too.
+  let ann := match getField fn "returns" with
+    | some r => if r.isNull then PyType.unknown else ofAnnotation r (anyDynamic := true)
+    | none => PyType.unknown
+  if ann.isDeclared then return ann
   let body := (fn.getObjValAs? (Array Json) "body").toOption.getD #[]
   let mut ret : PyType := .unknown
   let mut sawValueReturn := false
